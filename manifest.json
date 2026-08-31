@@ -1,6 +1,6 @@
 {
-  "name": "Хабезский гипсовый завод",
-  "short_name": "ХГЗ",
+  "name": "Habez",
+  "short_name": "Habez",
   "description": "Каталог продукции Хабезского гипсового завода",
   "start_url": "./index.html",
   "scope": "./",
