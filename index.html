@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Хабезский гипсовый завод</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2c4f78">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-row">
+      <button id="drawer-btn" class="drawer-btn" aria-label="Разделы">☰</button>
+      <div class="brand">
+        <div class="brand-eyebrow">Хабезский гипсовый завод</div>
+        <h1>Каталог продукции</h1>
+      </div>
+    </div>
+    <input id="search" class="search" type="search" placeholder="Поиск по названию…">
+  </div>
+
+  <div id="drawer-backdrop" class="drawer-backdrop"></div>
+  <div id="drawer" class="drawer">
+    <div class="drawer-head">Разделы</div>
+    <div id="drawer-list" class="drawer-list"></div>
+  </div>
+
+  <button id="compare-btn" class="compare-btn" style="display:none">⇄ Сравнить клеи</button>
+  <div id="grid" class="grid"></div>
+
+  <div id="compare-backdrop" class="sheet-backdrop"></div>
+  <div id="compare-sheet" class="sheet compare-sheet">
+    <button id="compare-close" class="close">✕</button>
+    <h2>Как выбрать клей</h2>
+    <div id="compare-table-wrap" class="compare-table-wrap"></div>
+  </div>
+
+  <div id="backdrop" class="sheet-backdrop"></div>
+  <div id="sheet" class="sheet">
+    <button id="sheet-close" class="close">✕</button>
+    <div id="sheet-photo" class="photo-big"></div>
+    <h2 id="sheet-name"></h2>
+    <p id="sheet-price" class="price"></p>
+    <p id="sheet-gost" class="gost"></p>
+    <div id="sheet-badges" class="badges"></div>
+    <div id="sheet-body"></div>
+  </div>
+
+  <script src="app.js?v=2"></script>
+</body>
+</html>
