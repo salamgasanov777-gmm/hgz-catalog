@@ -144,6 +144,61 @@ window.addEventListener("popstate", () => {
   unlockScroll();
 });
 
+// Закрытие шторки свайпом вниз. Тянуть можно только когда содержимое уже
+// прокручено к началу — иначе жест конфликтовал бы с чтением длинных карточек.
+function enableSwipeToClose(sheet) {
+  const CLOSE_AFTER = 90; // столько нужно протянуть, чтобы окно закрылось
+  let startY = 0;
+  let shift = 0;
+  let dragging = false;
+
+  sheet.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.touches.length !== 1 || sheet.scrollTop > 0) return;
+      startY = e.touches[0].clientY;
+      shift = 0;
+      dragging = true;
+      sheet.style.transition = "none";
+    },
+    { passive: true }
+  );
+
+  sheet.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!dragging) return;
+      shift = e.touches[0].clientY - startY;
+      if (shift <= 0) {
+        // Палец пошёл вверх — это обычная прокрутка, отдаём жест содержимому.
+        sheet.style.transform = "";
+        return;
+      }
+      e.preventDefault();
+      sheet.style.transform = `translateY(${shift}px)`;
+    },
+    { passive: false }
+  );
+
+  const finish = () => {
+    if (!dragging) return;
+    dragging = false;
+    sheet.style.transition = "";
+    sheet.style.transform = "";
+    // Стили сбрасываются до закрытия, поэтому окно доезжает вниз плавно,
+    // с той точки, где его отпустили.
+    if (shift > CLOSE_AFTER) dismissOverlay();
+    shift = 0;
+  };
+
+  sheet.addEventListener("touchend", finish);
+  sheet.addEventListener("touchcancel", finish);
+}
+
+["sheet", "compare-sheet", "qr-sheet", "ios-sheet"].forEach((id) =>
+  enableSwipeToClose(document.getElementById(id))
+);
+
 function openDrawer() {
   document.getElementById("drawer").classList.add("open");
   document.getElementById("drawer-backdrop").classList.add("open");

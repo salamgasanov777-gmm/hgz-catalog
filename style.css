@@ -410,6 +410,17 @@ html {
 }
 .sheet.open { transform: translateY(0); }
 
+/* Полоска сверху подсказывает, что окно можно потянуть вниз. */
+.sheet::before {
+  content: "";
+  display: block;
+  width: 38px;
+  height: 4px;
+  margin: -6px auto 12px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
 .sheet .photo-big {
   width: 100%;
   aspect-ratio: 16 / 9;
