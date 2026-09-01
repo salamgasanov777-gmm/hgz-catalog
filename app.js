@@ -1,11 +1,20 @@
 let products = [];
 let activeCategory = "Все";
+let currentProduct = null;
 
 async function load() {
   const res = await fetch("./products.json", { cache: "no-store" });
   products = await res.json();
   renderCategories();
   render();
+  openFromHash();
+}
+
+function openFromHash() {
+  const m = location.hash.match(/#p=(\d+)/);
+  if (!m) return;
+  const p = products.find((x) => String(x.id) === m[1]);
+  if (p) openSheet(p);
 }
 
 function renderCategories() {
@@ -89,6 +98,7 @@ function esc(s) {
 }
 
 function openSheet(p) {
+  currentProduct = p;
   document.getElementById("sheet-photo").style.backgroundImage = p.photo ? `url('${p.photo}')` : "none";
   document.getElementById("sheet-name").textContent = p.name;
   document.getElementById("sheet-price").textContent = [p.unit, p.price].filter(Boolean).join(" · ");
@@ -131,9 +141,35 @@ function openSheet(p) {
     wireCalc(p.calc);
   }
 
+  document.getElementById("sheet-share").href = `https://wa.me/?text=${encodeURIComponent(shareText(p))}`;
+
   document.getElementById("backdrop").classList.add("open");
   document.getElementById("sheet").classList.add("open");
   document.getElementById("sheet").scrollTop = 0;
+}
+
+function shareText(p) {
+  const lines = [];
+  lines.push(p.name);
+  const meta = [p.unit, p.price].filter(Boolean).join(" · ");
+  if (meta) lines.push(meta);
+  if (p.gost) lines.push(p.gost);
+  lines.push("");
+
+  if (p.summary) {
+    lines.push(p.summary);
+    lines.push("");
+  }
+
+  if (p.badges && p.badges.length) {
+    p.badges.forEach((b) => lines.push(`• ${b.label}: ${b.value}`));
+    lines.push("");
+  }
+
+  const link = `${location.origin}${location.pathname}#p=${p.id}`;
+  lines.push(`Подробнее: ${link}`);
+
+  return lines.join("\n");
 }
 
 function calcHtml(calc) {

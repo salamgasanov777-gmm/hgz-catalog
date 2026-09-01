@@ -306,6 +306,19 @@ html, body {
 .badge-value { font-size: 13px; font-weight: 700; color: var(--accent); }
 .badge-label { font-size: 10px; color: var(--muted); line-height: 1.2; }
 
+.share-btn {
+  display: block;
+  width: 100%;
+  margin: 0 0 16px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid #25d366;
+  background: #e9faf0;
+  color: #128c3e;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
 .summary {
   font-size: 15px;
   color: var(--ink);
