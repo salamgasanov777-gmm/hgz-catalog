@@ -1,6 +1,28 @@
 let products = [];
 let activeCategory = "Все";
+let activeTask = null;
 let currentProduct = null;
+
+// Подбор по задаче: у большинства товаров ответ уже есть в таблице «Область
+// применения», у грунтовок и красок такой таблицы нет — им задачи проставлены
+// полем "tasks" в products.json.
+const TASKS = [
+  { key: "wet", label: "Ванная", needles: ["повышенным уровнем влажности"] },
+  { key: "dry", label: "Комната", needles: ["нормальным уровнем влажности"] },
+  { key: "facade", label: "Фасад", needles: ["асад"] },
+  { key: "floor-heat", label: "Тёплый пол", needles: ["теплых полов"] },
+  { key: "plinth", label: "Цоколь", needles: ["Сложные поверхности", "Цоколь"] },
+];
+
+function matchesTask(p, taskKey) {
+  if (Array.isArray(p.tasks)) return p.tasks.includes(taskKey);
+
+  const task = TASKS.find((t) => t.key === taskKey);
+  const table = (p.tables || []).find((t) => t.title === "Область применения");
+  if (!task || !table) return false;
+
+  return table.rows.some(([label, value]) => value === "ДА" && task.needles.some((n) => label.includes(n)));
+}
 
 function loadFavorites() {
   try {
@@ -150,15 +172,30 @@ document.getElementById("fav-nav-btn").addEventListener("click", () => {
   selectCategory(activeCategory === "__fav__" ? "Все" : "__fav__");
 });
 
+function renderTasks() {
+  const wrap = document.getElementById("task-row");
+  wrap.innerHTML = TASKS.map(
+    (t) => `<button class="task-chip ${t.key === activeTask ? "active" : ""}" data-task="${t.key}">${esc(t.label)}</button>`
+  ).join("");
+  wrap.querySelectorAll(".task-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeTask = activeTask === btn.dataset.task ? null : btn.dataset.task;
+      render();
+    });
+  });
+}
+
 function render() {
   updateFavNav();
+  renderTasks();
   const q = document.getElementById("search").value.trim().toLowerCase();
   const grid = document.getElementById("grid");
   const filtered = products.filter((p) => {
     const matchesCat =
       activeCategory === "Все" ? true : activeCategory === "__fav__" ? isFavorite(p.id) : p.category === activeCategory;
     const matchesQ = !q || p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q);
-    return matchesCat && matchesQ;
+    const matchesTaskFilter = !activeTask || matchesTask(p, activeTask);
+    return matchesCat && matchesQ && matchesTaskFilter;
   });
 
   const compareBtn = document.getElementById("compare-btn");
@@ -167,10 +204,16 @@ function render() {
   if (compareConfig) compareBtn.textContent = compareConfig.buttonLabel;
 
   if (filtered.length === 0) {
-    grid.innerHTML =
-      activeCategory === "__fav__"
-        ? `<div class="empty">В избранном пока пусто.<br>Нажмите ★ на карточке товара, чтобы добавить.</div>`
-        : `<div class="empty">Пока ничего нет.<br>Добавьте товары в products.json</div>`;
+    let msg;
+    if (activeCategory === "__fav__") {
+      msg = "В избранном пока пусто.<br>Нажмите ★ на карточке товара, чтобы добавить.";
+    } else if (activeTask) {
+      const label = TASKS.find((t) => t.key === activeTask)?.label;
+      msg = `Под задачу «${esc(label)}» в этом разделе ничего нет.<br>Снимите фильтр или выберите другой раздел.`;
+    } else {
+      msg = "Пока ничего нет.<br>Добавьте товары в products.json";
+    }
+    grid.innerHTML = `<div class="empty">${msg}</div>`;
     return;
   }
 
