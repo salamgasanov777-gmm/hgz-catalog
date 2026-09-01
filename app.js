@@ -2,6 +2,25 @@ let products = [];
 let activeCategory = "Все";
 let currentProduct = null;
 
+function loadFavorites() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem("hgz-favorites") || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+let favorites = loadFavorites();
+
+function isFavorite(id) {
+  return favorites.has(id);
+}
+
+function toggleFavorite(id) {
+  if (favorites.has(id)) favorites.delete(id);
+  else favorites.add(id);
+  localStorage.setItem("hgz-favorites", JSON.stringify([...favorites]));
+}
+
 async function load() {
   const res = await fetch("./products.json", { cache: "no-store" });
   products = await res.json();
@@ -18,11 +37,16 @@ function openFromHash() {
 }
 
 function renderCategories() {
-  const cats = ["Все", ...new Set(products.map((p) => p.category).filter(Boolean))];
+  const cats = new Set(products.map((p) => p.category).filter(Boolean));
+  const items = [
+    { key: "Все", label: "Все" },
+    { key: "__fav__", label: "★ Избранное" },
+    ...[...cats].map((c) => ({ key: c, label: c })),
+  ];
 
   const drawerList = document.getElementById("drawer-list");
-  drawerList.innerHTML = cats
-    .map((c) => `<button class="drawer-item ${c === activeCategory ? "active" : ""}" data-cat="${c}">${c}</button>`)
+  drawerList.innerHTML = items
+    .map((c) => `<button class="drawer-item ${c.key === activeCategory ? "active" : ""}" data-cat="${esc(c.key)}">${esc(c.label)}</button>`)
     .join("");
   drawerList.querySelectorAll(".drawer-item").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -54,7 +78,8 @@ function render() {
   const q = document.getElementById("search").value.trim().toLowerCase();
   const grid = document.getElementById("grid");
   const filtered = products.filter((p) => {
-    const matchesCat = activeCategory === "Все" || p.category === activeCategory;
+    const matchesCat =
+      activeCategory === "Все" ? true : activeCategory === "__fav__" ? isFavorite(p.id) : p.category === activeCategory;
     const matchesQ = !q || p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q);
     return matchesCat && matchesQ;
   });
@@ -65,7 +90,10 @@ function render() {
   if (compareConfig) compareBtn.textContent = compareConfig.buttonLabel;
 
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="empty">Пока ничего нет.<br>Добавьте товары в products.json</div>`;
+    grid.innerHTML =
+      activeCategory === "__fav__"
+        ? `<div class="empty">В избранном пока пусто.<br>Нажмите ★ на карточке товара, чтобы добавить.</div>`
+        : `<div class="empty">Пока ничего нет.<br>Добавьте товары в products.json</div>`;
     return;
   }
 
@@ -74,6 +102,7 @@ function render() {
       (p, i) => `
     <div class="card" data-id="${p.id ?? i}">
       <div class="photo" style="${p.photo ? `background-image:url('${p.photo}')` : ""}">${p.photo ? "" : p.name}</div>
+      <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? i}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
         <p class="name">${p.name}</p>
         <p class="meta">${p.unit || ""}${p.price ? " · " + p.price : ""}</p>
@@ -83,8 +112,13 @@ function render() {
     .join("");
 
   grid.querySelectorAll(".card").forEach((card) => {
+    const id = card.dataset.id;
+    card.querySelector(".fav-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleFavorite(Number(id));
+      render();
+    });
     card.addEventListener("click", () => {
-      const id = card.dataset.id;
       const p = filtered.find((x, i) => String(p_id(x, i)) === id);
       openSheet(p);
     });
@@ -99,8 +133,22 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function updateSheetFavButton() {
+  const btn = document.getElementById("sheet-fav");
+  const fav = currentProduct && isFavorite(currentProduct.id);
+  btn.textContent = fav ? "★" : "☆";
+  btn.classList.toggle("active", !!fav);
+}
+
+document.getElementById("sheet-fav").addEventListener("click", () => {
+  if (!currentProduct) return;
+  toggleFavorite(currentProduct.id);
+  updateSheetFavButton();
+});
+
 function openSheet(p) {
   currentProduct = p;
+  updateSheetFavButton();
   document.getElementById("sheet-photo").style.backgroundImage = p.photo ? `url('${p.photo}')` : "none";
   document.getElementById("sheet-name").textContent = p.name;
   document.getElementById("sheet-price").textContent = [p.unit, p.price].filter(Boolean).join(" · ");
