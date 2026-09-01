@@ -511,6 +511,82 @@ function closeCompare() {
   document.getElementById("compare-backdrop").classList.remove("open");
   document.getElementById("compare-sheet").classList.remove("open");
 }
+// Адрес прописан явно, а не берётся из location: код должен вести на живой
+// сайт даже когда каталог открыт локально при разработке.
+const APP_URL = "https://salamgasanov777-gmm.github.io/hgz-catalog/";
+
+document.getElementById("qr-btn").addEventListener("click", () => {
+  const canvas = document.getElementById("qr-canvas");
+  // Модуль в 8 точек: код остаётся читаемым и когда его показывают
+  // с экрана телефона, и когда распечатывают.
+  QR.draw(canvas, APP_URL, 8);
+  document.getElementById("qr-url").textContent = APP_URL.replace(/^https:\/\//, "");
+  document.getElementById("qr-backdrop").classList.add("open");
+  document.getElementById("qr-sheet").classList.add("open");
+  openOverlay(closeQr);
+});
+
+function closeQr() {
+  document.getElementById("qr-backdrop").classList.remove("open");
+  document.getElementById("qr-sheet").classList.remove("open");
+}
+document.getElementById("qr-backdrop").addEventListener("click", dismissOverlay);
+document.getElementById("qr-close").addEventListener("click", dismissOverlay);
+
+// Установка на телефон. В Chrome браузер сам сообщает о готовности через
+// beforeinstallprompt, в Safari такого события нет — там показываем инструкцию.
+let installPrompt = null;
+
+function isStandalone() {
+  return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function showInstallBar() {
+  if (isStandalone() || localStorage.getItem("hgz-install-hidden")) return;
+  document.getElementById("install-bar").classList.add("open");
+}
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  showInstallBar();
+});
+
+if (isIOS()) showInstallBar();
+
+document.getElementById("install-yes").addEventListener("click", async () => {
+  if (installPrompt) {
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    document.getElementById("install-bar").classList.remove("open");
+    return;
+  }
+  document.getElementById("ios-backdrop").classList.add("open");
+  document.getElementById("ios-sheet").classList.add("open");
+  openOverlay(closeIos);
+});
+
+function closeIos() {
+  document.getElementById("ios-backdrop").classList.remove("open");
+  document.getElementById("ios-sheet").classList.remove("open");
+}
+document.getElementById("ios-backdrop").addEventListener("click", dismissOverlay);
+document.getElementById("ios-close").addEventListener("click", dismissOverlay);
+
+document.getElementById("install-no").addEventListener("click", () => {
+  localStorage.setItem("hgz-install-hidden", "1");
+  document.getElementById("install-bar").classList.remove("open");
+});
+
+window.addEventListener("appinstalled", () => {
+  document.getElementById("install-bar").classList.remove("open");
+});
+
 document.getElementById("compare-btn").addEventListener("click", openCompare);
 document.getElementById("compare-backdrop").addEventListener("click", dismissOverlay);
 document.getElementById("compare-close").addEventListener("click", dismissOverlay);

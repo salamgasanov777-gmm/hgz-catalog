@@ -24,6 +24,7 @@
         <span class="fav-nav-star">☆</span>
         <span id="fav-count" class="fav-count"></span>
       </button>
+      <button id="qr-btn" class="icon-btn" aria-label="QR-код каталога">▦</button>
     </div>
     <input id="search" class="search" type="search" placeholder="Поиск по названию…">
     <div id="task-row" class="task-row"></div>
@@ -45,6 +46,32 @@
     <div id="compare-table-wrap" class="compare-table-wrap"></div>
   </div>
 
+  <div id="qr-backdrop" class="sheet-backdrop"></div>
+  <div id="qr-sheet" class="sheet qr-sheet">
+    <button id="qr-close" class="close">✕</button>
+    <h2>Каталог на телефон</h2>
+    <p class="qr-hint">Наведите камеру телефона на код — откроется этот каталог. Его можно установить на телефон и пользоваться как приложением.</p>
+    <canvas id="qr-canvas" class="qr-canvas"></canvas>
+    <p id="qr-url" class="qr-url"></p>
+  </div>
+
+  <div id="install-bar" class="install-bar">
+    <span class="install-text">Установить каталог на телефон</span>
+    <button id="install-yes" class="install-yes">Установить</button>
+    <button id="install-no" class="install-no" aria-label="Скрыть">✕</button>
+  </div>
+
+  <div id="ios-backdrop" class="sheet-backdrop"></div>
+  <div id="ios-sheet" class="sheet ios-sheet">
+    <button id="ios-close" class="close">✕</button>
+    <h2>Установка на iPhone</h2>
+    <ol class="ios-steps">
+      <li>Нажмите <b>Поделиться</b> — квадрат со стрелкой вверх внизу экрана.</li>
+      <li>Пролистайте список и выберите <b>На экран «Домой»</b>.</li>
+      <li>Нажмите <b>Добавить</b> — каталог появится значком среди приложений.</li>
+    </ol>
+  </div>
+
   <div id="backdrop" class="sheet-backdrop"></div>
   <div id="sheet" class="sheet">
     <button id="sheet-close" class="close">✕</button>
@@ -58,6 +85,7 @@
     <div id="sheet-body"></div>
   </div>
 
+  <script src="qr.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
