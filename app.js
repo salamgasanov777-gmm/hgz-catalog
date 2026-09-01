@@ -60,7 +60,9 @@ function render() {
   });
 
   const compareBtn = document.getElementById("compare-btn");
-  compareBtn.style.display = activeCategory === "Клеи" ? "block" : "none";
+  const compareConfig = COMPARE_CONFIG[activeCategory];
+  compareBtn.style.display = compareConfig ? "block" : "none";
+  if (compareConfig) compareBtn.textContent = compareConfig.buttonLabel;
 
   if (filtered.length === 0) {
     grid.innerHTML = `<div class="empty">Пока ничего нет.<br>Добавьте товары в products.json</div>`;
@@ -247,18 +249,58 @@ document.getElementById("search").addEventListener("input", render);
 document.getElementById("backdrop").addEventListener("click", closeSheet);
 document.getElementById("sheet-close").addEventListener("click", closeSheet);
 
+function tableValue(p, tableTitle, needle) {
+  const t = (p.tables || []).find((x) => x.title === tableTitle);
+  if (!t) return null;
+  const row = t.rows.find(([l]) => l.includes(needle));
+  return row ? row[1] : null;
+}
+
+function badgeValue(p, needle) {
+  const b = (p.badges || []).find((x) => x.label.includes(needle));
+  return b ? b.value : null;
+}
+
+const COMPARE_CONFIG = {
+  "Клеи": {
+    buttonLabel: "⇄ Сравнить клеи",
+    title: "Как выбрать клей",
+    rows: (items) => {
+      const areaTable = items[0]?.tables.find((t) => t.title === "Область применения");
+      const areaRows = (areaTable?.rows || []).filter(([label]) => label !== "Тип плитки");
+      const rows = areaRows.map(([label]) => ({
+        label,
+        type: "bool",
+        get: (p) => tableValue(p, "Область применения", label) === "ДА",
+      }));
+      rows.push({ label: "Тип плитки", type: "text", get: (p) => tableValue(p, "Область применения", "Тип плитки") });
+      rows.push({ label: "Макс. размер плитки для стен, см", type: "text", get: (p) => tableValue(p, "Максимальный размер плитки", "Для стен, см") });
+      rows.push({ label: "Макс. размер плитки для пола, см", type: "text", get: (p) => tableValue(p, "Максимальный размер плитки", "Для пола, см") });
+      return rows;
+    },
+  },
+  "Гипсовая штукатурка": {
+    buttonLabel: "⇄ Сравнить штукатурки",
+    title: "Как выбрать штукатурку",
+    rows: () => [
+      { label: "Для влажных помещений", type: "bool", get: (p) => tableValue(p, "Область применения", "повышенным уровнем влажности") === "ДА" },
+      { label: "Мешок", type: "text", get: (p) => p.unit },
+      { label: "Толщина слоя, мм", type: "text", get: (p) => tableValue(p, "Технические характеристики", "Толщина слоя") },
+      { label: "Расход при слое 10 мм, кг/м²", type: "text", get: (p) => (p.calc ? (p.calc.ratePerM2 * 10).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) : null) },
+      { label: "Расход воды", type: "text", get: (p) => tableValue(p, "Технические характеристики", "Расход воды") },
+      { label: "Прочность на отрыв, МПа", type: "text", get: (p) => badgeValue(p, "Прочность на отрыв") },
+      { label: "Температура применения", type: "text", get: (p) => badgeValue(p, "Температура основания") },
+    ],
+  },
+};
+
 function openCompare() {
-  const items = products.filter((p) => p.category === "Клеи");
+  const config = COMPARE_CONFIG[activeCategory];
+  if (!config) return;
+
+  const items = products.filter((p) => p.category === activeCategory);
+  const rows = config.rows(items);
   const wrap = document.getElementById("compare-table-wrap");
-
-  const areaTable = items[0]?.tables.find((t) => t.title === "Область применения");
-  const areaRows = (areaTable?.rows || []).filter(([label]) => label !== "Тип плитки");
-
-  const getTableValue = (p, tableTitle, rowLabel) => {
-    const t = (p.tables || []).find((x) => x.title === tableTitle);
-    const row = t?.rows.find(([l]) => l === rowLabel);
-    return row ? row[1] : "";
-  };
 
   const shortName = (name) => {
     const m = name.match(/«([^»]+)»/);
@@ -271,36 +313,22 @@ function openCompare() {
   });
   html += "</tr></thead><tbody>";
 
-  areaRows.forEach(([label]) => {
-    html += `<tr><td class="cmp-label">${esc(label)}</td>`;
+  rows.forEach((row) => {
+    html += `<tr><td class="cmp-label">${esc(row.label)}</td>`;
     items.forEach((p) => {
-      const v = getTableValue(p, "Область применения", label);
-      html += `<td class="cmp-cell">${v === "ДА" ? '<span class="cmp-check">✓</span>' : ""}</td>`;
+      const v = row.get(p);
+      html +=
+        row.type === "bool"
+          ? `<td class="cmp-cell">${v ? '<span class="cmp-check">✓</span>' : ""}</td>`
+          : `<td class="cmp-cell cmp-text">${esc(v ?? "—")}</td>`;
     });
     html += "</tr>";
   });
 
-  html += `<tr><td class="cmp-label">Тип плитки</td>`;
-  items.forEach((p) => {
-    html += `<td class="cmp-cell cmp-text">${esc(getTableValue(p, "Область применения", "Тип плитки"))}</td>`;
-  });
-  html += "</tr>";
-
-  html += `<tr><td class="cmp-label">Макс. размер плитки для стен, см</td>`;
-  items.forEach((p) => {
-    html += `<td class="cmp-cell cmp-text">${esc(getTableValue(p, "Максимальный размер плитки", "Для стен, см"))}</td>`;
-  });
-  html += "</tr>";
-
-  html += `<tr><td class="cmp-label">Макс. размер плитки для пола, см</td>`;
-  items.forEach((p) => {
-    html += `<td class="cmp-cell cmp-text">${esc(getTableValue(p, "Максимальный размер плитки", "Для пола, см"))}</td>`;
-  });
-  html += "</tr>";
-
   html += "</tbody></table>";
   wrap.innerHTML = html;
 
+  document.getElementById("compare-title").textContent = config.title;
   document.getElementById("compare-backdrop").classList.add("open");
   document.getElementById("compare-sheet").classList.add("open");
 }

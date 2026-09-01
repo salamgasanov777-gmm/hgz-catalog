@@ -197,7 +197,8 @@ html, body {
 .cmp-cell.cmp-text {
   font-weight: 600;
   color: var(--ink);
-  white-space: nowrap;
+  max-width: 130px;
+  word-break: break-word;
 }
 .cmp-check {
   color: #2f8f4e;
