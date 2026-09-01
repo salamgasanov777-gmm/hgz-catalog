@@ -240,6 +240,23 @@ function renderTasks() {
   });
 }
 
+// Обновляет звёздочку одного товара прямо в списке. Полная перерисовка сетки
+// пересоздаёт все карточки, их фотографии подгружаются заново — на телефоне это
+// видно как мигание, поэтому после смены избранного трогаем только нужное.
+function syncCardFav(id) {
+  const grid = document.getElementById("grid");
+  const btn = grid.querySelector(`.fav-btn[data-fav-id="${id}"]`);
+  if (!btn) return;
+  const on = isFavorite(id);
+  btn.classList.toggle("active", on);
+  btn.textContent = on ? "★" : "☆";
+  // В разделе «Избранное» снятая звезда означает, что товару здесь больше не место.
+  if (activeCategory === "__fav__" && !on) {
+    btn.closest(".card").remove();
+    if (!grid.querySelector(".card")) render();
+  }
+}
+
 function render() {
   updateFavNav();
   renderTasks();
@@ -291,7 +308,8 @@ function render() {
     card.querySelector(".fav-btn").addEventListener("click", (e) => {
       e.stopPropagation();
       toggleFavorite(Number(id));
-      render();
+      updateFavNav();
+      syncCardFav(Number(id));
     });
     card.addEventListener("click", () => {
       const p = filtered.find((x, i) => String(p_id(x, i)) === id);
@@ -320,6 +338,7 @@ document.getElementById("sheet-fav").addEventListener("click", () => {
   if (!currentProduct) return;
   toggleFavorite(currentProduct.id);
   updateSheetFavButton();
+  syncCardFav(currentProduct.id);
 });
 
 function openSheet(p) {
@@ -469,9 +488,8 @@ function closeSheet() {
   document.getElementById("backdrop").classList.remove("open");
   document.getElementById("sheet").classList.remove("open");
   currentProduct = null;
-  // Список мог устареть, пока карточка была открыта: например, товар сняли
-  // со звезды прямо в ней, а мы стоим в разделе «Избранное».
-  render();
+  // Перерисовывать список не нужно: звезду, снятую в самой карточке, сетка
+  // уже получила через syncCardFav.
 }
 
 document.getElementById("search").addEventListener("input", render);
