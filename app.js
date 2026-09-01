@@ -38,11 +38,7 @@ function openFromHash() {
 
 function renderCategories() {
   const cats = new Set(products.map((p) => p.category).filter(Boolean));
-  const items = [
-    { key: "Все", label: "Все" },
-    { key: "__fav__", label: "★ Избранное" },
-    ...[...cats].map((c) => ({ key: c, label: c })),
-  ];
+  const items = [{ key: "Все", label: "Все" }, ...[...cats].map((c) => ({ key: c, label: c }))];
 
   const drawerList = document.getElementById("drawer-list");
   drawerList.innerHTML = items
@@ -74,7 +70,24 @@ function closeDrawer() {
 document.getElementById("drawer-btn").addEventListener("click", openDrawer);
 document.getElementById("drawer-backdrop").addEventListener("click", closeDrawer);
 
+function updateFavNav() {
+  const btn = document.getElementById("fav-nav-btn");
+  const star = btn.querySelector(".fav-nav-star");
+  const badge = document.getElementById("fav-count");
+  const count = favorites.size;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? "flex" : "none";
+  star.textContent = activeCategory === "__fav__" ? "★" : "☆";
+  btn.classList.toggle("active", activeCategory === "__fav__");
+}
+
+document.getElementById("fav-nav-btn").addEventListener("click", () => {
+  closeDrawer();
+  selectCategory("__fav__");
+});
+
 function render() {
+  updateFavNav();
   const q = document.getElementById("search").value.trim().toLowerCase();
   const grid = document.getElementById("grid");
   const filtered = products.filter((p) => {
@@ -138,6 +151,7 @@ function updateSheetFavButton() {
   const fav = currentProduct && isFavorite(currentProduct.id);
   btn.textContent = fav ? "★" : "☆";
   btn.classList.toggle("active", !!fav);
+  updateFavNav();
 }
 
 document.getElementById("sheet-fav").addEventListener("click", () => {
