@@ -72,7 +72,7 @@ function renderCategories() {
   drawerList.querySelectorAll(".drawer-item").forEach((btn) => {
     btn.addEventListener("click", () => {
       selectCategory(btn.dataset.cat);
-      closeDrawer();
+      dismissOverlay();
     });
   });
 }
@@ -83,9 +83,49 @@ function selectCategory(cat) {
   render();
 }
 
+// Оверлеи (шторка разделов, карточка товара, сравнение) складываются в стек:
+// каждый добавляет запись в историю, поэтому кнопка «Назад» на телефоне
+// закрывает верхний оверлей, а не выходит из приложения.
+const overlayStack = [];
+let savedScrollY = 0;
+
+function lockScroll() {
+  if (overlayStack.length > 1) return;
+  savedScrollY = window.scrollY;
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${savedScrollY}px`;
+  document.body.style.width = "100%";
+}
+
+function unlockScroll() {
+  if (overlayStack.length) return;
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.width = "";
+  window.scrollTo(0, savedScrollY);
+}
+
+function openOverlay(onClose) {
+  overlayStack.push(onClose);
+  lockScroll();
+  history.pushState({ hgzOverlay: overlayStack.length }, "");
+}
+
+// Закрытие всегда идёт через историю, чтобы состояние стека и истории совпадали.
+function dismissOverlay() {
+  if (overlayStack.length) history.back();
+}
+
+window.addEventListener("popstate", () => {
+  const onClose = overlayStack.pop();
+  if (onClose) onClose();
+  unlockScroll();
+});
+
 function openDrawer() {
   document.getElementById("drawer").classList.add("open");
   document.getElementById("drawer-backdrop").classList.add("open");
+  openOverlay(closeDrawer);
 }
 function closeDrawer() {
   document.getElementById("drawer").classList.remove("open");
@@ -93,7 +133,7 @@ function closeDrawer() {
 }
 
 document.getElementById("drawer-btn").addEventListener("click", openDrawer);
-document.getElementById("drawer-backdrop").addEventListener("click", closeDrawer);
+document.getElementById("drawer-backdrop").addEventListener("click", dismissOverlay);
 
 function updateFavNav() {
   const btn = document.getElementById("fav-nav-btn");
@@ -107,7 +147,6 @@ function updateFavNav() {
 }
 
 document.getElementById("fav-nav-btn").addEventListener("click", () => {
-  closeDrawer();
   selectCategory(activeCategory === "__fav__" ? "Все" : "__fav__");
 });
 
@@ -235,6 +274,7 @@ function openSheet(p) {
   document.getElementById("backdrop").classList.add("open");
   document.getElementById("sheet").classList.add("open");
   document.getElementById("sheet").scrollTop = 0;
+  openOverlay(closeSheet);
 }
 
 function shareText(p) {
@@ -330,11 +370,15 @@ function wireCalc(calc) {
 function closeSheet() {
   document.getElementById("backdrop").classList.remove("open");
   document.getElementById("sheet").classList.remove("open");
+  currentProduct = null;
+  // Список мог устареть, пока карточка была открыта: например, товар сняли
+  // со звезды прямо в ней, а мы стоим в разделе «Избранное».
+  render();
 }
 
 document.getElementById("search").addEventListener("input", render);
-document.getElementById("backdrop").addEventListener("click", closeSheet);
-document.getElementById("sheet-close").addEventListener("click", closeSheet);
+document.getElementById("backdrop").addEventListener("click", dismissOverlay);
+document.getElementById("sheet-close").addEventListener("click", dismissOverlay);
 
 function tableValue(p, tableTitle, needle) {
   const t = (p.tables || []).find((x) => x.title === tableTitle);
@@ -418,14 +462,15 @@ function openCompare() {
   document.getElementById("compare-title").textContent = config.title;
   document.getElementById("compare-backdrop").classList.add("open");
   document.getElementById("compare-sheet").classList.add("open");
+  openOverlay(closeCompare);
 }
 function closeCompare() {
   document.getElementById("compare-backdrop").classList.remove("open");
   document.getElementById("compare-sheet").classList.remove("open");
 }
 document.getElementById("compare-btn").addEventListener("click", openCompare);
-document.getElementById("compare-backdrop").addEventListener("click", closeCompare);
-document.getElementById("compare-close").addEventListener("click", closeCompare);
+document.getElementById("compare-backdrop").addEventListener("click", dismissOverlay);
+document.getElementById("compare-close").addEventListener("click", dismissOverlay);
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});

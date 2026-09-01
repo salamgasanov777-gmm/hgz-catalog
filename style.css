@@ -51,16 +51,19 @@ html, body {
 
 .topbar h1 {
   margin: 0;
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.3px;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbar-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
@@ -297,8 +300,8 @@ html, body {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  background: var(--card);
   color: var(--muted);
   font-size: 16px;
   display: flex;
@@ -306,11 +309,13 @@ html, body {
   justify-content: center;
   z-index: 2;
 }
-.fav-btn.active { color: #e0a52c; }
+.fav-btn.active { color: #e0a52c; border-color: #e0a52c; }
 
+/* Все фото товаров — 1000×520, поэтому блок под них той же пропорции:
+   иначе сверху и снизу остаются пустые полосы в половину карточки. */
 .card .photo {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 1.92 / 1;
   background: var(--accent-soft) center/contain no-repeat;
   display: flex;
   align-items: center;
