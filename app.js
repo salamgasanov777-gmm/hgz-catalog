@@ -106,6 +106,10 @@ function openSheet(p) {
     html += `<p class="summary">${esc(p.summary)}</p>`;
   }
 
+  if (p.calc) {
+    html += calcHtml(p.calc);
+  }
+
   (p.sections || []).forEach((s) => {
     html += `<section class="doc-section"><h3>${esc(s.title)}</h3><p>${esc(s.text).replace(/\n/g, "<br><br>")}</p></section>`;
   });
@@ -123,9 +127,79 @@ function openSheet(p) {
 
   body.innerHTML = html;
 
+  if (p.calc) {
+    wireCalc(p.calc);
+  }
+
   document.getElementById("backdrop").classList.add("open");
   document.getElementById("sheet").classList.add("open");
   document.getElementById("sheet").scrollTop = 0;
+}
+
+function calcHtml(calc) {
+  const thicknessRow =
+    calc.type === "thickness"
+      ? `<label class="calc-field">
+          <span>Толщина слоя, мм</span>
+          <input id="calc-mm" type="number" inputmode="decimal" min="1" step="1" value="10">
+        </label>`
+      : "";
+
+  return `
+    <section class="calc-box">
+      <h3>Расчёт расхода</h3>
+      <div class="calc-row">
+        <label class="calc-field">
+          <span>Площадь, м²</span>
+          <input id="calc-area" type="number" inputmode="decimal" min="0" step="0.1" placeholder="напр. 10">
+        </label>
+        ${thicknessRow}
+      </div>
+      <div id="calc-result" class="calc-result">Введите площадь</div>
+    </section>`;
+}
+
+function wireCalc(calc) {
+  const areaInput = document.getElementById("calc-area");
+  const mmInput = document.getElementById("calc-mm");
+  const result = document.getElementById("calc-result");
+
+  function update() {
+    const area = parseFloat((areaInput.value || "").replace(",", "."));
+    const mm = mmInput ? parseFloat((mmInput.value || "").replace(",", ".")) : null;
+
+    if (!area || area <= 0) {
+      result.textContent = "Введите площадь";
+      return;
+    }
+
+    let total;
+    if (calc.type === "thickness") {
+      if (!mm || mm <= 0) {
+        result.textContent = "Введите толщину слоя";
+        return;
+      }
+      total = calc.ratePerM2 * area * mm;
+    } else {
+      total = calc.ratePerM2 * area;
+    }
+
+    if (calc.type === "liquid") {
+      const bigUnit = calc.packUnit === "г" ? "кг" : "л";
+      const containers = Math.ceil(total / calc.pack);
+      result.innerHTML = `Нужно: <b>${formatNum(total / 1000)} ${bigUnit}</b> (~${containers} уп. по ${formatNum(calc.pack / 1000)} ${bigUnit})`;
+    } else {
+      const bags = Math.ceil(total / calc.pack);
+      result.innerHTML = `Нужно: <b>${formatNum(total)} кг</b> (~${bags} меш. по ${calc.pack} кг)`;
+    }
+  }
+
+  function formatNum(n) {
+    return n.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+  }
+
+  areaInput.addEventListener("input", update);
+  if (mmInput) mmInput.addEventListener("input", update);
 }
 
 function closeSheet() {
