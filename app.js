@@ -83,7 +83,7 @@ function updateFavNav() {
 
 document.getElementById("fav-nav-btn").addEventListener("click", () => {
   closeDrawer();
-  selectCategory("__fav__");
+  selectCategory(activeCategory === "__fav__" ? "Все" : "__fav__");
 });
 
 function render() {
