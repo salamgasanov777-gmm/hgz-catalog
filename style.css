@@ -104,6 +104,12 @@ html, body {
   align-items: center;
   justify-content: center;
 }
+.icon-btn svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+}
+
 .fav-count {
   position: absolute;
   top: -6px;
