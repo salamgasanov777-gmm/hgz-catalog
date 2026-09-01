@@ -43,6 +43,16 @@ html, body {
   background: var(--bg);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, Arial, sans-serif;
+  /* Масштабирование выключено: каталог часто передают в руки клиенту,
+     и случайный щипок сбивал бы вёрстку. manipulation убирает ещё и
+     увеличение по двойному тапу, чего тег viewport не делает. */
+  touch-action: manipulation;
+}
+
+/* Safari не даёт странице уменьшать шрифт при повороте экрана. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .topbar {
