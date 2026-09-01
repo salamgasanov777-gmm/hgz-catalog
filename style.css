@@ -8,6 +8,28 @@
   --border: #e6e1d8;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14181c;
+    --card: #1e252c;
+    --ink: #edf0f3;
+    --muted: #93a2af;
+    --accent: #6fa3d8;
+    --accent-soft: #23324a;
+    --border: #2b333b;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #14181c;
+  --card: #1e252c;
+  --ink: #edf0f3;
+  --muted: #93a2af;
+  --accent: #6fa3d8;
+  --accent-soft: #23324a;
+  --border: #2b333b;
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
@@ -59,6 +81,19 @@ html, body {
   justify-content: center;
 }
 .fav-nav-btn.active { color: #e0a52c; border-color: #e0a52c; }
+
+.theme-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 16px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .fav-count {
   position: absolute;
   top: -6px;

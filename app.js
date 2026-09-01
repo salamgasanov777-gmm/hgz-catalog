@@ -21,6 +21,31 @@ function toggleFavorite(id) {
   localStorage.setItem("hgz-favorites", JSON.stringify([...favorites]));
 }
 
+function storedTheme() {
+  return localStorage.getItem("hgz-theme");
+}
+
+function effectiveTheme() {
+  return storedTheme() || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+}
+
+function applyTheme() {
+  const stored = storedTheme();
+  if (stored) document.documentElement.setAttribute("data-theme", stored);
+  else document.documentElement.removeAttribute("data-theme");
+
+  const dark = effectiveTheme() === "dark";
+  document.getElementById("theme-btn").textContent = dark ? "☀️" : "🌙";
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#14181c" : "#2c4f78");
+}
+
+document.getElementById("theme-btn").addEventListener("click", () => {
+  localStorage.setItem("hgz-theme", effectiveTheme() === "dark" ? "light" : "dark");
+  applyTheme();
+});
+
+applyTheme();
+
 async function load() {
   const res = await fetch("./products.json", { cache: "no-store" });
   products = await res.json();
