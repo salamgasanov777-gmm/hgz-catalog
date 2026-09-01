@@ -9,6 +9,9 @@
   /* Цвет текста поверх акцентной заливки: в тёмной теме акцент светлеет,
      поэтому белым по нему уже не прочитать. */
   --on-accent: #ffffff;
+  /* Предел ширины контента на большом экране: дальше карточки не растягиваются,
+     а добавляются колонки. */
+  --content-max: 1080px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -416,7 +419,10 @@ html {
   max-height: 80vh;
   overflow-y: auto;
 }
-.sheet.open { transform: translateY(0); }
+/* Смещение при свайпе приходит переменной, а не инлайновым transform:
+   на широком экране окно ещё и центрируется по горизонтали, и перезапись
+   transform из скрипта сбивала бы центровку. */
+.sheet.open { transform: translateY(var(--drag, 0px)); }
 
 /* Полоска сверху подсказывает, что окно можно потянуть вниз. */
 .sheet::before {
@@ -644,3 +650,64 @@ html {
 .spec-row:last-child { border-bottom: none; }
 .spec-label { font-size: 13px; color: var(--muted); margin-bottom: 3px; line-height: 1.4; }
 .spec-value { font-size: 14.5px; color: var(--ink); font-weight: 600; line-height: 1.4; overflow-wrap: break-word; }
+
+/* На телефоне две колонки во всю ширину. От планшета колонки добавляются сами
+   по мере роста экрана, а шапка держит ту же ширину, что и сетка, — иначе
+   поиск тянулся бы во весь монитор над узким столбцом карточек. */
+@media (min-width: 700px) {
+  /* Ширина предельная, но с запасом на внутреннюю отбивку сетки — тогда края
+     карточек совпадают с краями поиска над ними. */
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 18px 24px calc(env(safe-area-inset-bottom, 0px) + 32px);
+    max-width: calc(var(--content-max) + 48px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .topbar-row,
+  .search {
+    max-width: var(--content-max);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Поле поиска — инлайновый элемент, автоматические поля его не центрируют. */
+  .search { display: block; }
+
+  .task-row {
+    max-width: var(--content-max);
+    margin: 10px auto 0;
+  }
+
+  .compare-btn {
+    max-width: var(--content-max);
+    width: 100%;
+    margin: 14px auto 0;
+  }
+
+  .card .name { font-size: 15px; }
+  .card .meta { font-size: 13px; }
+
+  /* Карточка товара на большом экране — окно по центру, а не полоса во всю ширину. */
+  .sheet {
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, 100%);
+    width: min(620px, calc(100% - 48px));
+    border-radius: 20px;
+    bottom: 24px;
+    max-height: min(84vh, 860px);
+  }
+  .sheet.open { transform: translate(-50%, var(--drag, 0px)); }
+
+  /* Таблице сравнения нужно больше ширины, чем карточке товара. */
+  .compare-sheet { width: min(900px, calc(100% - 48px)); }
+}
+
+/* От ноутбука помещается четвёртая колонка. Дальше карточки не растут: ширину
+   держит --content-max, лишнее место уходит в поля по краям. */
+@media (min-width: 1000px) {
+  .grid { grid-template-columns: repeat(4, 1fr); }
+}

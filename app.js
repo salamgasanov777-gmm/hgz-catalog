@@ -171,11 +171,11 @@ function enableSwipeToClose(sheet) {
       shift = e.touches[0].clientY - startY;
       if (shift <= 0) {
         // Палец пошёл вверх — это обычная прокрутка, отдаём жест содержимому.
-        sheet.style.transform = "";
+        sheet.style.removeProperty("--drag");
         return;
       }
       e.preventDefault();
-      sheet.style.transform = `translateY(${shift}px)`;
+      sheet.style.setProperty("--drag", `${shift}px`);
     },
     { passive: false }
   );
@@ -184,7 +184,7 @@ function enableSwipeToClose(sheet) {
     if (!dragging) return;
     dragging = false;
     sheet.style.transition = "";
-    sheet.style.transform = "";
+    sheet.style.removeProperty("--drag");
     // Стили сбрасываются до закрытия, поэтому окно доезжает вниз плавно,
     // с той точки, где его отпустили.
     if (shift > CLOSE_AFTER) dismissOverlay();
