@@ -293,11 +293,11 @@ function render() {
     .map(
       (p, i) => `
     <div class="card" data-id="${p.id ?? i}">
-      <div class="photo" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : p.name}</div>
+      <div class="photo" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : esc(p.name)}</div>
       <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? i}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
-        <p class="name">${p.name}</p>
-        <p class="meta">${p.unit || ""}${p.price ? " · " + p.price : ""}</p>
+        <p class="name">${esc(p.name)}</p>
+        <p class="meta">${esc(p.unit || "")}${p.price ? " · " + esc(p.price) : ""}</p>
       </div>
     </div>`
     )
@@ -428,7 +428,7 @@ function shareText(p) {
     lines.push("");
   }
 
-  const link = `${location.origin}${location.pathname}#p=${p.id}`;
+  const link = `${catalogUrl()}#p=${p.id}`;
   lines.push(`Подробнее: ${link}`);
 
   return lines.join("\n");
@@ -454,6 +454,7 @@ function calcHtml(calc) {
         ${thicknessRow}
       </div>
       <div id="calc-result" class="calc-result">Введите площадь</div>
+      <p class="calc-note">Расчёт ориентировочный: расход зависит от основания, толщины слоя и способа нанесения. Точное количество на объект уточняйте у менеджера.</p>
     </section>`;
 }
 
@@ -600,16 +601,27 @@ function closeCompare() {
   document.getElementById("compare-backdrop").classList.remove("open");
   document.getElementById("compare-sheet").classList.remove("open");
 }
-// Адрес прописан явно, а не берётся из location: код должен вести на живой
-// сайт даже когда каталог открыт локально при разработке.
+// Запасной адрес на случай, когда каталог открыт локально при разработке:
+// код должен вести на живой сайт, а не на localhost.
 const APP_URL = "https://salamgasanov777-gmm.github.io/hgz-catalog/";
+
+// На живом сайте адрес берётся из строки браузера, а не из константы: после
+// переезда на собственный домен QR-код начнёт вести на него сам, без правок
+// в коде. Локальная разработка (file://, localhost) отсекается по протоколу
+// и имени хоста и получает APP_URL.
+function catalogUrl() {
+  const local = location.protocol !== "https:" || /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
+  if (local) return APP_URL;
+  return location.origin + location.pathname.replace(/index\.html$/, "");
+}
 
 document.getElementById("qr-btn").addEventListener("click", () => {
   const canvas = document.getElementById("qr-canvas");
+  const url = catalogUrl();
   // Модуль в 8 точек: код остаётся читаемым и когда его показывают
   // с экрана телефона, и когда распечатывают.
-  QR.draw(canvas, APP_URL, 8);
-  document.getElementById("qr-url").textContent = APP_URL.replace(/^https:\/\//, "");
+  QR.draw(canvas, url, 8);
+  document.getElementById("qr-url").textContent = url.replace(/^https:\/\//, "");
   document.getElementById("qr-backdrop").classList.add("open");
   document.getElementById("qr-sheet").classList.add("open");
   openOverlay(closeQr);
