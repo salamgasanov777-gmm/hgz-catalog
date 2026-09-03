@@ -71,10 +71,41 @@ applyTheme();
 async function load() {
   const res = await fetch("./products.json", { cache: "no-store" });
   products = await res.json();
+  // Дату берём из заголовка ответа, а не из поля в products.json: её не нужно
+  // помнить и проставлять руками. GitHub Pages ставит в Last-Modified время
+  // последней выкладки сайта, поэтому это дата версии каталога целиком.
+  // Офлайн ответ приходит из кеша вместе со своим заголовком — значит,
+  // показывается дата ровно той версии, которую человек видит.
+  dataDate = res.headers.get("Last-Modified");
+  showDataDate();
   renderCategories();
   render();
   openFromHash();
 }
+
+let dataDate = null;
+
+function showDataDate() {
+  // Элемента может не быть: у человека в кеше осталась прежняя index.html,
+  // а скрипт уже новый. Тогда просто молчим — падать посреди загрузки
+  // каталога из-за подписи с датой нельзя.
+  const el = document.getElementById("drawer-foot");
+  if (!el) return;
+  if (!dataDate) {
+    el.textContent = "";
+    return;
+  }
+  const d = new Date(dataDate);
+  if (isNaN(d)) {
+    el.textContent = "";
+    return;
+  }
+  const when = d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }).replace(/\s*г\.$/, "");
+  el.textContent = navigator.onLine ? `Каталог обновлён ${when}` : `Нет сети. Показана версия от ${when}`;
+}
+
+addEventListener("online", showDataDate);
+addEventListener("offline", showDataDate);
 
 function openFromHash() {
   const m = location.hash.match(/#p=(\d+)/);

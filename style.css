@@ -192,6 +192,15 @@ html {
   padding: 0 18px 12px;
 }
 .drawer-list { display: flex; flex-direction: column; }
+.drawer-foot {
+  margin-top: 18px;
+  padding: 14px 18px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.drawer-foot:empty { display: none; }
 .drawer-item {
   padding: 13px 18px;
   font-size: 16px;
