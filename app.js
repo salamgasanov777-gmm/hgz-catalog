@@ -293,7 +293,7 @@ function render() {
     .map(
       (p, i) => `
     <div class="card" data-id="${p.id ?? i}">
-      <div class="photo" style="${p.photo ? `background-image:url('${p.photo}')` : ""}">${p.photo ? "" : p.name}</div>
+      <div class="photo" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : p.name}</div>
       <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? i}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
         <p class="name">${p.name}</p>
@@ -316,6 +316,22 @@ function render() {
       openSheet(p);
     });
   });
+}
+
+// Фон в CSS браузер сам по формату не выбирает, поэтому один раз проверяем
+// поддержку WebP и подставляем нужное расширение. Фотографии в нём весят втрое
+// меньше; старым iPhone (iOS 13 и раньше) достаётся исходный JPEG.
+const WEBP_OK = (() => {
+  try {
+    return document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp");
+  } catch {
+    return false;
+  }
+})();
+
+function photoUrl(p) {
+  if (!p.photo) return "";
+  return WEBP_OK ? p.photo.replace(/\.jpg$/i, ".webp") : p.photo;
 }
 
 function p_id(p, i) {
@@ -344,7 +360,7 @@ document.getElementById("sheet-fav").addEventListener("click", () => {
 function openSheet(p) {
   currentProduct = p;
   updateSheetFavButton();
-  document.getElementById("sheet-photo").style.backgroundImage = p.photo ? `url('${p.photo}')` : "none";
+  document.getElementById("sheet-photo").style.backgroundImage = p.photo ? `url('${photoUrl(p)}')` : "none";
   document.getElementById("sheet-name").textContent = p.name;
   document.getElementById("sheet-price").textContent = [p.unit, p.price].filter(Boolean).join(" · ");
   document.getElementById("sheet-gost").textContent = p.gost || "";
@@ -556,7 +572,7 @@ function openCompare() {
 
   let html = '<table class="cmp-table"><thead><tr><th class="cmp-corner"></th>';
   items.forEach((p) => {
-    html += `<th><div class="cmp-photo" style="${p.photo ? `background-image:url('${p.photo}')` : ""}"></div><div class="cmp-name">${esc(shortName(p.name))}</div></th>`;
+    html += `<th><div class="cmp-photo" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}"></div><div class="cmp-name">${esc(shortName(p.name))}</div></th>`;
   });
   html += "</tr></thead><tbody>";
 
