@@ -1,5 +1,5 @@
-const CACHE = "hgz-cache-v3";
-const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./qr.js", "./products.json", "./manifest.json", "./icon-192.png", "./icon-512.png"];
+const CACHE = "hgz-cache-v4";
+const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./qr.js", "./products.json", "./manifest.json", "./icon-192-v2.png", "./icon-512-v2.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
