@@ -485,6 +485,7 @@ function calcHtml(calc) {
         ${thicknessRow}
       </div>
       <div id="calc-result" class="calc-result">Введите площадь</div>
+      ${calc.note ? `<p class="calc-note">${esc(calc.note)}</p>` : ""}
       <p class="calc-note">Расчёт ориентировочный: расход зависит от основания, толщины слоя и способа нанесения. Точное количество на объект уточняйте у менеджера.</p>
     </section>`;
 }
