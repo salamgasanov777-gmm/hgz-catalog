@@ -470,7 +470,7 @@ function calcHtml(calc) {
     calc.type === "thickness"
       ? `<label class="calc-field">
           <span>Толщина слоя, мм</span>
-          <input id="calc-mm" type="number" inputmode="decimal" min="1" step="1" value="10">
+          <input id="calc-mm" type="number" inputmode="decimal" min="0.1" step="${calc.stepMm ?? 1}" value="${calc.defaultMm ?? 10}">
         </label>`
       : "";
 
