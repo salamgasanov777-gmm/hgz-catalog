@@ -697,7 +697,6 @@ document.getElementById("qr-btn").addEventListener("click", () => {
   // Модуль в 8 точек: код остаётся читаемым и когда его показывают
   // с экрана телефона, и когда распечатывают.
   QR.draw(canvas, url, 8);
-  document.getElementById("qr-url").textContent = url.replace(/^https:\/\//, "");
   resetCopyBtn();
   document.getElementById("qr-backdrop").classList.add("open");
   document.getElementById("qr-sheet").classList.add("open");
@@ -747,7 +746,7 @@ function resetCopyBtn() {
 document.getElementById("qr-copy").addEventListener("click", async (e) => {
   const btn = e.currentTarget;
   const ok = await copyText(catalogUrl());
-  btn.textContent = ok ? "Ссылка скопирована ✓" : "Не получилось — скопируйте адрес выше";
+  btn.textContent = ok ? "Ссылка скопирована ✓" : "Не получилось скопировать — попробуйте ещё раз";
   btn.classList.toggle("done", ok);
   clearTimeout(copyResetTimer);
   copyResetTimer = setTimeout(() => {
