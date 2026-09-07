@@ -42,7 +42,10 @@
 
 html, body {
   margin: 0;
-  height: 100%;
+  /* Именно min-height, а не height: при height: 100% высота body равна экрану,
+     и прилипшая шапка отклеивалась, как только страница прокручивалась
+     дальше первого экрана. */
+  min-height: 100%;
   background: var(--bg);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, Arial, sans-serif;
