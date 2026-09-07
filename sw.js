@@ -1,4 +1,4 @@
-const CACHE = "hgz-cache-v4";
+const CACHE = "hgz-cache-v5";
 const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./qr.js", "./products.json", "./manifest.json", "./icon-192-v2.png", "./icon-512-v2.png"];
 
 self.addEventListener("install", (e) => {
@@ -13,19 +13,64 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// Network-first: always try to get the latest version first. Only fall back
-// to the cache when the network is unavailable (offline), so updates show
-// up immediately instead of one visit behind.
+// Фотографии товаров не меняются: если фото заменили, у него будет другое имя
+// файла, а если переснимут все — поднимем версию кеша выше. Поэтому картинки
+// отдаём сразу из кеша, не спрашивая сеть. Раньше телефон на каждом открытии
+// каталога запрашивал полсотни фотографий заново и, если связь подвисала,
+// рисовал их наполовину.
+function isPhoto(pathname) {
+  return /\/products\/[^/]+\.(jpe?g|webp|png)$/i.test(pathname);
+}
+
+async function cacheFirst(req) {
+  const hit = await caches.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res && res.status === 200) {
+    const copy = res.clone();
+    caches.open(CACHE).then((c) => c.put(req, copy));
+  }
+  return res;
+}
+
+// Ждать сеть вечно нельзя: зависшее соединение — это не «нет интернета»,
+// ошибки не будет никогда, и каталог просто не откроется.
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
+// Разметка, код и данные — сначала сеть, чтобы правки появлялись сразу. Но с
+// ограничением: если за 4 секунды ответа нет, показываем сохранённую копию.
+async function networkFirst(req) {
+  const network = fetch(req).then((res) => {
+    if (res && res.status === 200) {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy));
+    }
+    return res;
+  });
+
+  const cached = await caches.match(req);
+  if (!cached) return network;
+
+  try {
+    return await withTimeout(network, 4000);
+  } catch {
+    return cached;
+  }
+}
+
 self.addEventListener("fetch", (e) => {
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        if (res && res.status === 200) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(e.request))
-  );
+  if (e.request.method !== "GET") return;
+
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  e.respondWith(isPhoto(url.pathname) ? cacheFirst(e.request) : networkFirst(e.request));
 });
