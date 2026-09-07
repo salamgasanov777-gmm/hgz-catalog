@@ -753,18 +753,47 @@ function badgeValue(p, needle) {
   return b ? b.value : null;
 }
 
+// Расход у разных товаров считается по-разному: смеси в килограммах на слой,
+// клеи и гидроизоляция просто на квадрат, грунтовки в миллилитрах. В сравнении
+// это должна быть одна строка, поэтому приводим к единому виду.
+function consumptionText(p) {
+  const c = p.calc;
+  if (!c) return null;
+  const num = (n) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  if (c.type === "thickness") return `${num(c.ratePerM2 * 10)} кг/м² при 10 мм`;
+  if (c.type === "fixed") return `${num(c.ratePerM2)} кг/м²`;
+  if (c.type === "liquid") return `${num(c.ratePerM2)} ${c.packUnit === "г" ? "г" : "мл"}/м²`;
+  return null;
+}
+
+// Строки «Область применения» берём из первого товара раздела: таблица у них
+// одинаковая, а перечислять её вручную в каждом разделе — только плодить
+// расхождения с products.json.
+function areaBoolRows(items, skip = []) {
+  const table = (items[0]?.tables || []).find((t) => t.title === "Область применения");
+  return (table?.rows || [])
+    .filter(([label]) => !skip.includes(label))
+    .map(([label]) => ({
+      label,
+      type: "bool",
+      get: (p) => tableValue(p, "Область применения", label) === "ДА",
+    }));
+}
+
+const ROW = {
+  unit: (label = "Фасовка") => ({ label, type: "text", get: (p) => p.unit }),
+  consumption: { label: "Расход", type: "text", get: consumptionText },
+  tech: (label, needle) => ({ label, type: "text", get: (p) => tableValue(p, "Технические характеристики", needle ?? label) }),
+  badge: (label, needle) => ({ label, type: "text", get: (p) => badgeValue(p, needle ?? label) }),
+  wet: { label: "Для влажных помещений", type: "bool", get: (p) => (Array.isArray(p.tasks) ? p.tasks.includes("wet") : tableValue(p, "Область применения", "повышенным уровнем влажности") === "ДА") },
+};
+
 const COMPARE_CONFIG = {
   "Клеи": {
     buttonLabel: "⇄ Сравнить клеи",
     title: "Как выбрать клей",
     rows: (items) => {
-      const areaTable = items[0]?.tables.find((t) => t.title === "Область применения");
-      const areaRows = (areaTable?.rows || []).filter(([label]) => label !== "Тип плитки");
-      const rows = areaRows.map(([label]) => ({
-        label,
-        type: "bool",
-        get: (p) => tableValue(p, "Область применения", label) === "ДА",
-      }));
+      const rows = areaBoolRows(items, ["Тип плитки"]);
       rows.push({ label: "Тип плитки", type: "text", get: (p) => tableValue(p, "Область применения", "Тип плитки") });
       rows.push({ label: "Макс. размер плитки для стен, см", type: "text", get: (p) => tableValue(p, "Максимальный размер плитки", "Для стен, см") });
       rows.push({ label: "Макс. размер плитки для пола, см", type: "text", get: (p) => tableValue(p, "Максимальный размер плитки", "Для пола, см") });
@@ -775,13 +804,117 @@ const COMPARE_CONFIG = {
     buttonLabel: "⇄ Сравнить штукатурки",
     title: "Как выбрать штукатурку",
     rows: () => [
-      { label: "Для влажных помещений", type: "bool", get: (p) => tableValue(p, "Область применения", "повышенным уровнем влажности") === "ДА" },
-      { label: "Мешок", type: "text", get: (p) => p.unit },
-      { label: "Толщина слоя, мм", type: "text", get: (p) => tableValue(p, "Технические характеристики", "Толщина слоя") },
-      { label: "Расход при слое 10 мм, кг/м²", type: "text", get: (p) => (p.calc ? (p.calc.ratePerM2 * 10).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) : null) },
-      { label: "Расход воды", type: "text", get: (p) => tableValue(p, "Технические характеристики", "Расход воды") },
-      { label: "Прочность на отрыв, МПа", type: "text", get: (p) => badgeValue(p, "Прочность на отрыв") },
-      { label: "Температура применения", type: "text", get: (p) => badgeValue(p, "Температура основания") },
+      ROW.wet,
+      ROW.unit("Мешок"),
+      ROW.tech("Толщина слоя", "олщина слоя"),
+      ROW.consumption,
+      ROW.tech("Расход воды"),
+      ROW.badge("Прочность на отрыв, МПа", "Прочность на отрыв"),
+      ROW.badge("Температура применения", "Температура основания"),
+    ],
+  },
+  "Цементные и цементно-известковые штукатурки": {
+    buttonLabel: "⇄ Сравнить штукатурки",
+    title: "Как выбрать цементную штукатурку",
+    rows: (items) => [
+      ...areaBoolRows(items),
+      ROW.unit("Мешок"),
+      ROW.tech("Толщина слоя", "олщина слоя"),
+      ROW.consumption,
+      ROW.tech("Расход воды"),
+      ROW.tech("Жизнеспособность раствора"),
+      ROW.tech("Температура применения", "Температура основания"),
+    ],
+  },
+  "Шпаклевка": {
+    buttonLabel: "⇄ Сравнить шпаклёвки",
+    title: "Как выбрать шпаклёвку",
+    rows: (items) => [
+      ROW.wet,
+      ROW.unit("Мешок"),
+      ROW.tech("Толщина слоя", "олщина слоя"),
+      ROW.consumption,
+      ROW.tech("Расход воды", "Расход воды"),
+      ROW.badge("Прочность на отрыв, МПа", "Прочность на отрыв"),
+      ROW.badge("Температура применения", "Температура основания"),
+    ],
+  },
+  "Полы": {
+    buttonLabel: "⇄ Сравнить полы",
+    title: "Как выбрать пол",
+    rows: (items) => [
+      ...areaBoolRows(items),
+      ROW.unit("Мешок"),
+      ROW.tech("Толщина слоя", "олщина слоя"),
+      ROW.consumption,
+      ROW.tech("Срок хранения"),
+    ],
+  },
+  "Монтажные смеси": {
+    buttonLabel: "⇄ Сравнить смеси",
+    title: "Как выбрать монтажную смесь",
+    rows: (items) => [
+      ...areaBoolRows(items),
+      ROW.unit("Мешок"),
+      ROW.consumption,
+      ROW.tech("Расход воды", "Расход воды"),
+      ROW.tech("Жизнеспособность раствора"),
+      ROW.tech("Температура применения", "Температура основания"),
+    ],
+  },
+  "Грунтовки": {
+    buttonLabel: "⇄ Сравнить грунтовки",
+    title: "Как выбрать грунтовку",
+    rows: () => [
+      ROW.wet,
+      ROW.unit(),
+      ROW.consumption,
+      ROW.tech("Для чего", "Область применения"),
+      ROW.tech("Время высыхания"),
+      ROW.tech("Цвет плёнки", "Цвет пленки"),
+    ],
+  },
+  "Гидроизоляция": {
+    buttonLabel: "⇄ Сравнить гидроизоляцию",
+    title: "Как выбрать гидроизоляцию",
+    rows: () => [
+      ROW.unit(),
+      ROW.consumption,
+      ROW.tech("Рабочая температура"),
+      ROW.tech("Водонепроницаемость"),
+      ROW.tech("Срок хранения"),
+    ],
+  },
+  "Краски": {
+    buttonLabel: "⇄ Сравнить краски",
+    title: "Как выбрать краску",
+    rows: () => [
+      ROW.wet,
+      ROW.unit(),
+      ROW.consumption,
+      ROW.tech("Время высыхания"),
+    ],
+  },
+  "Гипсокартон": {
+    buttonLabel: "⇄ Сравнить листы",
+    title: "Как выбрать гипсокартон",
+    rows: () => [
+      ROW.wet,
+      ROW.tech("Размер листа"),
+      ROW.tech("Толщина"),
+      ROW.tech("Площадь листа"),
+      ROW.tech("Листов на паллете"),
+    ],
+  },
+  "Пазогребневые плиты": {
+    buttonLabel: "⇄ Сравнить плиты",
+    title: "Как выбрать плиту",
+    rows: () => [
+      ROW.wet,
+      ROW.tech("Размер плиты"),
+      ROW.tech("Толщина"),
+      ROW.tech("В упаковке"),
+      ROW.tech("Площадь упаковки"),
     ],
   },
 };
