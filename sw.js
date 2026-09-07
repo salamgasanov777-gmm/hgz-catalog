@@ -1,13 +1,19 @@
-const CACHE = "hgz-cache-v7";
+const CACHE = "hgz-cache-v8";
 // Адреса с ?v= должны совпадать с index.html: иначе браузер сохранит одно,
 // а страница попросит другое. Версия поднимается при правках style.css,
 // app.js или qr.js — благодаря ей разметка и код не могут разъехаться:
 // старая страница просит старые файлы, новая — новые, и пара всегда цела.
-const ASSETS = ["./", "./index.html", "./style.css?v=8", "./app.js?v=8", "./qr.js?v=8", "./products.json", "./manifest.json", "./icon-192-v2.png", "./icon-512-v2.png"];
+const ASSETS = ["./", "./index.html", "./style.css?v=9", "./app.js?v=9", "./qr.js?v=9", "./products.json", "./manifest.json", "./icon-192-v2.png", "./icon-512-v2.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
-  self.skipWaiting();
+  // Раньше здесь стоял skipWaiting и новая версия молча подменяла старую
+  // посреди работы. Теперь она ждёт в стороне, каталог показывает полосу
+  // «Вышла новая версия», и подмена происходит по нажатию кнопки.
+});
+
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "skip-waiting") self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {

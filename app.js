@@ -842,8 +842,62 @@ document.getElementById("compare-btn").addEventListener("click", openCompare);
 document.getElementById("compare-backdrop").addEventListener("click", dismissOverlay);
 document.getElementById("compare-close").addEventListener("click", dismissOverlay);
 
+// Обновление каталога. Телефон хранит приложение у себя и сам подтягивает
+// новую версию не сразу — из-за этого можно неделю смотреть вчерашние цены и
+// не знать об этом. Поэтому: новая версия ставится рядом и ждёт, каталог
+// показывает полосу «Вышла новая версия», и только по кнопке она заступает
+// на место старой, после чего страница перезагружается.
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
+  // Было ли приложение уже под управлением своей копии. Если нет — это первая
+  // установка, и смена управляющего не повод перезагружаться.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let waitingWorker = null;
+
+  const showUpdateBar = (worker) => {
+    waitingWorker = worker;
+    document.getElementById("install-bar").classList.remove("open");
+    document.getElementById("update-bar").classList.add("open");
+  };
+
+  navigator.serviceWorker
+    .register("./sw.js")
+    .then((reg) => {
+      if (reg.waiting && hadController) showUpdateBar(reg.waiting);
+
+      reg.addEventListener("updatefound", () => {
+        const fresh = reg.installing;
+        if (!fresh) return;
+        fresh.addEventListener("statechange", () => {
+          if (fresh.state === "installed" && navigator.serviceWorker.controller) showUpdateBar(fresh);
+        });
+      });
+
+      // Каталог с телефона обычно не закрывают, а сворачивают, поэтому проверку
+      // делаем при каждом возвращении к нему, а не только при запуске.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") reg.update().catch(() => {});
+      });
+    })
+    .catch(() => {});
+
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
+  document.getElementById("update-yes").addEventListener("click", (e) => {
+    e.currentTarget.textContent = "Обновляем…";
+    e.currentTarget.disabled = true;
+    if (waitingWorker) {
+      waitingWorker.postMessage({ type: "skip-waiting" });
+      // Если ответа нет — перезагружаемся сами, чтобы кнопка не зависла.
+      setTimeout(() => location.reload(), 3000);
+    } else {
+      location.reload();
+    }
+  });
 }
 
 load();
