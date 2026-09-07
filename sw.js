@@ -1,9 +1,9 @@
-const CACHE = "hgz-cache-v8";
+const CACHE = "hgz-cache-v9";
 // Адреса с ?v= должны совпадать с index.html: иначе браузер сохранит одно,
 // а страница попросит другое. Версия поднимается при правках style.css,
 // app.js или qr.js — благодаря ей разметка и код не могут разъехаться:
 // старая страница просит старые файлы, новая — новые, и пара всегда цела.
-const ASSETS = ["./", "./index.html", "./style.css?v=9", "./app.js?v=9", "./qr.js?v=9", "./products.json", "./manifest.json", "./icon-192-v2.png", "./icon-512-v2.png"];
+const ASSETS = ["./", "./index.html", "./style.css?v=10", "./app.js?v=10", "./qr.js?v=10", "./products.json", "./manifest.json", "./icon-192-v2.png", "./icon-512-v2.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));

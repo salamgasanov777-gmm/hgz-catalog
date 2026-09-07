@@ -457,6 +457,14 @@ html {
 .card .info { padding: 10px 12px 12px; }
 .card .name { font-size: 14px; font-weight: 700; line-height: 1.25; margin: 0 0 4px; }
 .card .meta { font-size: 12px; color: var(--muted); margin: 0; }
+/* Подсказка, почему товар попал в выдачу: без неё непонятно, при чём тут
+   грунтовка, когда искали «плитку». */
+.card .found {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--accent);
+  font-weight: 600;
+}
 
 .empty {
   grid-column: 1 / -1;

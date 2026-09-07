@@ -288,18 +288,145 @@ function syncCardFav(id) {
   }
 }
 
+// ---------------------------------------------------------------- Поиск
+// Прораб ищет не название, а задачу: «под плитку», «ванная», «машинное
+// нанесение». Раньше поиск смотрел только на название, и по слову «плитка»
+// не находилось ничего, хотя подходящих товаров два десятка. Теперь ищем по
+// всей карточке, но с приоритетом: совпадение в названии весит больше, чем
+// слово в глубине инструкции, иначе на «фасад» вываливается полкаталога.
+
+// Слова, которыми спрашивают люди, и слова, которыми пишет завод.
+// Значение с пробелом ищется целой фразой по тексту поля: слово «влажности»
+// стоит и в «нормальной влажности», и в «повышенной», поэтому по нему одному
+// в выдачу попадал весь каталог.
+const SEARCH_SYNONYMS = {
+  ванная: ["повышенным уровнем влажности"],
+  ванной: ["повышенным уровнем влажности"],
+  ванной: ["повышенным уровнем влажности"],
+  санузел: ["повышенным уровнем влажности"],
+  душевая: ["повышенным уровнем влажности"],
+  комната: ["нормальным уровнем влажности"],
+  спальня: ["нормальным уровнем влажности"],
+  улица: ["фасад", "наружные"],
+  снаружи: ["фасад", "наружные"],
+};
+
+const FIELD_WEIGHT = { name: 100, summary: 50, unit: 40, area: 35, section: 14, table: 12 };
+const FIELD_LABEL = { summary: "описание", unit: "фасовка", area: "область применения", section: "инструкция", table: "характеристики" };
+
+function normalizeText(text) {
+  return String(text || "").toLowerCase().replace(/ё/g, "е");
+}
+
+function tokenize(text) {
+  return normalizeText(text).split(/[^a-zа-я0-9]+/).filter((w) => w.length > 1);
+}
+
+// Индекс собирается один раз на товар и остаётся при нём: перебирать заново
+// на каждую букву в строке поиска незачем.
+function searchIndex(p) {
+  if (p._index) return p._index;
+  const areaTable = (p.tables || []).find((t) => t.title === "Область применения");
+  const areaRows = (areaTable?.rows || []).filter(([, value]) => value === "ДА").map(([label]) => label);
+  const otherTables = (p.tables || [])
+    .filter((t) => t.title !== "Область применения")
+    .flatMap((t) => t.rows.map((r) => r[0] + " " + r[1]));
+
+  const field = (text) => ({ words: tokenize(text), text: normalizeText(text) });
+
+  p._index = {
+    name: field(p.name),
+    summary: field(p.summary),
+    unit: field(p.unit + " " + p.category),
+    area: field(areaRows.join(" ")),
+    section: field((p.sections || []).map((x) => x.title + " " + x.text).join(" ")),
+    table: field(otherTables.join(" ")),
+  };
+  return p._index;
+}
+
+// «тёплый» и «теплых», «плитка» и «плиточный» — одно и то же слово в разных
+// формах, поэтому сверяем начала слов, а не целиком.
+function wordMatches(indexed, query) {
+  // Короткое слово вроде «пол» иначе цепляет «полимерную» и «полностью»,
+  // поэтому ему разрешаем только близкую по длине форму: «пола», «полов».
+  if (query.length <= 3) return indexed.startsWith(query) && indexed.length <= query.length + 2;
+
+  if (indexed.startsWith(query) || query.startsWith(indexed)) return true;
+
+  const limit = Math.min(indexed.length, query.length);
+  if (limit < 5) return false;
+  let same = 0;
+  while (same < limit && indexed[same] === query[same]) same++;
+  return same >= 4;
+}
+
+function fieldHas(field, variant) {
+  if (variant.includes(" ")) return field.text.includes(variant);
+  return field.words.some((word) => wordMatches(word, variant));
+}
+
+// Каждое слово запроса должно найтись хоть где-то, иначе товар не подходит.
+// Оценка — сумма весов лучших попаданий, подсказка — самое сильное поле,
+// кроме названия: если совпало название, объяснять нечего.
+function searchMatch(p, queryTokens) {
+  const index = searchIndex(p);
+  let score = 0;
+  let hintField = null;
+  let hintWeight = 0;
+
+  for (const token of queryTokens) {
+    const variants = [token, ...(SEARCH_SYNONYMS[token] || [])];
+    let best = 0;
+    let bestField = null;
+    for (const field of Object.keys(FIELD_WEIGHT)) {
+      const weight = FIELD_WEIGHT[field];
+      if (weight <= best) continue;
+      const hit = variants.some((v) => fieldHas(index[field], v));
+      if (hit) {
+        best = weight;
+        bestField = field;
+      }
+    }
+    if (!best) return null;
+    score += best;
+    if (bestField !== "name" && best > hintWeight) {
+      hintWeight = best;
+      hintField = bestField;
+    }
+  }
+
+  return { score, hint: hintField ? FIELD_LABEL[hintField] : null };
+}
+
 function render() {
   updateFavNav();
   renderTasks();
-  const q = document.getElementById("search").value.trim().toLowerCase();
+  const q = document.getElementById("search").value.trim();
+  const queryTokens = tokenize(q);
   const grid = document.getElementById("grid");
-  const filtered = products.filter((p) => {
+  const hints = new Map();
+
+  let filtered = products.filter((p) => {
     const matchesCat =
       activeCategory === "Все" ? true : activeCategory === "__fav__" ? isFavorite(p.id) : p.category === activeCategory;
-    const matchesQ = !q || p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q);
     const matchesTaskFilter = !activeTask || matchesTask(p, activeTask);
-    return matchesCat && matchesQ && matchesTaskFilter;
+    if (!matchesCat || !matchesTaskFilter) return false;
+    if (!queryTokens.length) return true;
+
+    const found = searchMatch(p, queryTokens);
+    if (!found) return false;
+    hints.set(p.id, found);
+    return true;
   });
+
+  // При поиске порядок — по совпадению, иначе заводской порядок каталога.
+  if (queryTokens.length) {
+    filtered = filtered
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => (hints.get(b.p.id).score - hints.get(a.p.id).score) || (a.i - b.i))
+      .map((x) => x.p);
+  }
 
   const compareBtn = document.getElementById("compare-btn");
   const compareConfig = COMPARE_CONFIG[activeCategory];
@@ -313,6 +440,8 @@ function render() {
     } else if (activeTask) {
       const label = TASKS.find((t) => t.key === activeTask)?.label;
       msg = `Под задачу «${esc(label)}» в этом разделе ничего нет.<br>Снимите фильтр или выберите другой раздел.`;
+    } else if (q) {
+      msg = `По запросу «${esc(q)}» ничего не нашлось.<br>Попробуйте другое слово — например, «плитка», «фасад» или «ванная».`;
     } else {
       msg = "Пока ничего нет.<br>Добавьте товары в products.json";
     }
@@ -329,6 +458,7 @@ function render() {
       <div class="info">
         <p class="name">${esc(p.name)}</p>
         <p class="meta">${esc(p.unit || "")}${p.price ? " · " + esc(p.price) : ""}</p>
+        ${hints.get(p.id)?.hint ? `<p class="found">найдено в: ${esc(hints.get(p.id).hint)}</p>` : ""}
       </div>
     </div>`
     )
