@@ -495,6 +495,49 @@ const WEBP_OK = (() => {
 // Фотография едет фоном, а у фона нет события загрузки. Поэтому просим
 // браузер загрузить тот же адрес отдельной картинкой: он берёт её из того же
 // кеша, лишнего запроса не делает, зато сообщает, когда можно убрать заглушку.
+// Снимков у товара может быть несколько: сама упаковка и этикетка крупным
+// планом, где видно надписи, номер ТУ и значки. Первым всегда идёт то, что
+// стоит на полке, — по нему товар и узнают.
+function productPhotos(p) {
+  if (Array.isArray(p.photos) && p.photos.length) return p.photos;
+  return p.photo ? [p.photo] : [];
+}
+
+function showPhotos(p) {
+  const box = document.getElementById("sheet-photo");
+  const dots = document.getElementById("sheet-dots");
+  const photos = productPhotos(p);
+
+  box.onscroll = null;
+  box.scrollLeft = 0;
+
+  if (photos.length < 2) {
+    box.className = "photo-big";
+    box.innerHTML = "";
+    box.style.backgroundImage = photos.length ? `url('${photoUrl({ photo: photos[0] })}')` : "none";
+    box.classList.toggle("loading", photos.length > 0);
+    if (photos.length) watchPhoto(box);
+    dots.className = "photo-dots";
+    dots.innerHTML = "";
+    return;
+  }
+
+  box.className = "photo-big gallery";
+  box.style.backgroundImage = "none";
+  box.innerHTML = photos
+    .map((src) => `<div class="photo-slide loading" style="background-image:url('${photoUrl({ photo: src })}')"></div>`)
+    .join("");
+  box.querySelectorAll(".photo-slide").forEach(watchPhoto);
+
+  dots.className = "photo-dots open";
+  dots.innerHTML = photos.map((_, i) => `<span class="${i === 0 ? "active" : ""}"></span>`).join("");
+
+  box.onscroll = () => {
+    const current = Math.round(box.scrollLeft / box.clientWidth);
+    dots.querySelectorAll("span").forEach((dot, i) => dot.classList.toggle("active", i === current));
+  };
+}
+
 function watchPhoto(el) {
   const src = (el.style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/) || [])[1];
   if (!src) {
@@ -540,10 +583,7 @@ document.getElementById("sheet-fav").addEventListener("click", () => {
 function openSheet(p) {
   currentProduct = p;
   updateSheetFavButton();
-  const sheetPhoto = document.getElementById("sheet-photo");
-  sheetPhoto.style.backgroundImage = p.photo ? `url('${photoUrl(p)}')` : "none";
-  sheetPhoto.classList.toggle("loading", Boolean(p.photo));
-  if (p.photo) watchPhoto(sheetPhoto);
+  showPhotos(p);
   document.getElementById("sheet-name").textContent = p.name;
   document.getElementById("sheet-price").textContent = [p.unit, p.price].filter(Boolean).join(" · ");
   document.getElementById("sheet-gost").textContent = p.gost || "";

@@ -526,6 +526,42 @@ html {
   margin-bottom: 14px;
 }
 
+/* Несколько снимков листаются пальцем, как в галерее телефона: горизонтальная
+   прокрутка с прилипанием, без своей логики свайпа. */
+.sheet .photo-big.gallery {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background-image: none;
+}
+.sheet .photo-big.gallery::-webkit-scrollbar { display: none; }
+.photo-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  background: var(--accent-soft) center/contain no-repeat;
+}
+
+.photo-dots {
+  display: none;
+  justify-content: center;
+  gap: 7px;
+  margin: -6px 0 14px;
+}
+.photo-dots.open { display: flex; }
+.photo-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.photo-dots span.active {
+  background: var(--accent);
+  transform: scale(1.25);
+}
+
 .sheet h2 { margin: 0 0 4px; font-size: 20px; line-height: 1.25; }
 .sheet .price { color: var(--accent); font-weight: 700; font-size: 16px; margin: 0 0 2px; }
 .sheet .gost { color: var(--muted); font-size: 12px; margin: 0 0 14px; letter-spacing: 0.2px; }

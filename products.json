@@ -5019,7 +5019,11 @@
     "tasks": [
       "dry"
     ],
-    "gost": "ТУ 2316-008-33494550-10"
+    "gost": "ТУ 2316-008-33494550-10",
+    "photos": [
+      "products/ekonom.jpg",
+      "products/ekonom-label.jpg"
+    ]
   },
   {
     "id": 32,
@@ -5102,7 +5106,11 @@
       "dry",
       "wet"
     ],
-    "gost": "ТУ 2316-008-33494550-10"
+    "gost": "ТУ 2316-008-33494550-10",
+    "photos": [
+      "products/lux.jpg",
+      "products/lux-label.jpg"
+    ]
   },
   {
     "id": 33,
@@ -5186,7 +5194,11 @@
       "wet",
       "facade"
     ],
-    "gost": "ТУ 2316-008-33494550-10"
+    "gost": "ТУ 2316-008-33494550-10",
+    "photos": [
+      "products/universal.jpg",
+      "products/universal-label.jpg"
+    ]
   },
   {
     "id": 34,
@@ -5248,7 +5260,11 @@
       "dry",
       "wet"
     ],
-    "gost": "ТУ 2316-008-33494550-10"
+    "gost": "ТУ 2316-008-33494550-10",
+    "photos": [
+      "products/prime.jpg",
+      "products/prime-label.jpg"
+    ]
   },
   {
     "id": 35,
@@ -5340,7 +5356,11 @@
     "tasks": [
       "dry"
     ],
-    "gost": "ТУ 2316-008-33494550-10"
+    "gost": "ТУ 2316-008-33494550-10",
+    "photos": [
+      "products/gel-concentrate.jpg",
+      "products/gel-concentrate-label.jpg"
+    ]
   },
   {
     "id": 36,
@@ -5422,7 +5442,11 @@
     "tasks": [
       "wet"
     ],
-    "gost": "ТУ 2316-008-33494550-10"
+    "gost": "ТУ 2316-008-33494550-10",
+    "photos": [
+      "products/antipleseni.jpg",
+      "products/antipleseni-label.jpg"
+    ]
   },
   {
     "id": 37,
