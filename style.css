@@ -1,11 +1,14 @@
 :root {
-  --bg: #f4f1ec;
+  /* Палитра снята с мешков ХАБЕЗ: холодная белая бумага, синий логотипа
+     и его светлый оттенок для подложек. Каталог читается как продолжение
+     упаковки, а не как отдельная программа. */
+  --bg: #eff2f6;
   --card: #ffffff;
-  --ink: #23282e;
-  --muted: #6b7280;
-  --accent: #2c4f78;
-  --accent-soft: #e8eef5;
-  --border: #e6e1d8;
+  --ink: #16202b;
+  --muted: #68757f;
+  --accent: #1f5fa8;
+  --accent-soft: #e7eff8;
+  --border: #dfe5ec;
   /* Цвет текста поверх акцентной заливки: в тёмной теме акцент светлеет,
      поэтому белым по нему уже не прочитать. */
   --on-accent: #ffffff;
@@ -16,26 +19,26 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #14181c;
-    --card: #1e252c;
-    --ink: #edf0f3;
-    --muted: #93a2af;
-    --accent: #6fa3d8;
-    --accent-soft: #23324a;
-    --border: #2b333b;
-    --on-accent: #10161d;
+    --bg: #11161c;
+    --card: #1b232c;
+    --ink: #e9eef4;
+    --muted: #94a3b1;
+    --accent: #74aae2;
+    --accent-soft: #1e3149;
+    --border: #29323c;
+    --on-accent: #0d141b;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #14181c;
-  --card: #1e252c;
-  --ink: #edf0f3;
-  --muted: #93a2af;
-  --accent: #6fa3d8;
-  --accent-soft: #23324a;
-  --border: #2b333b;
-  --on-accent: #10161d;
+  --bg: #11161c;
+  --card: #1b232c;
+  --ink: #e9eef4;
+  --muted: #94a3b1;
+  --accent: #74aae2;
+  --accent-soft: #1e3149;
+  --border: #29323c;
+  --on-accent: #0d141b;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -356,6 +359,57 @@ html {
   display: flex;
   flex-direction: column;
   position: relative;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+/* Лёгкое нажатие: палец видит, что карточка отозвалась. */
+.card:active { transform: scale(0.985); }
+
+@media (hover: hover) {
+  .card:hover { box-shadow: 0 6px 20px rgba(16, 32, 52, 0.08); }
+}
+
+/* Появление карточек: первые восемь всплывают друг за другом, дальше без
+   задержки — иначе прокрутка длинного списка превращается в мультфильм. */
+@keyframes hgz-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.grid .card { animation: hgz-rise 0.26s ease both; }
+.grid .card:nth-child(2) { animation-delay: 0.03s; }
+.grid .card:nth-child(3) { animation-delay: 0.06s; }
+.grid .card:nth-child(4) { animation-delay: 0.09s; }
+.grid .card:nth-child(5) { animation-delay: 0.12s; }
+.grid .card:nth-child(6) { animation-delay: 0.15s; }
+.grid .card:nth-child(7) { animation-delay: 0.18s; }
+.grid .card:nth-child(8) { animation-delay: 0.21s; }
+
+/* Пока фотография едет, на её месте переливается серая заглушка — пустой
+   белый прямоугольник выглядит как ошибка, заглушка как ожидание. */
+@keyframes hgz-shimmer {
+  from { background-position: 130% 0; }
+  to { background-position: -130% 0; }
+}
+.photo.loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(100deg, transparent 18%, rgba(255, 255, 255, 0.55) 50%, transparent 82%);
+  background-color: var(--accent-soft);
+  background-size: 260% 100%;
+  animation: hgz-shimmer 1.15s linear infinite;
+}
+
+/* Телефон в режиме экономии движения показывает всё сразу и без переливов. */
+@media (prefers-reduced-motion: reduce) {
+  .grid .card,
+  .photo.loading::after {
+    animation: none;
+  }
+  .card,
+  .sheet,
+  .sheet-backdrop {
+    transition: none;
+  }
 }
 
 .fav-btn {
@@ -389,6 +443,7 @@ html {
 .card .photo {
   width: 100%;
   aspect-ratio: 1.92 / 1;
+  position: relative;
   background: var(--accent-soft) center/contain no-repeat;
   display: flex;
   align-items: center;
@@ -411,13 +466,17 @@ html {
   font-size: 15px;
 }
 
+/* Затемнение проявляется, а не возникает: резкая чёрная вспышка читается
+   как сбой, плавная — как открывающееся окно. */
 .sheet-backdrop {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4);
-  display: none;
+  background: rgba(9, 16, 24, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.22s ease, visibility 0.22s;
   z-index: 20;
 }
-.sheet-backdrop.open { display: block; }
+.sheet-backdrop.open { opacity: 1; visibility: visible; }
 
 .sheet {
   position: fixed;
@@ -426,7 +485,9 @@ html {
   border-radius: 20px 20px 0 0;
   padding: 16px 18px calc(env(safe-area-inset-bottom, 0px) + 20px);
   transform: translateY(100%);
-  transition: transform 0.25s ease;
+  /* Выезжает быстро, а тормозит мягко — так движение читается как вещь
+     с весом, а не как переключение картинки. */
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
   z-index: 21;
   max-height: 80vh;
   overflow-y: auto;
@@ -451,6 +512,8 @@ html {
   width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: 14px;
+  position: relative;
+  overflow: hidden;
   background: var(--accent-soft) center/contain no-repeat;
   margin-bottom: 14px;
 }

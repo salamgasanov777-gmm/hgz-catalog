@@ -324,7 +324,7 @@ function render() {
     .map(
       (p, i) => `
     <div class="card" data-id="${p.id ?? i}">
-      <div class="photo" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : esc(p.name)}</div>
+      <div class="photo${p.photo ? " loading" : ""}" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : esc(p.name)}</div>
       <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? i}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
         <p class="name">${esc(p.name)}</p>
@@ -333,6 +333,8 @@ function render() {
     </div>`
     )
     .join("");
+
+  grid.querySelectorAll(".photo.loading").forEach(watchPhoto);
 
   grid.querySelectorAll(".card").forEach((card) => {
     const id = card.dataset.id;
@@ -359,6 +361,23 @@ const WEBP_OK = (() => {
     return false;
   }
 })();
+
+// Фотография едет фоном, а у фона нет события загрузки. Поэтому просим
+// браузер загрузить тот же адрес отдельной картинкой: он берёт её из того же
+// кеша, лишнего запроса не делает, зато сообщает, когда можно убрать заглушку.
+function watchPhoto(el) {
+  const src = (el.style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/) || [])[1];
+  if (!src) {
+    el.classList.remove("loading");
+    return;
+  }
+  const img = new Image();
+  const done = () => el.classList.remove("loading");
+  img.onload = done;
+  img.onerror = done;
+  img.src = src;
+  if (img.complete) done();
+}
 
 function photoUrl(p) {
   if (!p.photo) return "";
@@ -391,7 +410,10 @@ document.getElementById("sheet-fav").addEventListener("click", () => {
 function openSheet(p) {
   currentProduct = p;
   updateSheetFavButton();
-  document.getElementById("sheet-photo").style.backgroundImage = p.photo ? `url('${photoUrl(p)}')` : "none";
+  const sheetPhoto = document.getElementById("sheet-photo");
+  sheetPhoto.style.backgroundImage = p.photo ? `url('${photoUrl(p)}')` : "none";
+  sheetPhoto.classList.toggle("loading", Boolean(p.photo));
+  if (p.photo) watchPhoto(sheetPhoto);
   document.getElementById("sheet-name").textContent = p.name;
   document.getElementById("sheet-price").textContent = [p.unit, p.price].filter(Boolean).join(" · ");
   document.getElementById("sheet-gost").textContent = p.gost || "";
