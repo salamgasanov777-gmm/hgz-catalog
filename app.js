@@ -565,7 +565,7 @@ function openSheet(p) {
   }
 
   (p.sections || []).forEach((s) => {
-    html += `<section class="doc-section"><h3>${esc(s.title)}</h3><p>${esc(s.text).replace(/\n/g, "<br><br>")}</p></section>`;
+    html += `<section class="doc-section"><h3>${esc(s.title)}</h3><p>${esc(s.text).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>")}</p></section>`;
   });
 
   (p.tables || []).forEach((t) => {
@@ -576,7 +576,7 @@ function openSheet(p) {
   });
 
   if (p.description && !p.sections) {
-    html += `<p>${esc(p.description).replace(/\n/g, "<br><br>")}</p>`;
+    html += `<p>${esc(p.description).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>")}</p>`;
   }
 
   body.innerHTML = html;
