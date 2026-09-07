@@ -698,9 +698,62 @@ document.getElementById("qr-btn").addEventListener("click", () => {
   // с экрана телефона, и когда распечатывают.
   QR.draw(canvas, url, 8);
   document.getElementById("qr-url").textContent = url.replace(/^https:\/\//, "");
+  resetCopyBtn();
   document.getElementById("qr-backdrop").classList.add("open");
   document.getElementById("qr-sheet").classList.add("open");
   openOverlay(closeQr);
+});
+
+// Копирование ссылки. Современный способ работает только на защищённом
+// соединении; на старых Safari и при открытии по http остаётся запасной —
+// скрытое поле и системная команда «копировать».
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* падаем в запасной способ */
+  }
+
+  const field = document.createElement("textarea");
+  field.value = text;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.top = "-1000px";
+  document.body.appendChild(field);
+  field.select();
+  field.setSelectionRange(0, text.length);
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(field);
+  return ok;
+}
+
+let copyResetTimer = null;
+
+function resetCopyBtn() {
+  const btn = document.getElementById("qr-copy");
+  clearTimeout(copyResetTimer);
+  btn.textContent = "Скопировать ссылку";
+  btn.classList.remove("done");
+}
+
+document.getElementById("qr-copy").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const ok = await copyText(catalogUrl());
+  btn.textContent = ok ? "Ссылка скопирована ✓" : "Не получилось — скопируйте адрес выше";
+  btn.classList.toggle("done", ok);
+  clearTimeout(copyResetTimer);
+  copyResetTimer = setTimeout(() => {
+    btn.textContent = "Скопировать ссылку";
+    btn.classList.remove("done");
+  }, 2500);
 });
 
 function closeQr() {

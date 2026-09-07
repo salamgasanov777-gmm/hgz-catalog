@@ -504,6 +504,24 @@ html {
   word-break: break-all;
 }
 
+.qr-copy {
+  display: block;
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.qr-copy.done {
+  border-color: #25d366;
+  background: #e9faf0;
+  color: #128c3e;
+}
+
 .install-bar {
   position: fixed;
   left: 12px;
