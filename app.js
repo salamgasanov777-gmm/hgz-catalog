@@ -465,6 +465,15 @@ function shareText(p) {
   return lines.join("\n");
 }
 
+// Склонение существительного при числе: 1 лист, 2 листа, 5 листов.
+function plural(n, forms) {
+  const ten = n % 10;
+  const hundred = n % 100;
+  if (ten === 1 && hundred !== 11) return forms[0];
+  if (ten >= 2 && ten <= 4 && (hundred < 10 || hundred >= 20)) return forms[1];
+  return forms[2];
+}
+
 function calcHtml(calc) {
   const thicknessRow =
     calc.type === "thickness"
@@ -473,6 +482,16 @@ function calcHtml(calc) {
           <input id="calc-mm" type="number" inputmode="decimal" min="0.1" step="${calc.stepMm ?? 1}" value="${calc.defaultMm ?? 10}">
         </label>`
       : "";
+
+  // Листы и плиты режут по проёмам и углам, обрезки в дело не идут. Заводской
+  // нормы на это нет, поэтому запас — необязательная галочка, а не молчаливая
+  // прибавка к результату.
+  const wasteRow = calc.waste
+    ? `<label class="calc-check">
+          <input id="calc-waste" type="checkbox">
+          <span>С запасом на подрезку ${Math.round(calc.waste * 100)}%</span>
+        </label>`
+    : "";
 
   return `
     <section class="calc-box">
@@ -484,15 +503,21 @@ function calcHtml(calc) {
         </label>
         ${thicknessRow}
       </div>
+      ${wasteRow}
       <div id="calc-result" class="calc-result">Введите площадь</div>
       ${calc.note ? `<p class="calc-note">${esc(calc.note)}</p>` : ""}
-      <p class="calc-note">Расчёт ориентировочный: расход зависит от основания, толщины слоя и способа нанесения. Точное количество на объект уточняйте у менеджера.</p>
+      <p class="calc-note">${
+        calc.type === "pieces"
+          ? "Расчёт ориентировочный: количество зависит от размеров помещения и раскроя. Точное количество на объект уточняйте у менеджера."
+          : "Расчёт ориентировочный: расход зависит от основания, толщины слоя и способа нанесения. Точное количество на объект уточняйте у менеджера."
+      }</p>
     </section>`;
 }
 
 function wireCalc(calc) {
   const areaInput = document.getElementById("calc-area");
   const mmInput = document.getElementById("calc-mm");
+  const wasteInput = document.getElementById("calc-waste");
   const result = document.getElementById("calc-result");
 
   function update() {
@@ -501,6 +526,24 @@ function wireCalc(calc) {
 
     if (!area || area <= 0) {
       result.textContent = "Введите площадь";
+      return;
+    }
+
+    if (calc.type === "pieces") {
+      // Площадь штуки: либо задана прямо, либо выводится из упаковки — так
+      // 30 плит на 10 м² дают ровно треть метра без потерь на округлении.
+      const areaPerItem = calc.areaPerItem ?? calc.packArea / calc.pack;
+      const withWaste = wasteInput && wasteInput.checked ? area * (1 + calc.waste) : area;
+      // Крошечный допуск: без него 12 м² плитой в 1/3 м² дают 36.000000000000004
+      // штуки, и покупатель получает лишнюю плиту на ровной площади.
+      const pieces = Math.ceil(withWaste / areaPerItem - 1e-9);
+      const covered = pieces * areaPerItem;
+      let text = `Нужно: <b>${pieces} ${plural(pieces, calc.item)}</b> — это ${formatNum(covered)} м²`;
+      if (calc.pack) {
+        const packs = Math.ceil(pieces / calc.pack);
+        text += ` (${packs} ${plural(packs, calc.packLabel)} по ${calc.pack} шт)`;
+      }
+      result.innerHTML = text;
       return;
     }
 
@@ -531,6 +574,7 @@ function wireCalc(calc) {
 
   areaInput.addEventListener("input", update);
   if (mmInput) mmInput.addEventListener("input", update);
+  if (wasteInput) wasteInput.addEventListener("change", update);
 }
 
 function closeSheet() {

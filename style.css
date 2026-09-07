@@ -631,6 +631,21 @@ html {
   width: 100%;
 }
 .calc-field input:focus { border-color: var(--accent); }
+.calc-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.calc-check input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
+
 .calc-result {
   margin-top: 12px;
   font-size: 14.5px;
