@@ -310,7 +310,8 @@ function enableSwipeToClose(sheet) {
   sheet.addEventListener(
     "touchstart",
     (e) => {
-      if (e.touches.length !== 1 || sheet.scrollTop > 0) return;
+      // На плеере перетаскивание — это перемотка, а не закрытие окна.
+      if (e.touches.length !== 1 || sheet.scrollTop > 0 || e.target.closest("video")) return;
       startY = e.touches[0].clientY;
       shift = 0;
       dragging = true;
@@ -350,7 +351,7 @@ function enableSwipeToClose(sheet) {
   sheet.addEventListener("touchcancel", finish);
 }
 
-["sheet", "compare-sheet", "qr-sheet", "ios-sheet"].forEach((id) =>
+["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet"].forEach((id) =>
   enableSwipeToClose(document.getElementById(id))
 );
 
