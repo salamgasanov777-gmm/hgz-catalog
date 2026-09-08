@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#1f5fa8">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
   <div class="topbar">
@@ -48,6 +48,7 @@
   <div id="drawer" class="drawer">
     <div class="drawer-head">Разделы</div>
     <div id="drawer-list" class="drawer-list"></div>
+    <div id="pages-list" class="drawer-pages"></div>
     <div id="drawer-foot" class="drawer-foot"></div>
   </div>
 
@@ -92,6 +93,13 @@
     </ol>
   </div>
 
+  <div id="page-backdrop" class="sheet-backdrop"></div>
+  <div id="page-sheet" class="sheet page-sheet">
+    <button id="page-close" class="close">✕</button>
+    <h2 id="page-title"></h2>
+    <div id="page-body"></div>
+  </div>
+
   <div id="backdrop" class="sheet-backdrop"></div>
   <div id="sheet" class="sheet">
     <button id="sheet-close" class="close">✕</button>
@@ -106,7 +114,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=13"></script>
-  <script src="app.js?v=13"></script>
+  <script src="qr.js?v=14"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

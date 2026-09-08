@@ -78,12 +78,24 @@ async function load() {
   // показывается дата ровно той версии, которую человек видит.
   dataDate = res.headers.get("Last-Modified");
   showDataDate();
+
+  // Страницы про сам завод лежат отдельным файлом: их наполняют текстом и
+  // ссылками, а не карточками товаров, и без них каталог обязан работать.
+  try {
+    const info = await fetch("./content.json", { cache: "no-store" });
+    content = info.ok ? await info.json() : null;
+  } catch {
+    content = null;
+  }
+
   renderCategories();
+  renderPages();
   render();
   openFromHash();
 }
 
 let dataDate = null;
+let content = null;
 
 function showDataDate() {
   // Элемента может не быть: у человека в кеше осталась прежняя index.html,
@@ -128,6 +140,101 @@ function renderCategories() {
       dismissOverlay();
     });
   });
+}
+
+
+// ------------------------------------------------- Страницы про завод
+// Пустой раздел не показываем вовсе: пункт меню, за которым «материалы
+// готовятся», выглядит хуже, чем его отсутствие. Появятся данные в
+// content.json — появится и пункт, править код не придётся.
+const PAGES = [
+  {
+    key: "about",
+    label: "О заводе",
+    has: (c) => Boolean(c && c.about && (c.about.company || (c.about.paragraphs || []).length)),
+    render: (c) => {
+      const a = c.about;
+      let html = "";
+      if (a.company) html += `<p class="page-lead">${esc(a.company)}</p>`;
+      if (a.address) html += `<p class="page-sub">${esc(a.address)}</p>`;
+      if (a.site) html += `<a class="page-link" href="${esc(a.site)}" target="_blank" rel="noopener">${esc(a.site.replace(/^https?:\/\//, ""))}</a>`;
+      (a.paragraphs || []).forEach((t) => (html += `<p class="page-text">${esc(t)}</p>`));
+      if ((a.photos || []).length) {
+        html += `<div class="about-photos">${(a.photos || []).map((src) => `<div style="background-image:url('${esc(src)}')"></div>`).join("")}</div>`;
+      }
+      if (!(a.paragraphs || []).length) {
+        html += `<p class="page-empty">Рассказ о производстве и фотографии завода появятся здесь, как только их пришлёт завод.</p>`;
+      }
+      return html;
+    },
+  },
+  {
+    key: "stores",
+    label: "Где купить",
+    has: (c) => Boolean(c && (c.stores || []).length),
+    render: (c) =>
+      (c.stores || [])
+        .map((s) => {
+          const lines = [s.address, s.hours].filter(Boolean).map((t) => `<p class="line">${esc(t)}</p>`).join("");
+          const actions = [];
+          if (s.phone) actions.push(`<a href="tel:${esc(s.phone.replace(/[^+\d]/g, ""))}">Позвонить</a>`);
+          if (s.address) actions.push(`<a href="https://yandex.ru/maps/?text=${encodeURIComponent(s.address)}" target="_blank" rel="noopener">Открыть в картах</a>`);
+          return `<div class="store-card"><p class="name">${esc(s.name || "")}</p>${lines}${
+            s.phone ? `<p class="line">${esc(s.phone)}</p>` : ""
+          }${actions.length ? `<div class="store-actions">${actions.join("")}</div>` : ""}</div>`;
+        })
+        .join(""),
+  },
+  {
+    key: "videos",
+    label: "Видео",
+    has: (c) => Boolean(c && (c.videos || []).length),
+    render: (c) =>
+      (c.videos || [])
+        .map(
+          (v) =>
+            `<a class="video-item" href="${esc(v.url)}" target="_blank" rel="noopener"><div class="thumb" style="${
+              v.thumb ? `background-image:url('${esc(v.thumb)}')` : ""
+            }"></div><div class="title">▶ ${esc(v.title || "Смотреть")}</div></a>`
+        )
+        .join(""),
+  },
+];
+
+function renderPages() {
+  const box = document.getElementById("pages-list");
+  if (!box) return;
+  const available = PAGES.filter((page) => page.has(content));
+  box.innerHTML = available.map((page) => `<button class="drawer-item" data-page="${page.key}">${esc(page.label)}</button>`).join("");
+  box.querySelectorAll("[data-page]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.page;
+      // Сначала должна закрыться шторка разделов, и только потом открыться
+      // страница. Закрытие идёт через историю браузера, то есть не мгновенно:
+      // откроем страницу — и её же тут же закроет прилетевший popstate.
+      if (!overlayStack.length) {
+        openPage(key);
+        return;
+      }
+      window.addEventListener("popstate", () => openPage(key), { once: true });
+      dismissOverlay();
+    });
+  });
+}
+
+function openPage(key) {
+  const page = PAGES.find((x) => x.key === key);
+  if (!page || !page.has(content)) return;
+  document.getElementById("page-title").textContent = page.label;
+  document.getElementById("page-body").innerHTML = page.render(content);
+  document.getElementById("page-backdrop").classList.add("open");
+  document.getElementById("page-sheet").classList.add("open");
+  openOverlay(closePage);
+}
+
+function closePage() {
+  document.getElementById("page-backdrop").classList.remove("open");
+  document.getElementById("page-sheet").classList.remove("open");
 }
 
 function selectCategory(cat) {
@@ -1084,6 +1191,8 @@ function closeQr() {
   document.getElementById("qr-backdrop").classList.remove("open");
   document.getElementById("qr-sheet").classList.remove("open");
 }
+document.getElementById("page-backdrop").addEventListener("click", dismissOverlay);
+document.getElementById("page-close").addEventListener("click", dismissOverlay);
 document.getElementById("qr-backdrop").addEventListener("click", dismissOverlay);
 document.getElementById("qr-close").addEventListener("click", dismissOverlay);
 

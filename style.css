@@ -223,6 +223,70 @@ html {
   border-left-color: var(--accent);
 }
 
+/* Разделы каталога — это товары, а «О заводе» и «Где купить» — про сам завод.
+   Поэтому они отделены чертой и живут ниже списка категорий. */
+.drawer-pages {
+  display: flex;
+  flex-direction: column;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.drawer-pages:empty { display: none; }
+
+.page-sheet h2 { margin: 0 0 14px; font-size: 20px; }
+.page-lead { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: var(--ink); }
+.page-sub { margin: 0 0 4px; font-size: 14px; color: var(--muted); line-height: 1.45; }
+.page-link { display: inline-block; margin: 6px 0 16px; font-size: 14px; color: var(--accent); font-weight: 600; }
+.page-text { margin: 0 0 12px; font-size: 15px; line-height: 1.55; color: var(--ink); }
+.page-empty { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--muted); }
+
+.about-photos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.about-photos div {
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  background: var(--accent-soft) center/cover no-repeat;
+}
+
+.store-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.store-card .name { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+.store-card .line { margin: 0 0 3px; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.store-actions { display: flex; gap: 8px; margin-top: 12px; }
+.store-actions a {
+  flex: 1 1 0;
+  text-align: center;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.video-item {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.video-item .thumb {
+  aspect-ratio: 16 / 9;
+  background: var(--accent-soft) center/cover no-repeat;
+}
+.video-item .title { padding: 12px 14px; font-size: 15px; font-weight: 700; color: var(--ink); }
+
 .search {
   width: 100%;
   padding: 10px 14px;
