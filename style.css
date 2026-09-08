@@ -253,6 +253,28 @@ html {
   background: var(--accent-soft) center/cover no-repeat;
 }
 
+.store-search { margin-bottom: 4px; }
+.store-cities { margin-bottom: 14px; }
+.store-count { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.store-city {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.store-count + .store-city { margin-top: 0; }
+.store-city span {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .store-card {
   border: 1px solid var(--border);
   border-radius: 14px;

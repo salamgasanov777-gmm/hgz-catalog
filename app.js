@@ -147,6 +147,72 @@ function renderCategories() {
 // Все три пункта показываются всегда, даже пустые: так решил владелец —
 // наполнять он будет постепенно, а видеть разделы хочет уже сейчас. Пустой
 // раздел честно пишет, что данные появятся позже, а не притворяется рабочим.
+// Точки продаж ищутся по городу, улице и названию магазина. Город достаём из
+// адреса — это всё, что стоит до первой запятой, без сокращения «г.», «с.» и
+// прочих. Поле "city" в content.json главнее: им можно поправить адрес,
+// записанный не по шаблону, не переписывая сам адрес.
+const CITY_PREFIX = /^(?:г|гор|город|с|село|пос|п|пгт|а|аул|х|хут|ст|станица|мкр)\.?\s+/i;
+
+function storeCity(s) {
+  if (s && s.city) return String(s.city).trim();
+  const head = String((s && s.address) || "").split(",")[0].trim();
+  return head.replace(CITY_PREFIX, "").trim() || "Другие адреса";
+}
+
+function storeCities(all) {
+  return [...new Set(all.map(storeCity))].sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+let storeQuery = "";
+let storeCityFilter = "Все";
+
+function storeMatches(s, q) {
+  if (!q.trim()) return true;
+  const hay = normalizeText([s.name, s.address, storeCity(s), s.hours, s.phone].filter(Boolean).join(" "));
+  return normalizeText(q).split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
+}
+
+function storeCardHtml(s) {
+  const lines = [s.address, s.hours].filter(Boolean).map((t) => `<p class="line">${esc(t)}</p>`).join("");
+  const actions = [];
+  if (s.phone) actions.push(`<a href="tel:${esc(String(s.phone).replace(/[^+\d]/g, ""))}">Позвонить</a>`);
+  if (s.address) actions.push(`<a href="https://yandex.ru/maps/?text=${encodeURIComponent(s.address)}" target="_blank" rel="noopener">Открыть в картах</a>`);
+  return `<div class="store-card"><p class="name">${esc(s.name || "")}</p>${lines}${
+    s.phone ? `<p class="line">${esc(s.phone)}</p>` : ""
+  }${actions.length ? `<div class="store-actions">${actions.join("")}</div>` : ""}</div>`;
+}
+
+function storePlural(n, one, few, many) {
+  const d = n % 10, dd = n % 100;
+  if (d === 1 && dd !== 11) return one;
+  if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return few;
+  return many;
+}
+
+// Когда городов несколько и ни один не выбран, карточки идут группами с
+// заголовком города: видно всю географию сразу, ещё до всякого поиска.
+function storeResultsHtml(all, cities) {
+  const found = all.filter((s) => (storeCityFilter === "Все" || storeCity(s) === storeCityFilter) && storeMatches(s, storeQuery));
+  const total = all.length;
+  const count = found.length === total
+    ? `${total} ${storePlural(total, "точка продаж", "точки продаж", "точек продаж")}`
+    : `Найдено: ${found.length} из ${total}`;
+  const head = total >= 4 || cities.length > 1 ? `<p class="store-count">${count}</p>` : "";
+  if (!found.length) {
+    return head + `<p class="page-empty">Ничего не нашлось. Попробуйте другой город или часть названия улицы.</p>`;
+  }
+  if (cities.length < 2 || storeCityFilter !== "Все") {
+    return head + found.map(storeCardHtml).join("");
+  }
+  return head + cities
+    .map((city) => {
+      const items = found.filter((s) => storeCity(s) === city);
+      if (!items.length) return "";
+      return `<h3 class="store-city">${esc(city)}<span>${items.length}</span></h3>${items.map(storeCardHtml).join("")}`;
+    })
+    .join("");
+}
+
 const PAGES = [
   {
     key: "about",
@@ -178,20 +244,47 @@ const PAGES = [
     key: "stores",
     label: "Где купить",
     render: (c) => {
-      if (!(c && (c.stores || []).length)) {
+      const all = (c && c.stores) || [];
+      // Раздел открывается заново каждый раз — начинаем с чистого поиска,
+      // иначе человек вернётся и увидит вчерашний отфильтрованный список.
+      storeQuery = "";
+      storeCityFilter = "Все";
+      if (!all.length) {
         return `<p class="page-empty">Список точек продаж скоро появится здесь. Пока адрес ближайшего магазина подскажет менеджер.</p>`;
       }
-      return (c.stores || [])
-        .map((s) => {
-          const lines = [s.address, s.hours].filter(Boolean).map((t) => `<p class="line">${esc(t)}</p>`).join("");
-          const actions = [];
-          if (s.phone) actions.push(`<a href="tel:${esc(s.phone.replace(/[^+\d]/g, ""))}">Позвонить</a>`);
-          if (s.address) actions.push(`<a href="https://yandex.ru/maps/?text=${encodeURIComponent(s.address)}" target="_blank" rel="noopener">Открыть в картах</a>`);
-          return `<div class="store-card"><p class="name">${esc(s.name || "")}</p>${lines}${
-            s.phone ? `<p class="line">${esc(s.phone)}</p>` : ""
-          }${actions.length ? `<div class="store-actions">${actions.join("")}</div>` : ""}</div>`;
-        })
-        .join("");
+      const cities = storeCities(all);
+      // Пока точек мало и все они в одном городе, искать нечего: строка поиска
+      // и полоса городов только мешали бы. Появятся сами, когда список вырастет.
+      const finder = all.length >= 4 || cities.length > 1;
+      let html = "";
+      if (finder) {
+        html += `<input id="store-search" class="search store-search" type="search" inputmode="search" autocomplete="off" placeholder="Город, улица или магазин…">`;
+        if (cities.length > 1) {
+          html += `<div id="store-cities" class="task-row store-cities">${["Все", ...cities]
+            .map((x) => `<button class="task-chip${x === "Все" ? " active" : ""}" data-city="${esc(x)}">${esc(x === "Все" ? "Все города" : x)}</button>`)
+            .join("")}</div>`;
+        }
+      }
+      return html + `<div id="store-results">${storeResultsHtml(all, cities)}</div>`;
+    },
+    // Строка поиска и кнопки городов оживают уже после вставки разметки:
+    // перерисовываем только список, поле ввода при этом не теряет фокус.
+    after: () => {
+      const box = document.getElementById("store-results");
+      if (!box) return;
+      const all = (content && content.stores) || [];
+      const cities = storeCities(all);
+      const redraw = () => { box.innerHTML = storeResultsHtml(all, cities); };
+      const input = document.getElementById("store-search");
+      if (input) input.addEventListener("input", () => { storeQuery = input.value; redraw(); });
+      const chips = document.querySelectorAll("#store-cities .task-chip");
+      chips.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          storeCityFilter = btn.dataset.city;
+          chips.forEach((b) => b.classList.toggle("active", b === btn));
+          redraw();
+        });
+      });
     },
   },
   {
@@ -244,6 +337,7 @@ function openPage(key) {
   if (!page) return;
   document.getElementById("page-title").textContent = page.label;
   document.getElementById("page-body").innerHTML = page.render(content);
+  if (page.after) page.after();
   document.getElementById("page-backdrop").classList.add("open");
   document.getElementById("page-sheet").classList.add("open");
   openOverlay(closePage);
