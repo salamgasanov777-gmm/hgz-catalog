@@ -144,14 +144,13 @@ function renderCategories() {
 
 
 // ------------------------------------------------- Страницы про завод
-// Пустой раздел не показываем вовсе: пункт меню, за которым «материалы
-// готовятся», выглядит хуже, чем его отсутствие. Появятся данные в
-// content.json — появится и пункт, править код не придётся.
+// Все три пункта показываются всегда, даже пустые: так решил владелец —
+// наполнять он будет постепенно, а видеть разделы хочет уже сейчас. Пустой
+// раздел честно пишет, что данные появятся позже, а не притворяется рабочим.
 const PAGES = [
   {
     key: "about",
     label: "О заводе",
-    has: (c) => Boolean(c && c.about && (c.about.company || (c.about.paragraphs || []).length)),
     render: (c) => {
       const a = c.about;
       let html = "";
@@ -178,9 +177,11 @@ const PAGES = [
   {
     key: "stores",
     label: "Где купить",
-    has: (c) => Boolean(c && (c.stores || []).length),
-    render: (c) =>
-      (c.stores || [])
+    render: (c) => {
+      if (!(c && (c.stores || []).length)) {
+        return `<p class="page-empty">Список точек продаж скоро появится здесь. Пока адрес ближайшего магазина подскажет менеджер.</p>`;
+      }
+      return (c.stores || [])
         .map((s) => {
           const lines = [s.address, s.hours].filter(Boolean).map((t) => `<p class="line">${esc(t)}</p>`).join("");
           const actions = [];
@@ -190,29 +191,32 @@ const PAGES = [
             s.phone ? `<p class="line">${esc(s.phone)}</p>` : ""
           }${actions.length ? `<div class="store-actions">${actions.join("")}</div>` : ""}</div>`;
         })
-        .join(""),
+        .join("");
+    },
   },
   {
     key: "videos",
     label: "Видео",
-    has: (c) => Boolean(c && (c.videos || []).length),
-    render: (c) =>
-      (c.videos || [])
+    render: (c) => {
+      if (!(c && (c.videos || []).length)) {
+        return `<p class="page-empty">Видео о том, как наносить материалы, скоро появится здесь.</p>`;
+      }
+      return (c.videos || [])
         .map(
           (v) =>
             `<a class="video-item" href="${esc(v.url)}" target="_blank" rel="noopener"><div class="thumb" style="${
               v.thumb ? `background-image:url('${esc(v.thumb)}')` : ""
             }"></div><div class="title">▶ ${esc(v.title || "Смотреть")}</div></a>`
         )
-        .join(""),
+        .join("");
+    },
   },
 ];
 
 function renderPages() {
   const box = document.getElementById("pages-list");
   if (!box) return;
-  const available = PAGES.filter((page) => page.has(content));
-  box.innerHTML = available.map((page) => `<button class="drawer-item" data-page="${page.key}">${esc(page.label)}</button>`).join("");
+  box.innerHTML = PAGES.map((page) => `<button class="drawer-item" data-page="${page.key}">${esc(page.label)}</button>`).join("");
   box.querySelectorAll("[data-page]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const key = btn.dataset.page;
@@ -231,7 +235,7 @@ function renderPages() {
 
 function openPage(key) {
   const page = PAGES.find((x) => x.key === key);
-  if (!page || !page.has(content)) return;
+  if (!page) return;
   document.getElementById("page-title").textContent = page.label;
   document.getElementById("page-body").innerHTML = page.render(content);
   document.getElementById("page-backdrop").classList.add("open");
