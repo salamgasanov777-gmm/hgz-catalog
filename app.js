@@ -213,7 +213,134 @@ function storeResultsHtml(all, cities) {
     .join("");
 }
 
+// ------------------------------------------------- Контакт менеджера
+// Каталогом пользуется не один человек: у завода региональные менеджеры в
+// разных республиках. Поэтому ничей номер в коде не зашит. Менеджер вписывает
+// свой контакт у себя на телефоне — и QR-код начинает нести этот контакт
+// параметрами (`?m=79280000000&n=Имя Фамилия`). Клиент, открывший каталог по
+// такому коду, видит блок «Ваш менеджер», и кнопка «Отправить в WhatsApp» на
+// карточке товара пишет сразу ему. Кто пришёл по обычной ссылке, видит общий
+// телефон отдела продаж завода из content.json.
+const MANAGER_KEY = "hgz-manager";
+const MANAGER_ROLE = "Региональный менеджер";
+// Ёмкость нашего генератора QR — 213 байт (см. qr.js). Всё, что в ссылке
+// после номера, уже percent-кодировано, то есть чистый ASCII: длина строки и
+// есть длина в байтах.
+const QR_LIMIT = 213;
+
+let manager = null;
+let qrNameTrimmed = false;
+
+function loadManager() {
+  try {
+    const raw = localStorage.getItem(MANAGER_KEY);
+    manager = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    manager = null;
+  }
+  if (!(manager && manager.phone)) manager = null;
+}
+
+function saveManager(m) {
+  manager = m;
+  try {
+    if (m) localStorage.setItem(MANAGER_KEY, JSON.stringify(m));
+    else localStorage.removeItem(MANAGER_KEY);
+  } catch (e) {}
+}
+
+// Из «8-938-777-74-40» получаем 79387777440 — в таком виде номер нужен и
+// ссылке wa.me, и параметру в QR-коде. Пустая строка означает «не номер».
+function phoneDigits(raw) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.length === 11 && d[0] === "8") d = "7" + d.slice(1);
+  if (d.length === 10) d = "7" + d;
+  return d.length === 11 && d[0] === "7" ? d : "";
+}
+
+function phonePretty(raw) {
+  const d = phoneDigits(raw);
+  if (!d) return String(raw || "");
+  return `+7 (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`;
+}
+
+function managerName() {
+  return (manager && manager.name) || "Менеджер завода";
+}
+
+// Контакт, приехавший в адресе с чужого QR-кода. Сохраняем и сразу вычищаем
+// параметры из строки браузера: иначе номер уедет дальше, если клиент
+// перешлёт ссылку кому-то ещё, и попадёт в закладку.
+function readManagerFromUrl() {
+  const q = new URLSearchParams(location.search);
+  const phone = phoneDigits(q.get("m"));
+  if (!phone) return false;
+  const name = (q.get("n") || "").trim().replace(/\s+/g, " ").slice(0, 60);
+  const changed = !(manager && manager.phone === phone);
+  saveManager({ name, phone, own: false });
+  q.delete("m");
+  q.delete("n");
+  const rest = q.toString();
+  history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+  return changed;
+}
+
+// Адрес для QR-кода. Длинное имя подрезаем по словам, пока ссылка не влезет в
+// код: лучше «Магомедсалам» без отчества, чем ошибка вместо картинки.
+function qrLink() {
+  const base = catalogUrl();
+  qrNameTrimmed = false;
+  if (!(manager && manager.own && manager.phone)) return base;
+  const head = `${base}${base.includes("?") ? "&" : "?"}m=${manager.phone}`;
+  const words = String(manager.name || "").trim().split(/\s+/).filter(Boolean);
+  for (let n = words.length; n > 0; n--) {
+    const url = `${head}&n=${encodeURIComponent(words.slice(0, n).join(" "))}`;
+    if (url.length <= QR_LIMIT) {
+      qrNameTrimmed = n < words.length;
+      return url;
+    }
+  }
+  qrNameTrimmed = words.length > 0;
+  return head;
+}
+
+function managerCardHtml() {
+  if (!manager) return "";
+  const wa = `https://wa.me/${manager.phone}`;
+  return `<h3 class="contact-head">${manager.own ? "Ваш контакт в каталоге" : "Ваш менеджер"}</h3>` +
+    `<div class="store-card"><p class="name">${esc(managerName())}</p>` +
+    `<p class="line">${esc(MANAGER_ROLE)}</p>` +
+    `<p class="line">${esc(phonePretty(manager.phone))}</p>` +
+    `<div class="store-actions"><a href="tel:+${esc(manager.phone)}">Позвонить</a>` +
+    `<a href="${wa}" target="_blank" rel="noopener">WhatsApp</a></div></div>`;
+}
+
+function factoryContactHtml(c) {
+  const a = (c && c.about) || {};
+  if (!a.phone) return "";
+  const digits = phoneDigits(a.phone);
+  const wa = digits ? `<a href="https://wa.me/${digits}" target="_blank" rel="noopener">WhatsApp</a>` : "";
+  return `<h3 class="contact-head">Отдел продаж завода</h3>` +
+    `<div class="store-card"><p class="name">${esc(a.company || "Завод")}</p>` +
+    `<p class="line">${esc(a.phone)}</p>` +
+    `<div class="store-actions"><a href="tel:${esc(String(a.phone).replace(/[^+\d]/g, ""))}">Позвонить</a>${wa}</div></div>`;
+}
+
 const PAGES = [
+  {
+    key: "contact",
+    label: "Связаться",
+    render: (c) => {
+      const html = managerCardHtml() + factoryContactHtml(c);
+      if (!html) {
+        return `<p class="page-empty">Контакты появятся здесь.</p>`;
+      }
+      if (!manager) {
+        return html + `<p class="page-empty">Если вы откроете каталог по QR-коду менеджера, здесь появится его имя и телефон.</p>`;
+      }
+      return html;
+    },
+  },
   {
     key: "about",
     label: "О заводе",
@@ -861,7 +988,13 @@ function openSheet(p) {
     wireCalc(p.calc);
   }
 
-  document.getElementById("sheet-share").href = `https://wa.me/?text=${encodeURIComponent(shareText(p))}`;
+  // Клиенту, пришедшему по QR-коду менеджера, кнопка пишет сразу этому
+  // менеджеру. У самого менеджера (own) она остаётся обычной: он рассылает
+  // товары клиентам и выбирает чат сам.
+  const shareTo = manager && !manager.own ? manager.phone : "";
+  const shareBtn = document.getElementById("sheet-share");
+  shareBtn.href = `https://wa.me/${shareTo}?text=${encodeURIComponent(shareText(p))}`;
+  shareBtn.textContent = shareTo ? `📤 Отправить менеджеру в WhatsApp` : `📤 Отправить в WhatsApp`;
 
   document.getElementById("backdrop").classList.add("open");
   document.getElementById("sheet").classList.add("open");
@@ -1254,10 +1387,11 @@ function catalogUrl() {
 
 document.getElementById("qr-btn").addEventListener("click", () => {
   const canvas = document.getElementById("qr-canvas");
-  const url = catalogUrl();
+  const url = qrLink();
   // Модуль в 8 точек: код остаётся читаемым и когда его показывают
   // с экрана телефона, и когда распечатывают.
   QR.draw(canvas, url, 8);
+  renderQrManager();
   resetCopyBtn();
   document.getElementById("qr-backdrop").classList.add("open");
   document.getElementById("qr-sheet").classList.add("open");
@@ -1306,7 +1440,7 @@ function resetCopyBtn() {
 
 document.getElementById("qr-copy").addEventListener("click", async (e) => {
   const btn = e.currentTarget;
-  const ok = await copyText(catalogUrl());
+  const ok = await copyText(qrLink());
   btn.textContent = ok ? "Ссылка скопирована ✓" : "Не получилось скопировать — попробуйте ещё раз";
   btn.classList.toggle("done", ok);
   clearTimeout(copyResetTimer);
@@ -1440,5 +1574,84 @@ if ("serviceWorker" in navigator) {
     }
   });
 }
+
+
+// ------------------------------------------------- Настройка контакта в QR
+// Форма живёт прямо в окне QR-кода: менеджер открывает код, чтобы показать
+// его клиенту, — там же и вписывает себя, один раз на своём телефоне.
+function refreshQr() {
+  QR.draw(document.getElementById("qr-canvas"), qrLink(), 8);
+  renderQrManager();
+  resetCopyBtn();
+}
+
+function renderQrManager() {
+  const box = document.getElementById("qr-manager");
+  if (!box) return;
+  const mine = manager && manager.own;
+  box.innerHTML = mine
+    ? `<p class="qr-manager-line">В коде ваш контакт: <b>${esc(managerName())}</b>, ${esc(phonePretty(manager.phone))}</p>${
+        qrNameTrimmed ? `<p class="mgr-note">Имя в коде укорочено — целиком оно не помещается.</p>` : ""
+      }<div class="mgr-actions"><button type="button" data-mgr="edit">Изменить</button><button type="button" data-mgr="clear" class="ghost">Убрать</button></div>`
+    : `<p class="qr-manager-line">Вы менеджер завода? Впишите свой контакт — и тот, кто отсканирует этот код, увидит, к кому обращаться, а его заявки на товар придут вам в WhatsApp.</p><div class="mgr-actions"><button type="button" data-mgr="edit">Указать свой контакт</button></div>`;
+  wireManagerButtons(box);
+}
+
+function showManagerForm() {
+  const box = document.getElementById("qr-manager");
+  const m = manager && manager.own ? manager : { name: "", phone: "" };
+  box.innerHTML =
+    `<input id="mgr-name" class="search mgr-input" type="text" autocomplete="name" placeholder="Имя и фамилия" value="${esc(m.name || "")}">` +
+    `<input id="mgr-phone" class="search mgr-input" type="tel" inputmode="tel" autocomplete="tel" placeholder="Телефон, 8 928 000-00-00" value="${esc(m.phone ? phonePretty(m.phone) : "")}">` +
+    `<p class="mgr-note">Должность подставится сама: ${esc(MANAGER_ROLE.toLowerCase())}.</p>` +
+    `<p id="mgr-error" class="mgr-error"></p>` +
+    `<div class="mgr-actions"><button type="button" data-mgr="save">Сохранить</button><button type="button" data-mgr="cancel" class="ghost">Отмена</button></div>`;
+  wireManagerButtons(box);
+  const name = document.getElementById("mgr-name");
+  if (name) name.focus();
+}
+
+function wireManagerButtons(box) {
+  box.querySelectorAll("[data-mgr]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const what = btn.dataset.mgr;
+      if (what === "edit") return showManagerForm();
+      if (what === "cancel") return renderQrManager();
+      if (what === "clear") {
+        saveManager(null);
+        return refreshQr();
+      }
+      const phone = phoneDigits(document.getElementById("mgr-phone").value);
+      if (!phone) {
+        document.getElementById("mgr-error").textContent = "Проверьте номер: нужно 11 цифр, например 8 928 032-75-21.";
+        return;
+      }
+      const name = document.getElementById("mgr-name").value.trim().replace(/\s+/g, " ").slice(0, 60);
+      saveManager({ name, phone, own: true });
+      refreshQr();
+    });
+  });
+}
+
+// Полоса о новом менеджере: клиент отсканировал код и должен понять, чей
+// контакт у него теперь в каталоге. Сама уходит через десять секунд.
+function showManagerBar() {
+  const bar = document.getElementById("manager-bar");
+  if (!bar || !manager) return;
+  document.getElementById("manager-bar-text").textContent = `Ваш менеджер — ${managerName()}`;
+  bar.classList.add("open");
+  setTimeout(() => bar.classList.remove("open"), 10000);
+}
+
+document.getElementById("manager-bar-open").addEventListener("click", () => {
+  document.getElementById("manager-bar").classList.remove("open");
+  openPage("contact");
+});
+document.getElementById("manager-bar-hide").addEventListener("click", () => {
+  document.getElementById("manager-bar").classList.remove("open");
+});
+
+loadManager();
+if (readManagerFromUrl()) showManagerBar();
 
 load();

@@ -253,6 +253,39 @@ html {
   background: var(--accent-soft) center/cover no-repeat;
 }
 
+.qr-manager {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+.qr-manager-line { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+.qr-manager-line b { color: var(--ink); }
+.mgr-input { margin-bottom: 8px; }
+.mgr-note { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.mgr-error { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: #d64545; }
+.mgr-error:empty { display: none; }
+.mgr-actions { display: flex; gap: 8px; }
+.mgr-actions button {
+  flex: 1 1 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.mgr-actions button.ghost { border-color: var(--border); color: var(--muted); background: none; }
+
+.contact-head {
+  margin: 18px 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.contact-head:first-child { margin-top: 0; }
+
 .about-actions { margin: 2px 0 18px; }
 
 .store-search { margin-bottom: 4px; }
@@ -753,6 +786,12 @@ html {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
 }
 .update-bar.open { display: flex; }
+/* Полоса о новом менеджере стоит там же, где полосы установки и обновления,
+   но выше их: контакт менеджера человек должен увидеть в первую очередь.
+   Правило обязано идти после .install-bar и .update-bar — вес селекторов
+   одинаковый, и побеждает тот, что ниже в файле. */
+.manager-bar { z-index: 17; }
+
 .install-text {
   flex: 1 1 auto;
   font-size: 14px;
