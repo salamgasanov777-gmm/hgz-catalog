@@ -33,6 +33,11 @@
   ],
   "videos": [
     {
+      "title": "Карьер: добыча гипсового камня",
+      "file": "video/karier.mp4",
+      "poster": "video/karier.jpg"
+    },
+    {
       "title": "Как делают гипсокартон",
       "file": "video/gipsokarton.mp4",
       "poster": "video/gipsokarton.jpg"
