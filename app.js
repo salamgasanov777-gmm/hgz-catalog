@@ -202,12 +202,18 @@ const PAGES = [
         return `<p class="page-empty">Видео о том, как наносить материалы, скоро появится здесь.</p>`;
       }
       return (c.videos || [])
-        .map(
-          (v) =>
-            `<a class="video-item" href="${esc(v.url)}" target="_blank" rel="noopener"><div class="thumb" style="${
-              v.thumb ? `background-image:url('${esc(v.thumb)}')` : ""
-            }"></div><div class="title">▶ ${esc(v.title || "Смотреть")}</div></a>`
-        )
+        .map((v) => {
+          // Свой ролик играем прямо в каталоге: preload="none" — значит
+          // мегабайты поедут только когда человек нажмёт «плей», а до тех
+          // пор виден один кадр.
+          if (v.file) {
+            const poster = v.poster ? ` poster="${photoUrl({ photo: v.poster })}"` : "";
+            return `<div class="video-item local"><video controls playsinline preload="none"${poster} src="${esc(v.file)}"></video><div class="title">${esc(v.title || "Видео")}</div></div>`;
+          }
+          return `<a class="video-item" href="${esc(v.url)}" target="_blank" rel="noopener"><div class="thumb" style="${
+            v.poster ? `background-image:url('${photoUrl({ photo: v.poster })}')` : ""
+          }"></div><div class="title">▶ ${esc(v.title || "Смотреть")}</div></a>`;
+        })
         .join("");
     },
   },

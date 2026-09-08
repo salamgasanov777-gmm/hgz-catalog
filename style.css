@@ -286,6 +286,14 @@ html {
   background: var(--accent-soft) center/cover no-repeat;
 }
 .video-item .title { padding: 12px 14px; font-size: 15px; font-weight: 700; color: var(--ink); }
+/* Ролики сняты вертикально, поэтому ограничиваем высоту: иначе один
+   восемнадцатисекундный ролик занимает весь экран. */
+.video-item.local video {
+  display: block;
+  width: 100%;
+  max-height: 62vh;
+  background: #000;
+}
 
 .search {
   width: 100%;

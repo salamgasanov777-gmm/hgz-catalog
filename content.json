@@ -31,5 +31,11 @@
       "phone": "8 (928) 572-50-81"
     }
   ],
-  "videos": []
+  "videos": [
+    {
+      "title": "Как делают гипсокартон",
+      "file": "video/gipsokarton.mp4",
+      "poster": "video/gipsokarton.jpg"
+    }
+  ]
 }
