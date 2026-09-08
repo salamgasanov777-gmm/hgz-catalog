@@ -472,23 +472,33 @@ function searchIndex(p) {
 
 // «тёплый» и «теплых», «плитка» и «плиточный» — одно и то же слово в разных
 // формах, поэтому сверяем начала слов, а не целиком.
+// Возвращает качество совпадения: 2 — слово начинается с запроса («плитка»
+// и «плиточный»), 1 — совпал только корень («аквастоп» и «аквалайт»), 0 — нет.
+// Разница нужна, чтобы по запросу «аквастоп» первым шёл АКВАСТОП, а не сосед
+// по первым четырём буквам.
 function wordMatches(indexed, query) {
   // Короткое слово вроде «пол» иначе цепляет «полимерную» и «полностью»,
   // поэтому ему разрешаем только близкую по длине форму: «пола», «полов».
-  if (query.length <= 3) return indexed.startsWith(query) && indexed.length <= query.length + 2;
+  if (query.length <= 3) return indexed.startsWith(query) && indexed.length <= query.length + 2 ? 2 : 0;
 
-  if (indexed.startsWith(query) || query.startsWith(indexed)) return true;
+  if (indexed.startsWith(query) || query.startsWith(indexed)) return 2;
 
   const limit = Math.min(indexed.length, query.length);
-  if (limit < 5) return false;
+  if (limit < 5) return 0;
   let same = 0;
   while (same < limit && indexed[same] === query[same]) same++;
-  return same >= 4;
+  return same >= 4 ? 1 : 0;
 }
 
-function fieldHas(field, variant) {
-  if (variant.includes(" ")) return field.text.includes(variant);
-  return field.words.some((word) => wordMatches(word, variant));
+function fieldQuality(field, variant) {
+  if (variant.includes(" ")) return field.text.includes(variant) ? 2 : 0;
+  let best = 0;
+  for (const word of field.words) {
+    const q = wordMatches(word, variant);
+    if (q > best) best = q;
+    if (best === 2) break;
+  }
+  return best;
 }
 
 // Каждое слово запроса должно найтись хоть где-то, иначе товар не подходит.
@@ -506,10 +516,11 @@ function searchMatch(p, queryTokens) {
     let bestField = null;
     for (const field of Object.keys(FIELD_WEIGHT)) {
       const weight = FIELD_WEIGHT[field];
-      if (weight <= best) continue;
-      const hit = variants.some((v) => fieldHas(index[field], v));
-      if (hit) {
-        best = weight;
+      // Точное начало слова весит на пятую часть больше, чем совпадение корня.
+      const quality = Math.max(...variants.map((v) => fieldQuality(index[field], v)));
+      const points = quality === 2 ? weight * 1.2 : quality === 1 ? weight : 0;
+      if (points > best) {
+        best = points;
         bestField = field;
       }
     }
