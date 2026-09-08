@@ -160,7 +160,9 @@ const PAGES = [
       if (a.site) html += `<a class="page-link" href="${esc(a.site)}" target="_blank" rel="noopener">${esc(a.site.replace(/^https?:\/\//, ""))}</a>`;
       (a.paragraphs || []).forEach((t) => (html += `<p class="page-text">${esc(t)}</p>`));
       if ((a.photos || []).length) {
-        html += `<div class="about-photos">${(a.photos || []).map((src) => `<div style="background-image:url('${esc(src)}')"></div>`).join("")}</div>`;
+        html += `<div class="about-photos">${(a.photos || [])
+          .map((src) => `<div style="background-image:url('${photoUrl({ photo: src })}')"></div>`)
+          .join("")}</div>`;
       }
       if (!(a.paragraphs || []).length) {
         html += `<p class="page-empty">Рассказ о производстве и фотографии завода появятся здесь, как только их пришлёт завод.</p>`;
