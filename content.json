@@ -33,6 +33,11 @@
   ],
   "videos": [
     {
+      "title": "Фильм о заводе (2 минуты)",
+      "file": "video/presentation.mp4",
+      "poster": "video/presentation.jpg"
+    },
+    {
       "title": "Карьер: добыча гипсового камня",
       "file": "video/karier.mp4",
       "poster": "video/karier.jpg"
@@ -46,6 +51,11 @@
       "title": "Как делают гипсокартон",
       "file": "video/gipsokarton.mp4",
       "poster": "video/gipsokarton.jpg"
+    },
+    {
+      "title": "Зона отгрузки",
+      "file": "video/otgruzka.mp4",
+      "poster": "video/otgruzka.jpg"
     }
   ]
 }
