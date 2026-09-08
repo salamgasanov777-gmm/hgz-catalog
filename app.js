@@ -157,6 +157,7 @@ const PAGES = [
       let html = "";
       if (a.company) html += `<p class="page-lead">${esc(a.company)}</p>`;
       if (a.address) html += `<p class="page-sub">${esc(a.address)}</p>`;
+      if (a.director) html += `<p class="page-sub">Генеральный директор — ${esc(a.director)}</p>`;
       if (a.site) html += `<a class="page-link" href="${esc(a.site)}" target="_blank" rel="noopener">${esc(a.site.replace(/^https?:\/\//, ""))}</a>`;
       (a.paragraphs || []).forEach((t) => (html += `<p class="page-text">${esc(t)}</p>`));
       if ((a.photos || []).length) {
