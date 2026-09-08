@@ -227,7 +227,13 @@ const PAGES = [
         const legal = [a.inn && `ИНН ${a.inn}`, a.ogrn && `ОГРН ${a.ogrn}`].filter(Boolean).join(" · ");
         html += `<p class="page-sub">${esc(legal)}</p>`;
       }
+      // Телефон отдела продаж — общий контакт завода. Он же достаётся тому,
+      // кто открыл каталог по обычной ссылке, без QR-кода менеджера.
+      if (a.phone) html += `<p class="page-sub">Отдел продаж — ${esc(a.phone)}</p>`;
       if (a.site) html += `<a class="page-link" href="${esc(a.site)}" target="_blank" rel="noopener">${esc(a.site.replace(/^https?:\/\//, ""))}</a>`;
+      if (a.phone) {
+        html += `<div class="store-actions about-actions"><a href="tel:${esc(String(a.phone).replace(/[^+\d]/g, ""))}">Позвонить в отдел продаж</a></div>`;
+      }
       (a.paragraphs || []).forEach((t) => (html += `<p class="page-text">${esc(t)}</p>`));
       if ((a.photos || []).length) {
         html += `<div class="about-photos">${(a.photos || [])

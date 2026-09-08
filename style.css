@@ -253,6 +253,8 @@ html {
   background: var(--accent-soft) center/cover no-repeat;
 }
 
+.about-actions { margin: 2px 0 18px; }
+
 .store-search { margin-bottom: 4px; }
 .store-cities { margin-bottom: 14px; }
 .store-count { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
