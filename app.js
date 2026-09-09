@@ -654,16 +654,25 @@ function syncCardFav(id) {
 const SEARCH_SYNONYMS = {
   ванная: ["повышенным уровнем влажности"],
   ванной: ["повышенным уровнем влажности"],
-  ванной: ["повышенным уровнем влажности"],
   санузел: ["повышенным уровнем влажности"],
   душевая: ["повышенным уровнем влажности"],
   комната: ["нормальным уровнем влажности"],
   спальня: ["нормальным уровнем влажности"],
   улица: ["фасад", "наружные"],
   снаружи: ["фасад", "наружные"],
+  // Сокращения, которыми называют товар на объекте, а в названии их нет.
+  гкл: ["гипсокартонный"],
+  гклв: ["гипсокартонный"],
+  пгп: ["пазогребневая"],
 };
 
 const FIELD_WEIGHT = { name: 100, summary: 50, unit: 40, area: 35, section: 14, table: 12 };
+// Слово, найденное только в инструкции или в таблице характеристик, товар в
+// выдачу не пускает. Иначе «грунт» находит все 49 товаров: грунтовать
+// основание велено в инструкции у каждого. Такое совпадение по-прежнему
+// поднимает товар в списке и объясняется подписью «найдено в: инструкция»,
+// но само по себе поводом показать товар не является.
+const STRONG_FIELDS = ["name", "summary", "unit", "area"];
 const FIELD_LABEL = { summary: "описание", unit: "фасовка", area: "область применения", section: "инструкция", table: "характеристики" };
 
 function normalizeText(text) {
@@ -704,17 +713,29 @@ function searchIndex(p) {
 // Разница нужна, чтобы по запросу «аквастоп» первым шёл АКВАСТОП, а не сосед
 // по первым четырём буквам.
 function wordMatches(indexed, query) {
-  // Короткое слово вроде «пол» иначе цепляет «полимерную» и «полностью»,
-  // поэтому ему разрешаем только близкую по длине форму: «пола», «полов».
-  if (query.length <= 3) return indexed.startsWith(query) && indexed.length <= query.length + 2 ? 2 : 0;
+  // Слово набрано целиком — это самое сильное попадание: по запросу «пол»
+  // сначала должны идти полы, а уж потом всё полимерное и полнотелое.
+  if (indexed === query) return 3;
 
-  if (indexed.startsWith(query) || query.startsWith(indexed)) return 2;
+  // Человек набирает начало слова, и так он делает почти всегда: «шту» — это
+  // будущая «штукатурка». Никаких ограничений по длине здесь быть не должно,
+  // иначе на третьей букве список пустеет, а на шестой снова наполняется.
+  if (indexed.startsWith(query)) return 2;
 
+  // Обратное направление — только на длину окончания: «полов» и «пол» одно и
+  // то же, а «бетоноконтакт» и «бетон» — разные товары. Двухбуквенные слова
+  // сюда не пускаем совсем: иначе запрос «нарт» цепляется за предлог «на».
+  if (indexed.length >= 4 && query.startsWith(indexed) && query.length - indexed.length <= 2) return 2;
+
+  // Общий корень: «штукатурка» и «штукатурная», «шпаклёвка» и «шпаклёвочная».
+  // Слова должны быть близкой длины, иначе «гипсокартон» находит всё
+  // «гипсовое», а «плита» — весь «плиточный» клей.
+  if (query.length <= 4) return 0;
   const limit = Math.min(indexed.length, query.length);
   if (limit < 5) return 0;
   let same = 0;
   while (same < limit && indexed[same] === query[same]) same++;
-  return same >= 4 ? 1 : 0;
+  return same >= 4 && Math.abs(indexed.length - query.length) <= 4 ? 1 : 0;
 }
 
 function fieldQuality(field, variant) {
@@ -723,7 +744,7 @@ function fieldQuality(field, variant) {
   for (const word of field.words) {
     const q = wordMatches(word, variant);
     if (q > best) best = q;
-    if (best === 2) break;
+    if (best === 3) break;
   }
   return best;
 }
@@ -736,6 +757,7 @@ function searchMatch(p, queryTokens) {
   let score = 0;
   let hintField = null;
   let hintWeight = 0;
+  let strong = false;
 
   for (const token of queryTokens) {
     const variants = [token, ...(SEARCH_SYNONYMS[token] || [])];
@@ -743,21 +765,26 @@ function searchMatch(p, queryTokens) {
     let bestField = null;
     for (const field of Object.keys(FIELD_WEIGHT)) {
       const weight = FIELD_WEIGHT[field];
-      // Точное начало слова весит на пятую часть больше, чем совпадение корня.
+      // Слово целиком весит больше начала слова, начало — больше общего корня.
       const quality = Math.max(...variants.map((v) => fieldQuality(index[field], v)));
-      const points = quality === 2 ? weight * 1.2 : quality === 1 ? weight : 0;
+      const points = quality === 3 ? weight * 1.4 : quality === 2 ? weight * 1.2 : quality === 1 ? weight : 0;
       if (points > best) {
         best = points;
         bestField = field;
       }
     }
     if (!best) return null;
+    if (STRONG_FIELDS.includes(bestField)) strong = true;
     score += best;
     if (bestField !== "name" && best > hintWeight) {
       hintWeight = best;
       hintField = bestField;
     }
   }
+
+  // Ни одного попадания в название, описание, фасовку или область применения —
+  // товар нашёлся только по случайному слову в инструкции. Не показываем.
+  if (!strong) return null;
 
   return { score, hint: hintField ? FIELD_LABEL[hintField] : null };
 }
@@ -812,36 +839,84 @@ function render() {
     return;
   }
 
-  grid.innerHTML = filtered
-    .map(
-      (p, i) => `
-    <div class="card" data-id="${p.id ?? i}">
+  // Карточки не пересобираются заново. Раньше на каждую набранную букву сетка
+  // переписывалась целиком: все карточки создавались с нуля, у каждой заново
+  // проигрывалась анимация появления, а фотографии снова показывали серую
+  // заглушку — от этого весь экран и рябил при наборе. Теперь карточка живёт
+  // столько же, сколько страница, а поиск только переставляет готовые.
+  const empty = grid.querySelector(".empty");
+  if (empty) empty.remove();
+
+  let prev = null;
+  filtered.forEach((p) => {
+    const card = cardNode(p);
+    setCardHint(card, hints.get(p.id)?.hint);
+    // Ту, что уже стоит на своём месте, не трогаем: вынуть узел и вставить
+    // обратно — это и есть заново проигранная анимация.
+    const here = prev ? prev.nextSibling : grid.firstChild;
+    if (card !== here) grid.insertBefore(card, here);
+    prev = card;
+  });
+  while (prev ? prev.nextSibling : grid.firstChild) {
+    grid.removeChild(prev ? prev.nextSibling : grid.firstChild);
+  }
+}
+
+// Карточки товаров живут в этом хранилище от загрузки до закрытия страницы:
+// один товар — один узел, сколько бы раз ни менялся поиск или раздел.
+const cardNodes = new Map();
+
+function cardNode(p) {
+  const key = p.id ?? p.name;
+  const kept = cardNodes.get(key);
+  if (kept) {
+    syncCardFav(p.id);
+    return kept;
+  }
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.id = p.id ?? key;
+  card.innerHTML = `
       <div class="photo${p.photo ? " loading" : ""}" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : esc(p.name)}</div>
-      <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? i}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
+      <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
         <p class="name">${esc(p.name)}</p>
         <p class="meta">${esc(p.unit || "")}${p.price ? " · " + esc(p.price) : ""}</p>
-        ${hints.get(p.id)?.hint ? `<p class="found">найдено в: ${esc(hints.get(p.id).hint)}</p>` : ""}
-      </div>
-    </div>`
-    )
-    .join("");
+      </div>`;
 
-  grid.querySelectorAll(".photo.loading").forEach(watchPhoto);
+  const photo = card.querySelector(".photo.loading");
+  if (photo) watchPhoto(photo);
 
-  grid.querySelectorAll(".card").forEach((card) => {
-    const id = card.dataset.id;
-    card.querySelector(".fav-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleFavorite(Number(id));
-      updateFavNav();
-      syncCardFav(Number(id));
-    });
-    card.addEventListener("click", () => {
-      const p = filtered.find((x, i) => String(p_id(x, i)) === id);
-      openSheet(p);
-    });
+  card.querySelector(".fav-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleFavorite(p.id);
+    updateFavNav();
+    syncCardFav(p.id);
   });
+  card.addEventListener("click", () => openSheet(p));
+
+  cardNodes.set(key, card);
+  return card;
+}
+
+// Подпись «найдено в: описание» появляется и исчезает вместе с поиском, а сама
+// карточка при этом остаётся прежней.
+function setCardHint(card, hint) {
+  const line = card.querySelector(".found");
+  if (!hint) {
+    if (line) line.remove();
+    return;
+  }
+  const text = `найдено в: ${hint}`;
+  if (line) {
+    if (line.textContent !== text) line.textContent = text;
+    return;
+  }
+  const p = document.createElement("p");
+  p.className = "found";
+  p.textContent = text;
+  card.querySelector(".info").appendChild(p);
 }
 
 // Фон в CSS браузер сам по формату не выбирает, поэтому один раз проверяем
@@ -918,10 +993,6 @@ function watchPhoto(el) {
 function photoUrl(p) {
   if (!p.photo) return "";
   return WEBP_OK ? p.photo.replace(/\.jpg$/i, ".webp") : p.photo;
-}
-
-function p_id(p, i) {
-  return p.id ?? i;
 }
 
 function esc(s) {
