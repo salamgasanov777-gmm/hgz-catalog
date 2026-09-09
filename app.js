@@ -69,8 +69,19 @@ document.getElementById("theme-btn").addEventListener("click", () => {
 applyTheme();
 
 async function load() {
-  const res = await fetch("./products.json", { cache: "no-store" });
-  products = await res.json();
+  let res;
+  try {
+    res = await fetch("./products.json", { cache: "no-store" });
+    products = await res.json();
+  } catch (e) {
+    // Первый заход на плохой связи: сохранённой копии ещё нет, а без товаров
+    // показывать нечего. Молчать нельзя — человек увидит пустой белый экран и
+    // решит, что каталог сломан.
+    document.getElementById("grid").innerHTML =
+      `<div class="empty">Каталог не загрузился.<br>Проверьте связь и попробуйте ещё раз.` +
+      `<button class="empty-retry" onclick="location.reload()">Обновить</button></div>`;
+    return;
+  }
   // Дату берём из заголовка ответа, а не из поля в products.json: её не нужно
   // помнить и проставлять руками. GitHub Pages ставит в Last-Modified время
   // последней выкладки сайта, поэтому это дата версии каталога целиком.
@@ -666,17 +677,26 @@ const SEARCH_SYNONYMS = {
   пгп: ["пазогребневая"],
 };
 
-const FIELD_WEIGHT = { name: 100, summary: 50, unit: 40, area: 35, section: 14, table: 12 };
+const FIELD_WEIGHT = { name: 100, gost: 45, summary: 50, unit: 40, area: 35, section: 14, table: 12 };
 // Слово, найденное только в инструкции или в таблице характеристик, товар в
 // выдачу не пускает. Иначе «грунт» находит все 49 товаров: грунтовать
 // основание велено в инструкции у каждого. Такое совпадение по-прежнему
 // поднимает товар в списке и объясняется подписью «найдено в: инструкция»,
 // но само по себе поводом показать товар не является.
-const STRONG_FIELDS = ["name", "summary", "unit", "area"];
-const FIELD_LABEL = { summary: "описание", unit: "фасовка", area: "область применения", section: "инструкция", table: "характеристики" };
+const STRONG_FIELDS = ["name", "gost", "summary", "unit", "area"];
+const FIELD_LABEL = { gost: "ГОСТ", summary: "описание", unit: "фасовка", area: "область применения", section: "инструкция", table: "характеристики" };
+
+// Латинские буквы, неотличимые от русских на вид. В названиях они намешаны:
+// у клея «ГРАНИТ» С2TS1 первая буква русская, а «TS1» — латинские. Человек
+// наберёт всё одной раскладкой, и без этой замены не найдёт ничего. Приводим
+// к русским и запрос, и указатель — тогда они встречаются посередине.
+const LOOKALIKE = { a: "а", b: "в", c: "с", e: "е", h: "н", k: "к", m: "м", o: "о", p: "р", t: "т", x: "х", y: "у" };
 
 function normalizeText(text) {
-  return String(text || "").toLowerCase().replace(/ё/g, "е");
+  return String(text || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[abcehkmoptxy]/g, (c) => LOOKALIKE[c]);
 }
 
 function tokenize(text) {
@@ -697,6 +717,7 @@ function searchIndex(p) {
 
   p._index = {
     name: field(p.name),
+    gost: field(p.gost),
     summary: field(p.summary),
     unit: field(p.unit + " " + p.category),
     area: field(areaRows.join(" ")),
@@ -878,7 +899,7 @@ function cardNode(p) {
   card.className = "card";
   card.dataset.id = p.id ?? key;
   card.innerHTML = `
-      <div class="photo${p.photo ? " loading" : ""}" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : esc(p.name)}</div>
+      <div class="photo${p.photo ? " loading" : ""}" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : '<span class="photo-soon">Фото скоро</span>'}</div>
       <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
         <p class="name">${esc(p.name)}</p>
@@ -951,7 +972,9 @@ function showPhotos(p) {
 
   if (photos.length < 2) {
     box.className = "photo-big";
-    box.innerHTML = "";
+    // Без фотографии показываем честную заглушку, а не пустой серый
+    // прямоугольник: он читается как ошибка загрузки.
+    box.innerHTML = photos.length ? "" : '<span class="photo-soon">Фотография появится позже</span>';
     box.style.backgroundImage = photos.length ? `url('${photoUrl({ photo: photos[0] })}')` : "none";
     box.classList.toggle("loading", photos.length > 0);
     if (photos.length) watchPhoto(box);
@@ -1407,9 +1430,30 @@ function openCompare() {
   const rows = config.rows(items);
   const wrap = document.getElementById("compare-table-wrap");
 
+  // Подпись столбца. Обычно короткое имя стоит в кавычках — «ЭКОНОМ», «ЛЮКС».
+  // У гипсокартона и плит кавычек нет, и полное название в узкий столбец не
+  // влезает: убираем слова, одинаковые у всех, и остаётся только отличие —
+  // «влагостойкий», «огнестойкий». У базового товара своих слов не остаётся,
+  // ему достаётся последнее общее слово — «лист», «полнотелая».
+  const words = (name) => String(name).split(/\s+/).filter(Boolean);
+  const names = items.map((p) => p.name);
+  let head = 0;
+  let tail = 0;
+  if (names.length > 1 && !names.every((n) => /«[^»]+»/.test(n))) {
+    const lists = names.map(words);
+    const min = Math.min(...lists.map((l) => l.length));
+    const same = (get) => lists.every((l) => get(l).toLowerCase() === get(lists[0]).toLowerCase());
+    while (head < min && same((l) => l[head])) head++;
+    while (head + tail < min && same((l) => l[l.length - 1 - tail])) tail++;
+  }
+
   const shortName = (name) => {
     const m = name.match(/«([^»]+)»/);
-    return m ? m[1] : name;
+    if (m) return m[1];
+    if (!head && !tail) return name;
+    const list = words(name);
+    const rest = list.slice(head, list.length - tail);
+    return rest.length ? rest.join(" ") : words(names[0])[head - 1] || name;
   };
 
   let html = '<table class="cmp-table"><thead><tr><th class="cmp-corner"></th>';
@@ -1424,7 +1468,7 @@ function openCompare() {
       const v = row.get(p);
       html +=
         row.type === "bool"
-          ? `<td class="cmp-cell">${v ? '<span class="cmp-check">✓</span>' : ""}</td>`
+          ? `<td class="cmp-cell">${v ? '<span class="cmp-check">✓</span>' : '<span class="cmp-no">—</span>'}</td>`
           : `<td class="cmp-cell cmp-text">${esc(v ?? "—")}</td>`;
     });
     html += "</tr>";

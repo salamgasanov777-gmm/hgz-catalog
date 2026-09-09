@@ -237,7 +237,7 @@ html {
 .page-sheet h2 { margin: 0 0 14px; font-size: 20px; }
 .page-lead { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: var(--ink); }
 .page-sub { margin: 0 0 4px; font-size: 14px; color: var(--muted); line-height: 1.45; }
-.page-link { display: inline-block; margin: 6px 0 16px; font-size: 14px; color: var(--accent); font-weight: 600; }
+.page-link { display: inline-block; text-decoration: none; margin: 6px 0 16px; font-size: 14px; color: var(--accent); font-weight: 600; }
 .page-text { margin: 0 0 12px; font-size: 15px; line-height: 1.55; color: var(--ink); }
 .page-empty { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--muted); }
 
@@ -288,6 +288,32 @@ html {
 
 .about-actions { margin: 2px 0 18px; }
 
+/* Товар без фотографии. Раньше на её месте повторялось название товара —
+   оно же стояло строкой ниже, и карточка выглядела как ошибка вёрстки. */
+.photo-soon {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  opacity: 0.85;
+}
+.photo-big .photo-soon { font-size: 13.5px; }
+
+/* «Нет» в сравнении должно быть видно. Пустая клетка читается как «данные
+   потеряли», прочерк — как ответ. */
+.cmp-no { color: var(--muted); opacity: 0.7; }
+
+.empty-retry {
+  display: block;
+  margin: 14px auto 0;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
 .store-search { margin-bottom: 4px; }
 .store-cities { margin-bottom: 14px; }
 .store-count { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
@@ -321,6 +347,7 @@ html {
 .store-actions { display: flex; gap: 8px; margin-top: 12px; }
 .store-actions a {
   flex: 1 1 0;
+  text-decoration: none;
   text-align: center;
   padding: 9px 10px;
   border-radius: 10px;
@@ -848,6 +875,7 @@ html {
 
 .share-btn {
   display: block;
+  text-decoration: none;
   width: 100%;
   margin: 0 0 16px;
   padding: 11px 14px;
