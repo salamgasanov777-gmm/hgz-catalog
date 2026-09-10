@@ -296,6 +296,15 @@ html {
   color: var(--muted);
   opacity: 0.85;
 }
+/* Заглушку в большой фотографии ставим по центру: иначе надпись жмётся в
+   верхний угол пустого прямоугольника и выглядит как сбой вёрстки. */
+.photo-big:not(.gallery) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 12px;
+}
 .photo-big .photo-soon { font-size: 13.5px; }
 
 /* «Нет» в сравнении должно быть видно. Пустая клетка читается как «данные

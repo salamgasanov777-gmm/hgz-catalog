@@ -1219,7 +1219,10 @@ function wireCalc(calc) {
       result.innerHTML = `Нужно: <b>${formatNum(total / 1000)} ${bigUnit}</b> (~${containers} уп. по ${formatNum(calc.pack / 1000)} ${bigUnit})`;
     } else {
       const bags = Math.ceil(total / calc.pack);
-      result.innerHTML = `Нужно: <b>${formatNum(total)} кг</b> (~${bags} меш. по ${calc.pack} кг)`;
+      // Сухие смеси приходят в мешках, но не всё: жидкая гидроизоляция — в
+      // ведре. Товар может назвать свою тару полем "packWord" в products.json.
+      const packWord = calc.packWord || "меш.";
+      result.innerHTML = `Нужно: <b>${formatNum(total)} кг</b> (~${bags} ${packWord} по ${calc.pack} кг)`;
     }
   }
 
@@ -1334,7 +1337,7 @@ const COMPARE_CONFIG = {
     title: "Как выбрать шпаклёвку",
     rows: (items) => [
       ROW.wet,
-      ROW.unit("Мешок"),
+      ROW.unit(),
       ROW.tech("Толщина слоя", "олщина слоя"),
       ROW.consumption,
       ROW.tech("Расход воды", "Расход воды"),
@@ -1391,11 +1394,17 @@ const COMPARE_CONFIG = {
   "Краски": {
     buttonLabel: "⇄ Сравнить краски",
     title: "Как выбрать краску",
+    // Расхода завод по краскам не давал — в паспорте качества есть только
+    // укрывистость, а это не одно и то же. Сравниваем по тому, что дано.
     rows: () => [
       ROW.wet,
       ROW.unit(),
-      ROW.consumption,
-      ROW.tech("Время высыхания"),
+      { label: "Где применяется", type: "text", get: (p) => ((p.tasks || []).includes("facade") ? "снаружи, фасад" : "внутри помещений") },
+      ROW.tech("Укрывистость высушенной плёнки"),
+      ROW.tech("Массовая доля нелетучих веществ"),
+      ROW.tech("Условная вязкость"),
+      ROW.tech("Смываемость плёнки"),
+      ROW.tech("Адгезия"),
     ],
   },
   "Гипсокартон": {
@@ -1406,7 +1415,11 @@ const COMPARE_CONFIG = {
       ROW.tech("Размер листа"),
       ROW.tech("Толщина"),
       ROW.tech("Площадь листа"),
-      ROW.tech("Листов на паллете"),
+      // В маркировочных карточках завод пишет «Листов на паллете», в паспортах
+      // качества — «Количество в упаковке». Цифра одна и та же, слово разное.
+      { label: "Листов в упаковке", type: "text",
+        get: (p) => tableValue(p, "Технические характеристики", "Листов на паллете") ??
+                    tableValue(p, "Технические характеристики", "Количество в упаковке") },
     ],
   },
   "Пазогребневые плиты": {
