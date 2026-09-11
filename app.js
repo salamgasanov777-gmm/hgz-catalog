@@ -1427,10 +1427,12 @@ const COMPARE_CONFIG = {
     title: "Как выбрать плиту",
     rows: () => [
       ROW.wet,
-      ROW.tech("Размер плиты"),
       ROW.tech("Толщина"),
+      ROW.tech("Исполнение"),
+      ROW.tech("Размер плиты"),
       ROW.tech("В упаковке"),
       ROW.tech("Площадь упаковки"),
+      ROW.tech("Количество на поддоне"),
     ],
   },
 };
