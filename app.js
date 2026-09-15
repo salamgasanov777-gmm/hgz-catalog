@@ -527,6 +527,8 @@ function selectCategory(cat) {
   render();
 }
 
+document.getElementById("section-all").addEventListener("click", () => selectCategory("Все"));
+
 // Оверлеи (шторка разделов, карточка товара, сравнение) складываются в стек:
 // каждый добавляет запись в историю, поэтому кнопка «Назад» на телефоне
 // закрывает верхний оверлей, а не выходит из приложения.
@@ -868,6 +870,24 @@ function render() {
       .map((x) => x.p);
   }
 
+  // Название открытого раздела — в заголовке шапки, она всегда на виду.
+  // Под шапкой — счёт товаров и возврат ко всем разделам.
+  const title = document.querySelector(".topbar h1");
+  title.textContent = activeCategory === "Все" ? "Каталог продукции" : activeCategory === "__fav__" ? "Избранное" : activeCategory;
+  title.title = title.textContent;
+  // Длинное название («Цементные и цементно-известковые штукатурки») в одну
+  // строку не помещается — даём ему две строки шрифтом поменьше.
+  title.classList.toggle("long", title.textContent.length > 22);
+  const bar = document.getElementById("section-bar");
+  bar.hidden = activeCategory === "Все";
+  if (!bar.hidden) {
+    const n = filtered.length;
+    const what = activeCategory === "__fav__" ? "в избранном" : "в разделе";
+    document.getElementById("section-count").textContent = n
+      ? `${n} ${plural(n, ["товар", "товара", "товаров"])} ${what}${queryTokens.length ? " по запросу" : ""}`
+      : "";
+  }
+
   const compareBtn = document.getElementById("compare-btn");
   const compareConfig = COMPARE_CONFIG[activeCategory];
   compareBtn.style.display = compareConfig ? "block" : "none";
@@ -875,17 +895,36 @@ function render() {
 
   if (filtered.length === 0) {
     let msg;
-    if (activeCategory === "__fav__") {
+    // Поиск работает внутри открытого раздела. Если здесь пусто, а в других
+    // разделах слово находится — говорим об этом прямо: иначе клиент в
+    // магазине решит, что плиточного клея у завода нет, хотя открыты шпаклёвки.
+    const elsewhere =
+      queryTokens.length && activeCategory !== "Все"
+        ? products.filter((p) => (!activeTask || matchesTask(p, activeTask)) && searchMatch(p, queryTokens)).length
+        : 0;
+    const where = activeCategory === "__fav__" ? "в избранном" : `в разделе «${esc(activeCategory)}»`;
+    if (elsewhere) {
+      const n = `${elsewhere} ${plural(elsewhere, ["товар", "товара", "товаров"])}`;
+      msg =
+        `По запросу «${esc(q)}» ${where} ничего нет,<br>но ${elsewhere === 1 ? "нашёлся" : "нашлось"} ${n} в других разделах.` +
+        `<button class="empty-all" id="empty-all">Показать</button>`;
+    } else if (activeCategory === "__fav__" && !q) {
       msg = "В избранном пока пусто.<br>Нажмите ★ на карточке товара, чтобы добавить.";
     } else if (activeTask) {
       const label = TASKS.find((t) => t.key === activeTask)?.label;
-      msg = `Под задачу «${esc(label)}» в этом разделе ничего нет.<br>Снимите фильтр или выберите другой раздел.`;
+      msg = q
+        ? `По запросу «${esc(q)}» под задачу «${esc(label)}» ничего нет.<br>Снимите фильтр задачи или измените запрос.`
+        : `Под задачу «${esc(label)}» в этом разделе ничего нет.<br>Снимите фильтр или выберите другой раздел.`;
     } else if (q) {
-      msg = `По запросу «${esc(q)}» ничего не нашлось.<br>Попробуйте другое слово — например, «плитка», «фасад» или «ванная».`;
+      // Подсказываем слова, которых человек ещё не пробовал.
+      const tried = new Set(queryTokens);
+      const ideas = ["плитка", "фасад", "ванная", "потолок", "пол"].filter((w) => !tried.has(w)).slice(0, 3);
+      msg = `По запросу «${esc(q)}» ничего не нашлось.<br>Попробуйте другое слово — например, ${ideas.map((w) => `«${w}»`).join(", ")}.`;
     } else {
       msg = "Пока ничего нет.<br>Добавьте товары в products.json";
     }
     grid.innerHTML = `<div class="empty">${msg}</div>`;
+    document.getElementById("empty-all")?.addEventListener("click", () => selectCategory("Все"));
     return;
   }
 
@@ -897,19 +936,51 @@ function render() {
   const empty = grid.querySelector(".empty");
   if (empty) empty.remove();
 
-  let prev = null;
+  // В общем списке между разделами стоят подписи. При поиске их нет: там
+  // товары идут по совпадению, а не по разделам.
+  const grouped = activeCategory === "Все" && !queryTokens.length;
+  const nodes = [];
+  let lastCat = null;
   filtered.forEach((p) => {
+    if (grouped && p.category && p.category !== lastCat) {
+      nodes.push(groupHeadNode(p.category, filtered.filter((x) => x.category === p.category).length));
+      lastCat = p.category;
+    }
     const card = cardNode(p);
     setCardHint(card, hints.get(p.id)?.hint);
-    // Ту, что уже стоит на своём месте, не трогаем: вынуть узел и вставить
+    nodes.push(card);
+  });
+
+  let prev = null;
+  nodes.forEach((node) => {
+    // Тот, что уже стоит на своём месте, не трогаем: вынуть узел и вставить
     // обратно — это и есть заново проигранная анимация.
     const here = prev ? prev.nextSibling : grid.firstChild;
-    if (card !== here) grid.insertBefore(card, here);
-    prev = card;
+    if (node !== here) grid.insertBefore(node, here);
+    prev = node;
   });
   while (prev ? prev.nextSibling : grid.firstChild) {
     grid.removeChild(prev ? prev.nextSibling : grid.firstChild);
   }
+}
+
+// Подписи разделов в общем списке. Нажатие открывает раздел.
+const groupHeads = new Map();
+
+function groupHeadNode(cat, count) {
+  let head = groupHeads.get(cat);
+  if (!head) {
+    head = document.createElement("button");
+    head.className = "group-head";
+    head.type = "button";
+    head.addEventListener("click", () => {
+      selectCategory(cat);
+      scrollTo({ top: 0 });
+    });
+    groupHeads.set(cat, head);
+  }
+  head.innerHTML = `<span>${esc(cat)}</span><span class="group-count">${count} ${plural(count, ["товар", "товара", "товаров"])} ›</span>`;
+  return head;
 }
 
 // Карточки товаров живут в этом хранилище от загрузки до закрытия страницы:

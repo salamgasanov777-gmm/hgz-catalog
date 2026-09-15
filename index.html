@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#1f5fa8">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=31">
+<link rel="stylesheet" href="style.css?v=32">
 </head>
 <body>
   <div class="topbar">
@@ -55,19 +55,23 @@
     <div id="drawer-foot" class="drawer-foot"></div>
   </div>
 
+  <div id="section-bar" class="section-bar" hidden>
+    <span id="section-count" class="section-count"></span>
+    <button id="section-all" class="section-all">Все разделы</button>
+  </div>
   <button id="compare-btn" class="compare-btn" style="display:none">⇄ Сравнить клеи</button>
   <div id="grid" class="grid"></div>
 
   <div id="compare-backdrop" class="sheet-backdrop"></div>
   <div id="compare-sheet" class="sheet compare-sheet">
-    <button id="compare-close" class="close">✕</button>
+    <div class="sheet-tools"><button id="compare-close" class="close" aria-label="Закрыть">✕</button></div>
     <h2 id="compare-title">Сравнение</h2>
     <div id="compare-table-wrap" class="compare-table-wrap"></div>
   </div>
 
   <div id="qr-backdrop" class="sheet-backdrop"></div>
   <div id="qr-sheet" class="sheet qr-sheet">
-    <button id="qr-close" class="close">✕</button>
+    <div class="sheet-tools"><button id="qr-close" class="close" aria-label="Закрыть">✕</button></div>
     <h2>Каталог на телефон</h2>
     <p class="qr-hint">Наведите камеру телефона на код — откроется этот каталог. Его можно установить на телефон и пользоваться как приложением.</p>
     <canvas id="qr-canvas" class="qr-canvas"></canvas>
@@ -94,7 +98,7 @@
 
   <div id="ios-backdrop" class="sheet-backdrop"></div>
   <div id="ios-sheet" class="sheet ios-sheet">
-    <button id="ios-close" class="close">✕</button>
+    <div class="sheet-tools"><button id="ios-close" class="close" aria-label="Закрыть">✕</button></div>
     <h2>Установка на iPhone</h2>
     <ol class="ios-steps">
       <li>Нажмите <b>Поделиться</b> — квадрат со стрелкой вверх внизу экрана.</li>
@@ -105,15 +109,17 @@
 
   <div id="page-backdrop" class="sheet-backdrop"></div>
   <div id="page-sheet" class="sheet page-sheet">
-    <button id="page-close" class="close">✕</button>
+    <div class="sheet-tools"><button id="page-close" class="close" aria-label="Закрыть">✕</button></div>
     <h2 id="page-title"></h2>
     <div id="page-body"></div>
   </div>
 
   <div id="backdrop" class="sheet-backdrop"></div>
   <div id="sheet" class="sheet">
-    <button id="sheet-close" class="close">✕</button>
-    <button id="sheet-fav" class="fav-toggle" aria-label="Избранное">☆</button>
+    <div class="sheet-tools">
+      <button id="sheet-fav" class="fav-toggle" aria-label="Избранное">☆</button>
+      <button id="sheet-close" class="close" aria-label="Закрыть">✕</button>
+    </div>
     <div id="sheet-photo" class="photo-big"></div>
     <div id="sheet-dots" class="photo-dots"></div>
     <h2 id="sheet-name"></h2>
@@ -124,7 +130,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=31"></script>
-  <script src="app.js?v=31"></script>
+  <script src="qr.js?v=32"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>
