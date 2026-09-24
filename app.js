@@ -206,19 +206,32 @@ function storeCities(all) {
 let storeQuery = "";
 let storeCityFilter = "Все";
 
+// У точки может быть и один телефон, и два: на заводском листе адресов у
+// половины баз по два номера. В content.json пишется либо строкой, либо
+// списком — код принимает оба вида.
+function storePhones(s) {
+  const raw = Array.isArray(s.phone) ? s.phone : [s.phone];
+  return raw.filter(Boolean).map((t) => String(t).trim()).filter(Boolean);
+}
+
 function storeMatches(s, q) {
   if (!q.trim()) return true;
-  const hay = normalizeText([s.name, s.address, storeCity(s), s.hours, s.phone].filter(Boolean).join(" "));
+  const hay = normalizeText([s.name, s.address, storeCity(s), s.hours, ...storePhones(s)].filter(Boolean).join(" "));
   return normalizeText(q).split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
 }
 
 function storeCardHtml(s) {
   const lines = [s.address, s.hours].filter(Boolean).map((t) => `<p class="line">${esc(t)}</p>`).join("");
-  const actions = [];
-  if (s.phone) actions.push(`<a href="tel:${esc(String(s.phone).replace(/[^+\d]/g, ""))}">Позвонить</a>`);
+  const phones = storePhones(s);
+  // Когда номеров два, у каждого своя кнопка: иначе непонятно, куда звонит
+  // общая кнопка «Позвонить», и второй номер остаётся просто текстом.
+  const callLabel = (t, i) => (phones.length > 1 ? `Позвонить ${i + 1}` : "Позвонить");
+  const actions = phones.map(
+    (t, i) => `<a href="tel:${esc(t.replace(/[^+\d]/g, ""))}">${callLabel(t, i)}</a>`
+  );
   if (s.address) actions.push(`<a href="https://yandex.ru/maps/?text=${encodeURIComponent(s.address)}" target="_blank" rel="noopener">Открыть в картах</a>`);
   return `<div class="store-card"><p class="name">${esc(s.name || "")}</p>${lines}${
-    s.phone ? `<p class="line">${esc(s.phone)}</p>` : ""
+    phones.map((t) => `<p class="line">${esc(t)}</p>`).join("")
   }${actions.length ? `<div class="store-actions">${actions.join("")}</div>` : ""}</div>`;
 }
 
