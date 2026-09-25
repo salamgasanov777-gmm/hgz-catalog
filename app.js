@@ -12,6 +12,7 @@ const CATEGORY_ORDER = [
   "Жидкие шпаклёвки",
   "Цементные и цементно-известковые штукатурки",
   "Клеи",
+  "Затирки",
   "Полы",
   "Монтажные смеси",
   "Гидроизоляция",
@@ -199,8 +200,18 @@ function storeCity(s) {
   return head.replace(CITY_PREFIX, "").trim() || "Другие адреса";
 }
 
+// Города идут по числу точек, от большего к меньшему, и только при равенстве —
+// по алфавиту. Так Махачкала с её четырьмя адресами стоит первой, а не
+// четвёртой после Дербентского района, как выходило при обычной сортировке.
+// Правило само себя поддерживает: появятся точки в другом городе — он и
+// поднимется, руками список править не нужно.
 function storeCities(all) {
-  return [...new Set(all.map(storeCity))].sort((a, b) => a.localeCompare(b, "ru"));
+  const count = new Map();
+  all.forEach((s) => {
+    const c = storeCity(s);
+    count.set(c, (count.get(c) || 0) + 1);
+  });
+  return [...count.keys()].sort((a, b) => count.get(b) - count.get(a) || a.localeCompare(b, "ru"));
 }
 
 let storeQuery = "";
