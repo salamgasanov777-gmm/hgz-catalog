@@ -411,7 +411,13 @@ html {
 .task-row {
   display: flex;
   gap: 8px;
-  margin-top: 10px;
+  /* Внутренний отступ — место под расширенную область нажатия кнопок. Без
+     него полоса прокручивается вбок, и вылезший за край слой добавил бы ей
+     ещё и вертикальную прокрутку. Внешние отступы уменьшены ровно на столько
+     же, поэтому высота шапки не изменилась. */
+  padding-block: 6px;
+  margin-top: 4px;
+  margin-bottom: -6px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -608,7 +614,9 @@ html {
 .fav-btn::after {
   content: "";
   position: absolute;
-  inset: -8px;
+  /* Вверх и вправо — ровно до края карточки (она обрезает всё, что дальше),
+     вниз и влево — с запасом. В сумме 25 + 7 + 12 = 44 в обе стороны. */
+  inset: -7px -7px -12px -12px;
 }
 .fav-btn.active { color: #e0a52c; border-color: #e0a52c; }
 
@@ -814,7 +822,9 @@ html {
   margin-top: -14px;
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  /* 14, а не 10: при зоне нажатия в 44px просвета в 10px не хватало —
+     зоны крестика и звезды перекрывались, и палец попадал не туда. */
+  gap: 14px;
   z-index: 3;
 }
 .sheet .close {
@@ -835,6 +845,44 @@ html {
   flex: 0 0 auto;
 }
 .fav-toggle.active { color: #e0a52c; }
+
+/* ------------------------------------------------- Область нажатия
+   Пальцу нужно около 44×44, но сами значки должны остаться прежнего размера:
+   увеличь их — и шапка перестанет помещаться на узком экране. Поэтому
+   растягивается не кнопка, а невидимый слой вокруг неё. Размер подобран под
+   соседей: зоны соприкасаются, но не налезают друг на друга, иначе палец
+   попадал бы в соседнюю кнопку. */
+.drawer-btn,
+.theme-btn,
+.icon-btn,
+.task-chip,
+.sheet .close,
+.fav-toggle { position: relative; }
+
+.drawer-btn::after,
+.theme-btn::after,
+.icon-btn::after,
+.fav-nav-btn::after {
+  content: "";
+  position: absolute;
+  /* По высоте 34 + 5·2 = 44. По ширине 34 + 3·2 = 40 — это ровно шаг между
+     кнопками (34 плюс просвет 6); шире нельзя, начнут перекрываться. */
+  inset: -5px -3px;
+}
+
+.task-chip::after {
+  content: "";
+  position: absolute;
+  /* 32 + 6·2 = 44 по высоте, место под это заложено отступом .task-row. */
+  inset: -6px -2px;
+}
+
+.sheet .close::after,
+.fav-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -7px; /* 30 + 7·2 = 44 */
+}
 
 .qr-sheet { text-align: center; }
 .qr-sheet h2 { margin: 0 0 8px; font-size: 19px; }

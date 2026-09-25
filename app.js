@@ -79,6 +79,11 @@ function effectiveTheme() {
   return storedTheme() || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 }
 
+// Цвет полосы статуса на телефоне. Светлое значение — то же, что в
+// index.html и manifest.json: раньше скрипт ставил свой оттенок (#2c4f78),
+// и через миг после загрузки полоса меняла цвет. Теперь значение одно.
+const THEME_COLOR = { light: "#1f5fa8", dark: "#14181c" };
+
 function applyTheme() {
   const stored = storedTheme();
   if (stored) document.documentElement.setAttribute("data-theme", stored);
@@ -86,7 +91,7 @@ function applyTheme() {
 
   const dark = effectiveTheme() === "dark";
   document.getElementById("theme-btn").textContent = dark ? "☀️" : "🌙";
-  document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#14181c" : "#2c4f78");
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? THEME_COLOR.dark : THEME_COLOR.light);
 }
 
 document.getElementById("theme-btn").addEventListener("click", () => {

@@ -9,10 +9,37 @@
      из манифеста: без него подписью становится заголовок страницы. -->
 <meta name="apple-mobile-web-app-title" content="Habez Gips">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- Единственный источник правды для цвета шапки: то же значение стоит в
+     manifest.json и в app.js. Раньше скрипт ставил свой оттенок, и полоса
+     статуса на телефоне меняла цвет через миг после загрузки. -->
 <meta name="theme-color" content="#1f5fa8">
+
+<!-- Превью ссылки. Каталог расходится через WhatsApp — кнопкой на карточке и
+     QR-кодом менеджера. Без этих строк клиент получал голый адрес без имени
+     и картинки и принимал его за спам. Адреса обязательно полные: WhatsApp,
+     Telegram и почта относительных не понимают. -->
+<meta name="description" content="Каталог продукции Хабезского гипсового завода: гипсовые и цементные штукатурки, шпаклёвки, клеи, грунтовки, гипсокартон и пазогребневые плиты. Характеристики, ГОСТы и расчёт расхода.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Хабезский гипсовый завод">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:title" content="Каталог продукции Хабезского гипсового завода">
+<meta property="og:description" content="57 товаров с характеристиками, ГОСТами и расчётом расхода. Работает без интернета, ставится на телефон как приложение.">
+<meta property="og:url" content="https://salamgasanov777-gmm.github.io/hgz-catalog/">
+<meta property="og:image" content="https://salamgasanov777-gmm.github.io/hgz-catalog/icon-512-v2.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:image:alt" content="Логотип Хабезского гипсового завода">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Каталог продукции Хабезского гипсового завода">
+<meta name="twitter:description" content="57 товаров с характеристиками, ГОСТами и расчётом расхода. Работает без интернета.">
+<meta name="twitter:image" content="https://salamgasanov777-gmm.github.io/hgz-catalog/icon-512-v2.png">
+
+<!-- Без этой строки браузер по привычке просит /favicon.ico и получает 404
+     при каждом заходе. Берём уже имеющийся фирменный значок, новых не заводим. -->
+<link rel="icon" href="icon-192-v2.png">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=35">
+<link rel="stylesheet" href="style.css?v=36">
 </head>
 <body>
   <div class="topbar">
@@ -130,7 +157,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=35"></script>
-  <script src="app.js?v=35"></script>
+  <script src="qr.js?v=36"></script>
+  <script src="app.js?v=36"></script>
 </body>
 </html>
