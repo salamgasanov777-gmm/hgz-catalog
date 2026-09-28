@@ -644,6 +644,7 @@ function lockScroll() {
   if (overlayStack.length > 1) return;
   savedScrollY = window.scrollY;
   document.body.style.position = "fixed";
+  document.documentElement.classList.add("locked");
   document.body.style.top = `-${savedScrollY}px`;
   document.body.style.width = "100%";
 }
@@ -651,6 +652,7 @@ function lockScroll() {
 function unlockScroll() {
   if (overlayStack.length) return;
   document.body.style.position = "";
+  document.documentElement.classList.remove("locked");
   document.body.style.top = "";
   document.body.style.width = "";
   window.scrollTo(0, savedScrollY);
@@ -741,6 +743,9 @@ function openOverlay(onClose, node, opener, reopen) {
   // карточке фокус никуда не ставит, поэтому открывающий элемент можно
   // передать явно.
   const from = opener || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  // Смещение от прошлого свайпа, которым окно закрыли, — иначе оно
+  // откроется не до конца.
+  if (node) node.style.removeProperty("--drag");
   overlayStack.push({ onClose, node: node || null, opener: from, reopen });
   lockScroll();
   syncInert();
@@ -818,19 +823,24 @@ document.addEventListener("keydown", (e) => {
 // прокручено к началу — иначе жест конфликтовал бы с чтением длинных карточек.
 function enableSwipeToClose(sheet) {
   const CLOSE_AFTER = 90; // столько нужно протянуть, чтобы окно закрылось
+  let startX = 0;
   let startY = 0;
   let shift = 0;
-  let dragging = false;
+  // null — ещё не ясно, что за жест; true — тянем окно; false — не наш жест
+  // (прокрутка, листание фото, перемотка ролика), до конца касания не трогаем.
+  let dragging = null;
 
   sheet.addEventListener(
     "touchstart",
     (e) => {
-      // На плеере перетаскивание — это перемотка, а не закрытие окна.
-      if (e.touches.length !== 1 || sheet.scrollTop > 0 || e.target.closest("video")) return;
+      if (e.touches.length !== 1 || sheet.scrollTop > 0) {
+        dragging = false;
+        return;
+      }
+      startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       shift = 0;
-      dragging = true;
-      sheet.style.transition = "none";
+      dragging = null;
     },
     { passive: true }
   );
@@ -838,27 +848,44 @@ function enableSwipeToClose(sheet) {
   sheet.addEventListener(
     "touchmove",
     (e) => {
-      if (!dragging) return;
-      shift = e.touches[0].clientY - startY;
-      if (shift <= 0) {
-        // Палец пошёл вверх — это обычная прокрутка, отдаём жест содержимому.
-        sheet.style.removeProperty("--drag");
-        return;
+      if (dragging === false) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+
+      // Что за жест, решаем на первом же движении. Раньше решали позже, и
+      // iPhone успевал начать свою прокрутку: окно и содержимое ехали
+      // одновременно, отсюда рывки. Вниз и больше по вертикали, чем вбок, —
+      // тянем окно. Вбок — это листание фото или перемотка ролика, вверх —
+      // прокрутка. Раньше на ролике окно не тянулось вовсе, а ролики
+      // занимают почти всю страницу «Видео» — потому она и не закрывалась.
+      if (dragging === null) {
+        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+        dragging = dy > 0 && Math.abs(dy) > Math.abs(dx) && e.cancelable && sheet.scrollTop <= 0;
+        if (!dragging) return;
+        sheet.style.transition = "none";
       }
+
       e.preventDefault();
+      shift = Math.max(0, dy);
       sheet.style.setProperty("--drag", `${shift}px`);
     },
     { passive: false }
   );
 
   const finish = () => {
-    if (!dragging) return;
-    dragging = false;
+    const was = dragging;
+    dragging = null;
+    if (!was) return;
     sheet.style.transition = "";
-    sheet.style.removeProperty("--drag");
-    // Стили сбрасываются до закрытия, поэтому окно доезжает вниз плавно,
-    // с той точки, где его отпустили.
-    if (shift > CLOSE_AFTER) dismissOverlay();
+    if (shift > CLOSE_AFTER) {
+      // Смещение не сбрасываем: окно уезжает вниз с той точки, где его
+      // отпустили. Раньше его сбрасывали сразу, а на Android окно
+      // закрывается через историю, на кадр позже, — и оно успевало прыгнуть
+      // вверх, а потом уже уезжало вниз. Сбрасывает смещение openOverlay.
+      dismissOverlay();
+    } else {
+      sheet.style.removeProperty("--drag");
+    }
     shift = 0;
   };
 
@@ -2122,7 +2149,7 @@ function isStandalone() {
 function isIOS() {
   // iPad с iPadOS 13 представляется компьютером Mac — узнаём его по экрану
   // с касаниями: у настоящего Mac их нет.
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 }
 
 // Увеличение щипком выключено по просьбе владельца: каталог дают в руки
