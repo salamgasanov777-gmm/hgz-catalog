@@ -43,12 +43,11 @@
 <link rel="icon" href="icon-192-v2.png">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=39">
+<link rel="stylesheet" href="style.css?v=40">
 </head>
 <body>
   <div class="topbar">
     <div class="topbar-row">
-      <button id="drawer-btn" class="drawer-btn" aria-label="Разделы">☰</button>
       <div class="brand">
         <div class="brand-eyebrow">Хабезский гипсовый завод</div>
         <h1>Каталог продукции</h1>
@@ -78,13 +77,10 @@
     <div id="task-row" class="task-row"></div>
   </div>
 
-  <div id="drawer-backdrop" class="drawer-backdrop"></div>
-  <div id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
-    <div class="drawer-head" id="drawer-title">Разделы</div>
-    <div id="drawer-list" class="drawer-list"></div>
-    <div id="pages-list" class="drawer-pages"></div>
-    <div id="drawer-foot" class="drawer-foot"></div>
-  </div>
+  <!-- Первый экран общего списка: кто производитель и какие есть разделы.
+       Наполняет app.js (renderHome), при поиске и в разделе блоки скрыты. -->
+  <section id="home-intro" class="home-intro" aria-label="О заводе" hidden></section>
+  <nav id="home-rail" class="home-rail" aria-label="Разделы каталога" hidden></nav>
 
   <div id="section-bar" class="section-bar" hidden>
     <span id="section-count" class="section-count"></span>
@@ -92,6 +88,7 @@
   </div>
   <button id="compare-btn" class="compare-btn" style="display:none">⇄ Сравнить клеи</button>
   <div id="grid" class="grid"></div>
+  <footer id="site-foot" class="site-foot" hidden></footer>
 
   <div id="compare-backdrop" class="sheet-backdrop"></div>
   <div id="compare-sheet" class="sheet compare-sheet" role="dialog" aria-modal="true" aria-labelledby="compare-title" tabindex="-1">
@@ -161,7 +158,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=39"></script>
-  <script src="app.js?v=39"></script>
+  <script src="qr.js?v=40"></script>
+  <script src="app.js?v=40"></script>
 </body>
 </html>

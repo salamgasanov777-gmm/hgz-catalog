@@ -117,14 +117,6 @@ async function load() {
       `<button class="empty-retry" onclick="location.reload()">Обновить</button></div>`;
     return;
   }
-  // Дату берём из заголовка ответа, а не из поля в products.json: её не нужно
-  // помнить и проставлять руками. GitHub Pages ставит в Last-Modified время
-  // последней выкладки сайта, поэтому это дата версии каталога целиком.
-  // Офлайн ответ приходит из кеша вместе со своим заголовком — значит,
-  // показывается дата ровно той версии, которую человек видит.
-  dataDate = res.headers.get("Last-Modified");
-  showDataDate();
-
   // Страницы про сам завод лежат отдельным файлом: их наполняют текстом и
   // ссылками, а не карточками товаров, и без них каталог обязан работать.
   try {
@@ -134,59 +126,114 @@ async function load() {
     content = null;
   }
 
-  renderCategories();
-  renderPages();
+  renderHome();
   render();
   openFromHash();
   warmPhotoCache();
 }
 
-let dataDate = null;
-let content = null;
+// Фото завода в первом экране. Лежит в products/, поэтому service worker
+// кладёт его в запас так же, как фото товаров.
+const HOME_PHOTO = "products/factory-2.jpg";
 
-function showDataDate() {
-  // Элемента может не быть: у человека в кеше осталась прежняя index.html,
-  // а скрипт уже новый. Тогда просто молчим — падать посреди загрузки
-  // каталога из-за подписи с датой нельзя.
-  const el = document.getElementById("drawer-foot");
-  if (!el) return;
-  if (!dataDate) {
-    el.textContent = "";
-    return;
+// Первый экран общего списка и подвал. Раньше каталог начинался сразу со
+// списка товаров: человек не видел, чей это каталог, а до разделов добирался
+// только через меню ☰. Теперь сверху короткая справка о заводе с кнопками
+// страниц завода и лента разделов, внизу — реквизиты и контакты из
+// content.json. Меню ☰ после этого убрано: оно только дублировало одно и то же.
+function renderHome() {
+  const intro = document.getElementById("home-intro");
+  const rail = document.getElementById("home-rail");
+  const foot = document.getElementById("site-foot");
+  // Элементов может не быть, если у человека в кеше осталась прежняя
+  // index.html, — тогда просто без первого экрана.
+  if (!intro || !rail || !foot) return;
+
+  const n = products.length;
+  intro.innerHTML = `
+    <div class="home-photo" style="background-image:url('${photoUrl({ photo: HOME_PHOTO })}')" aria-hidden="true"></div>
+    <div class="home-text">
+      <div class="home-eyebrow">Производитель · с 1997 года</div>
+      <h2 class="home-title">Сухие смеси, гипс и&nbsp;гипсокартон</h2>
+      <p class="home-lead">Добыча гипсового камня и производство в Карачаево-Черкесии. ${n} ${plural(n, ["товар", "товара", "товаров"])} с характеристиками, ГОСТами и расчётом расхода.</p>
+      <div class="home-links">
+        <button type="button" data-page="stores">Где купить</button>
+        <button type="button" data-page="contact">Связаться</button>
+        <button type="button" data-page="about">О заводе</button>
+        <button type="button" data-page="videos">Видео</button>
+      </div>
+    </div>`;
+
+  const cats = CATEGORY_ORDER.map((cat) => ({ cat, items: products.filter((p) => p.category === cat) })).filter((c) => c.items.length);
+  rail.innerHTML = `
+    <div class="home-rail-head">Разделы <span>${cats.length}</span></div>
+    <div class="home-rail-list">${cats
+      .map(
+        (c) => `<button type="button" class="home-cat" data-cat="${esc(c.cat)}">
+          <span class="home-cat-img" data-src="${photoUrl(c.items[0])}" aria-hidden="true"></span>
+          <span class="home-cat-name">${esc(c.cat)}</span>
+          <span class="home-cat-n">${c.items.length}</span>
+        </button>`
+      )
+      .join("")}</div>`;
+  // Значки разделов грузятся, когда лента до них доезжает: на телефоне
+  // видны два-три, остальные уехали вправо и первому экрану не нужны.
+  rail.querySelectorAll(".home-cat-img").forEach(lazyPhoto);
+  rail.querySelectorAll("[data-cat]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      selectCategory(btn.dataset.cat);
+      scrollTo({ top: 0 });
+    })
+  );
+
+  // Без content.json подвалу нечего показать — он остаётся скрытым.
+  const a = content && content.about;
+  if (a) {
+    const tel = String(a.phone || "").replace(/[^\d+]/g, "");
+    const legal = [a.inn && `ИНН ${a.inn}`, a.ogrn && `ОГРН ${a.ogrn}`].filter(Boolean).join(" · ");
+    foot.innerHTML = `
+      <div class="site-foot-in">
+        <div>
+          <div class="site-foot-name">${esc(a.company || "Хабезский гипсовый завод")}</div>
+          ${a.address ? `<div class="site-foot-addr">${esc(a.address)}</div>` : ""}
+        </div>
+        <div class="site-foot-links">
+          <button type="button" data-page="stores">Где купить</button>
+          <button type="button" data-page="contact">Связаться</button>
+          <button type="button" data-page="about">О заводе</button>
+          <button type="button" data-page="videos">Видео</button>
+        </div>
+        <div class="site-foot-contacts">
+          ${a.phone ? `<a href="tel:${tel}">${esc(a.phone)}</a>` : ""}
+          ${a.site ? `<a href="${esc(a.site)}" target="_blank" rel="noopener">${esc(a.site.replace(/^https?:\/\/(www\.)?/, ""))}</a>` : ""}
+        </div>
+        ${legal ? `<div class="site-foot-legal">${esc(legal)}</div>` : ""}
+      </div>`;
+    foot.hidden = false;
   }
-  const d = new Date(dataDate);
-  if (isNaN(d)) {
-    el.textContent = "";
-    return;
-  }
-  const when = d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }).replace(/\s*г\.$/, "");
-  el.textContent = navigator.onLine ? `Каталог обновлён ${when}` : `Нет сети. Показана версия от ${when}`;
+
+  [intro, foot].forEach((box) =>
+    box.querySelectorAll("[data-page]").forEach((btn) => btn.addEventListener("click", () => openPage(btn.dataset.page)))
+  );
 }
 
-addEventListener("online", showDataDate);
-addEventListener("offline", showDataDate);
+// Справка о заводе и лента разделов нужны только в общем списке. Когда
+// человек ищет, выбрал раздел или задачу, они уходят и не отодвигают
+// результаты вниз.
+function showHome(on) {
+  ["home-intro", "home-rail"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && el.hidden === on) el.hidden = !on;
+  });
+}
+
+let content = null;
 
 function openFromHash() {
   const m = location.hash.match(/#p=(\d+)/);
   if (!m) return;
   const p = products.find((x) => String(x.id) === m[1]);
   if (p) openSheet(p);
-}
-
-function renderCategories() {
-  const cats = new Set(products.map((p) => p.category).filter(Boolean));
-  const items = [{ key: "Все", label: "Все" }, ...[...cats].map((c) => ({ key: c, label: c }))];
-
-  const drawerList = document.getElementById("drawer-list");
-  drawerList.innerHTML = items
-    .map((c) => `<button class="drawer-item ${c.key === activeCategory ? "active" : ""}" data-cat="${esc(c.key)}">${esc(c.label)}</button>`)
-    .join("");
-  drawerList.querySelectorAll(".drawer-item").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      selectCategory(btn.dataset.cat);
-      dismissOverlay();
-    });
-  });
 }
 
 
@@ -537,26 +584,6 @@ const PAGES = [
   },
 ];
 
-function renderPages() {
-  const box = document.getElementById("pages-list");
-  if (!box) return;
-  box.innerHTML = PAGES.map((page) => `<button class="drawer-item" data-page="${page.key}">${esc(page.label)}</button>`).join("");
-  box.querySelectorAll("[data-page]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.page;
-      // Сначала должна закрыться шторка разделов, и только потом открыться
-      // страница. Закрытие идёт через историю браузера, то есть не мгновенно:
-      // откроем страницу — и её же тут же закроет прилетевший popstate.
-      if (!overlayStack.length) {
-        openPage(key);
-        return;
-      }
-      window.addEventListener("popstate", () => openPage(key), { once: true });
-      dismissOverlay();
-    });
-  });
-}
-
 function openPage(key) {
   const page = PAGES.find((x) => x.key === key);
   if (!page) return;
@@ -575,13 +602,12 @@ function closePage() {
 
 function selectCategory(cat) {
   activeCategory = cat;
-  renderCategories();
   render();
 }
 
 document.getElementById("section-all").addEventListener("click", () => selectCategory("Все"));
 
-// Оверлеи (шторка разделов, карточка товара, сравнение) складываются в стек:
+// Оверлеи (карточка товара, сравнение, QR, страницы завода) складываются в стек:
 // каждый добавляет запись в историю, поэтому кнопка «Назад» на телефоне
 // закрывает верхний оверлей, а не выходит из приложения.
 const overlayStack = [];
@@ -607,8 +633,8 @@ function unlockScroll() {
 // открыто окно, всё остальное помечается inert: туда не уходит Tab и до него
 // не добирается программа чтения с экрана. Закрытые окна помечены всегда —
 // иначе в них остаются кнопки, доступные с клавиатуры, хотя окна не видно.
-const DIALOG_IDS = ["drawer", "sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet"];
-const PAGE_REGIONS = [".topbar", "#section-bar", "#compare-btn", "#grid", "#update-bar", "#manager-bar", "#install-bar"];
+const DIALOG_IDS = ["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet"];
+const PAGE_REGIONS = [".topbar", "#home-intro", "#home-rail", "#section-bar", "#compare-btn", "#grid", "#site-foot", "#update-bar", "#manager-bar", "#install-bar"];
 
 function setInert(el, on) {
   if (!el) return;
@@ -652,7 +678,10 @@ function restoreFocus(opener) {
   // body в расчёт не берём: если окно открыли касанием по карточке, фокуса на
   // странице не было вовсе, и «вернуть» его туда значит потерять место в списке.
   const alive = opener && opener !== document.body && opener.isConnected && !opener.closest("[inert]");
-  const target = alive ? opener : document.getElementById("drawer-btn");
+  // Иначе — первая кнопка шапки: фокус остаётся в начале страницы, а не
+  // теряется. Поле поиска для этого не годится — на телефоне выскочит
+  // клавиатура.
+  const target = alive ? opener : document.querySelector(".topbar button");
   if (!target) return;
   // Карточка товара — это div, она фокус сама не принимает. Разрешаем ей
   // принять его один раз, не добавляя в обход по Tab: tabindex="-1" делает
@@ -751,19 +780,6 @@ function enableSwipeToClose(sheet) {
 ["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet"].forEach((id) =>
   enableSwipeToClose(document.getElementById(id))
 );
-
-function openDrawer() {
-  document.getElementById("drawer").classList.add("open");
-  document.getElementById("drawer-backdrop").classList.add("open");
-  openOverlay(closeDrawer, document.getElementById("drawer"));
-}
-function closeDrawer() {
-  document.getElementById("drawer").classList.remove("open");
-  document.getElementById("drawer-backdrop").classList.remove("open");
-}
-
-document.getElementById("drawer-btn").addEventListener("click", openDrawer);
-document.getElementById("drawer-backdrop").addEventListener("click", dismissOverlay);
 
 function updateFavNav() {
   const btn = document.getElementById("fav-nav-btn");
@@ -1060,6 +1076,7 @@ function render() {
   const q = document.getElementById("search").value.trim();
   const queryTokens = tokenize(q);
   const latinVariants = translitVariants(q);
+  showHome(activeCategory === "Все" && !activeTask && !q);
   const grid = document.getElementById("grid");
   const hints = new Map();
 
@@ -1387,7 +1404,7 @@ function warmPhotoCache() {
   if (!("serviceWorker" in navigator)) return;
   const start = () =>
     setTimeout(() => {
-      const urls = [...new Set(products.map(photoUrl).filter(Boolean))];
+      const urls = [...new Set([photoUrl({ photo: HOME_PHOTO }), ...products.map(photoUrl)].filter(Boolean))];
       let i = 0;
       const next = () => {
         if (i >= urls.length) return;

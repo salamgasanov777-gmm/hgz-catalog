@@ -166,83 +166,6 @@ html {
   text-overflow: ellipsis;
 }
 
-.drawer-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  font-size: 17px;
-  color: var(--ink);
-  flex: 0 0 auto;
-}
-
-.drawer-backdrop {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4);
-  display: none;
-  z-index: 30;
-}
-.drawer-backdrop.open { display: block; }
-
-.drawer {
-  position: fixed;
-  top: 0; bottom: 0; left: 0;
-  width: 78%;
-  max-width: 300px;
-  background: var(--card);
-  z-index: 31;
-  transform: translateX(-100%);
-  transition: transform 0.25s ease;
-  padding: calc(env(safe-area-inset-top, 0px) + 20px) 0 20px;
-  overflow-y: auto;
-}
-.drawer.open { transform: translateX(0); }
-.drawer-head {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--muted);
-  letter-spacing: 0.4px;
-  padding: 0 18px 12px;
-}
-.drawer-list { display: flex; flex-direction: column; }
-.drawer-foot {
-  margin-top: 18px;
-  padding: 14px 18px 0;
-  border-top: 1px solid var(--border);
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-.drawer-foot:empty { display: none; }
-.drawer-item {
-  padding: 13px 18px;
-  font-size: 16px;
-  color: var(--ink);
-  border: none;
-  background: none;
-  text-align: left;
-  border-left: 3px solid transparent;
-}
-.drawer-item.active {
-  color: var(--accent);
-  font-weight: 700;
-  background: var(--accent-soft);
-  border-left-color: var(--accent);
-}
-
-/* Разделы каталога — это товары, а «О заводе» и «Где купить» — про сам завод.
-   Поэтому они отделены чертой и живут ниже списка категорий. */
-.drawer-pages {
-  display: flex;
-  flex-direction: column;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-.drawer-pages:empty { display: none; }
-
 .page-sheet h2 { margin: 0 0 14px; font-size: 20px; }
 .page-lead { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: var(--ink); }
 .page-sub { margin: 0 0 4px; font-size: 14px; color: var(--muted); line-height: 1.45; }
@@ -540,10 +463,12 @@ html {
   display: flex;
   flex-direction: column;
   position: relative;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transition: scale 0.16s ease, translate 0.18s ease, box-shadow 0.18s ease;
 }
-/* Лёгкое нажатие: палец видит, что карточка отозвалась. */
-.card:active { transform: scale(0.985); }
+/* Лёгкое нажатие: палец видит, что карточка отозвалась. Отдельными свойствами
+   scale и translate, а не transform: transform занят анимацией появления
+   hgz-rise, и она с заполнением both перебивала отклик — он не работал. */
+.card:active { scale: 0.985; }
 
 /* Рамка фокуса — только когда идут с клавиатуры (:focus-visible), поэтому при
    касании пальцем она не появляется. Обводка рисуется снаружи и в раскладке не
@@ -555,7 +480,7 @@ html {
 }
 
 @media (hover: hover) {
-  .card:hover { box-shadow: 0 6px 20px rgba(16, 32, 52, 0.08); }
+  .card:hover { translate: 0 -2px; box-shadow: 0 10px 24px -14px rgba(22, 32, 43, 0.35); }
 }
 
 /* Появление карточек: первые восемь всплывают друг за другом, дальше без
@@ -862,14 +787,12 @@ html {
    растягивается не кнопка, а невидимый слой вокруг неё. Размер подобран под
    соседей: зоны соприкасаются, но не налезают друг на друга, иначе палец
    попадал бы в соседнюю кнопку. */
-.drawer-btn,
 .theme-btn,
 .icon-btn,
 .task-chip,
 .sheet .close,
 .fav-toggle { position: relative; }
 
-.drawer-btn::after,
 .theme-btn::after,
 .icon-btn::after,
 .fav-nav-btn::after {
@@ -1142,6 +1065,175 @@ html {
 /* На телефоне две колонки во всю ширину. От планшета колонки добавляются сами
    по мере роста экрана, а шапка держит ту же ширину, что и сетка, — иначе
    поиск тянулся бы во весь монитор над узким столбцом карточек. */
+/* ---------- Первый экран общего списка и подвал ---------- */
+/* Справка о заводе, лента разделов и реквизиты. Видны только в общем списке
+   без поиска; подвал — всегда. Палитра и шрифт прежние. */
+.home-intro[hidden],
+.home-rail[hidden],
+.site-foot[hidden] { display: none; }
+
+.home-intro {
+  display: block;
+  margin: 14px 16px 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  animation: home-in 0.4s ease both;
+}
+.home-photo {
+  aspect-ratio: 16 / 7;
+  background: var(--accent-soft) center 38% / cover no-repeat;
+}
+.home-text { padding: 14px 16px 16px; }
+.home-eyebrow {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.home-title {
+  margin: 4px 0 6px;
+  font-size: 21px;
+  line-height: 1.18;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+.home-lead { margin: 0; font-size: 14px; line-height: 1.45; color: var(--muted); }
+/* Четыре кнопки на телефоне в строку не помещаются — ставим их ровной
+   сеткой 2×2, а не три плюс одна. */
+.home-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.home-links button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.home-links button:first-child { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+.home-rail { display: block; margin: 18px 0 0; }
+.home-rail-head {
+  padding: 0 18px 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.home-rail-head span { color: var(--accent); margin-left: 4px; }
+.home-rail-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 16px 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.home-rail-list::-webkit-scrollbar { display: none; }
+.home-cat {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  display: grid;
+  grid-template-columns: 40px auto;
+  grid-template-rows: auto auto;
+  column-gap: 9px;
+  align-items: center;
+  max-width: 230px;
+  min-height: 56px;
+  padding: 7px 14px 7px 7px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+  text-align: left;
+}
+.home-cat-img {
+  grid-row: span 2;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--accent-soft) center / 150% no-repeat;
+}
+.home-cat-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-cat-n { font-size: 12px; color: var(--muted); }
+
+/* Короткая синяя черта у подписи раздела — ритм длинного списка читается
+   легче, сами подписи не меняются. */
+.group-head span:first-child { position: relative; padding-left: 11px; }
+.group-head span:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.site-foot {
+  display: block;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  padding: 22px 18px calc(env(safe-area-inset-bottom, 0px) + 28px);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.site-foot-in { display: grid; gap: 14px; }
+.site-foot-name { font-weight: 800; font-size: 15px; }
+.site-foot-addr { color: var(--muted); }
+.site-foot-links { display: flex; gap: 4px 18px; flex-wrap: wrap; }
+.site-foot-links button {
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+.site-foot-contacts { display: flex; gap: 18px; flex-wrap: wrap; }
+.site-foot-contacts a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.site-foot-legal { color: var(--muted); font-size: 12px; }
+
+@keyframes home-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (min-width: 700px) {
+  .home-intro {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    max-width: var(--content-max);
+    margin: 18px auto 0;
+  }
+  .home-photo { aspect-ratio: auto; min-height: 230px; }
+  .home-text { padding: 26px 28px; align-self: center; }
+  .home-title { font-size: 28px; }
+  .home-links { grid-template-columns: repeat(4, auto); justify-content: start; }
+  .home-rail { max-width: var(--content-max); margin: 22px auto 0; }
+  .home-rail-head { padding: 0 2px 10px; }
+  .home-rail-list { flex-wrap: wrap; overflow: visible; padding: 0; }
+  .site-foot-in { max-width: var(--content-max); margin: 0 auto; grid-template-columns: 1.4fr 1fr 1fr; align-items: start; }
+  .site-foot-legal { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-intro { animation: none; }
+  .card { transition: none; }
+}
+
 @media (min-width: 700px) {
   /* Ширина предельная, но с запасом на внутреннюю отбивку сетки — тогда края
      карточек совпадают с краями поиска над ними. */
@@ -1182,7 +1274,9 @@ html {
   .sheet {
     left: 50%;
     right: auto;
-    transform: translate(-50%, 100%);
+    /* Окно стоит в 24px от низа экрана, поэтому сдвига на свою высоту мало:
+       закрытые окна выглядывали снизу полоской. Уводим с запасом. */
+    transform: translate(-50%, calc(100% + 40px));
     width: min(620px, calc(100% - 48px));
     border-radius: 20px;
     bottom: 24px;
