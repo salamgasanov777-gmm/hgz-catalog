@@ -159,7 +159,7 @@ function renderHome() {
   intro.innerHTML = `
     <div class="home-photo" style="background-image:url('${photoUrl({ photo: HOME_PHOTO })}')" aria-hidden="true"></div>
     <div class="home-text">
-      <div class="home-eyebrow">Производитель · с 1997 года</div>
+      <div class="home-eyebrow">Производитель · с 1991 года</div>
       <h2 class="home-title">Сухие смеси, гипс и&nbsp;гипсокартон</h2>
       <p class="home-lead">Добыча гипсового камня и производство в Карачаево-Черкесии. ${n} ${plural(n, ["товар", "товара", "товаров"])} с характеристиками, ГОСТами и расчётом расхода.</p>
       <div class="home-links">
@@ -619,7 +619,7 @@ function openPage(key) {
   if (page.after) page.after();
   document.getElementById("page-backdrop").classList.add("open");
   document.getElementById("page-sheet").classList.add("open");
-  openOverlay(closePage, document.getElementById("page-sheet"));
+  openOverlay(closePage, document.getElementById("page-sheet"), null, () => openPage(key));
 }
 
 function closePage() {
@@ -717,15 +717,28 @@ function restoreFocus(opener) {
   target.focus({ preventScroll: true });
 }
 
-function openOverlay(onClose, node, opener) {
+// Окна, закрытые кнопкой «Назад». Запись о них в истории браузера остаётся,
+// и «Вперёд» ведёт туда же — раньше при этом ничего не открывалось, а при
+// стопке окон (QR поверх карточки) «Вперёд» даже закрывал карточку: стек
+// окон и история расходились. Теперь «Вперёд» открывает окно заново.
+let forwardStack = [];
+// Пока окно открывается заново по «Вперёд», новую запись в историю не
+// добавляем — она там уже есть, мы по ней и пришли.
+let restoring = false;
+
+// reopen — как открыть это окно ещё раз, для кнопки «Вперёд».
+function openOverlay(onClose, node, opener, reopen) {
   // Кто открыл окно — запоминаем до того, как фокус уедет внутрь. Касание по
   // карточке фокус никуда не ставит, поэтому открывающий элемент можно
   // передать явно.
   const from = opener || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-  overlayStack.push({ onClose, node: node || null, opener: from });
+  overlayStack.push({ onClose, node: node || null, opener: from, reopen });
   lockScroll();
   syncInert();
   focusDialog(node);
+  if (restoring) return;
+  // Новое окно обрывает дорогу вперёд — как новая страница в браузере.
+  forwardStack = [];
   history.pushState({ hgzOverlay: overlayStack.length }, "");
 }
 
@@ -734,13 +747,42 @@ function dismissOverlay() {
   if (overlayStack.length) history.back();
 }
 
-window.addEventListener("popstate", () => {
-  const entry = overlayStack.pop();
-  if (entry) {
+// Глубина записи в истории — сколько окон должно быть открыто. У записи без
+// окон состояния нет, это глубина 0.
+window.addEventListener("popstate", (e) => {
+  const depth = (e.state && e.state.hgzOverlay) || 0;
+
+  // «Назад»: закрываем лишние окна сверху.
+  while (overlayStack.length > depth) {
+    const entry = overlayStack.pop();
     entry.onClose();
+    forwardStack.push(entry);
     syncInert();
     restoreFocus(entry.opener);
   }
+
+  // «Вперёд»: открываем закрытые окна в том же порядке.
+  while (overlayStack.length < depth) {
+    const entry = forwardStack.pop();
+    const before = overlayStack.length;
+    if (entry && entry.reopen) {
+      restoring = true;
+      try {
+        entry.reopen();
+      } finally {
+        restoring = false;
+      }
+    }
+    // Открыть не вышло — окна уже нет (например, после перезагрузки или
+    // раздел сменился). Тогда тихо возвращаемся на запись, которая
+    // соответствует экрану, чтобы стек и история снова совпадали.
+    if (overlayStack.length === before) {
+      forwardStack = [];
+      history.go(overlayStack.length - depth);
+      break;
+    }
+  }
+
   unlockScroll();
 });
 
@@ -1260,12 +1302,6 @@ function cardNode(p) {
   const card = document.createElement("div");
   card.className = "card";
   card.dataset.id = p.id ?? key;
-  // Карточка остаётся div: внутри неё настоящая кнопка «в избранное», а кнопку
-  // в кнопку вкладывать нельзя — браузер сломает внутреннюю. Поэтому роль и
-  // место в обходе по Tab проставляем вручную. Вид карточки не меняется.
-  card.tabIndex = 0;
-  card.setAttribute("role", "button");
-  card.setAttribute("aria-label", p.name);
   card.innerHTML = `
       <div class="photo${p.photo ? " loading" : ""}"${p.photo ? ` data-src="${photoUrl(p)}"` : ""}>${p.photo ? "" : '<span class="photo-soon">Фото скоро</span>'}</div>
       <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
@@ -1273,6 +1309,16 @@ function cardNode(p) {
         <p class="name">${esc(p.name)}</p>
         <p class="meta">${esc(p.unit || "")}${p.price ? " · " + esc(p.price) : ""}</p>
       </div>`;
+
+  // Кнопкой для клавиатуры и программ чтения служит название товара, а не
+  // вся карточка. Раньше кнопкой была карточка целиком, а внутри неё — ещё
+  // одна кнопка, «в избранное». Кнопка в кнопке — нарушение: программа чтения
+  // экрана могла объявить карточку, но не дать добраться до звёздочки. Пальцем
+  // и мышью карточка по-прежнему открывается нажатием в любое место, вид не
+  // меняется.
+  const name = card.querySelector(".name");
+  name.tabIndex = 0;
+  name.setAttribute("role", "button");
 
   const photo = card.querySelector(".photo.loading");
   if (photo) lazyPhoto(photo);
@@ -1283,14 +1329,13 @@ function cardNode(p) {
     updateFavNav();
     syncCardFav(p.id);
   });
-  card.addEventListener("click", () => openSheet(p, card));
+  // Фокус после закрытия возвращается на название — туда, где он был.
+  card.addEventListener("click", () => openSheet(p, name));
 
-  // Enter и пробел открывают карточку. Оба ведут в тот же обработчик нажатия,
-  // что и палец: второго пути открытия нет, а значит нет и двойного срабатывания.
-  card.addEventListener("keydown", (e) => {
-    // Нажатие внутри кнопки избранного сюда всплывает — его не трогаем, иначе
-    // Enter на звёздочке открывал бы карточку вместо добавления в избранное.
-    if (e.target !== card) return;
+  // Enter и пробел на названии открывают карточку. Оба ведут в тот же
+  // обработчик нажатия, что и палец: второго пути открытия нет, а значит нет
+  // и двойного срабатывания.
+  name.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
     // Пробел без этого прокручивает страницу.
     e.preventDefault();
@@ -1531,7 +1576,7 @@ function openSheet(p, openedFrom) {
   document.getElementById("backdrop").classList.add("open");
   document.getElementById("sheet").classList.add("open");
   document.getElementById("sheet").scrollTop = 0;
-  openOverlay(closeSheet, document.getElementById("sheet"), openedFrom);
+  openOverlay(closeSheet, document.getElementById("sheet"), openedFrom, () => openSheet(p, openedFrom));
 }
 
 function shareText(p) {
@@ -1945,7 +1990,12 @@ function openCompare() {
   document.getElementById("compare-title").textContent = config.title;
   document.getElementById("compare-backdrop").classList.add("open");
   document.getElementById("compare-sheet").classList.add("open");
-  openOverlay(closeCompare, document.getElementById("compare-sheet"));
+  // Вернуться «Вперёд» можно только в тот же раздел: сравнение строится по
+  // открытому разделу, и в чужом оно было бы другим.
+  const cat = activeCategory;
+  openOverlay(closeCompare, document.getElementById("compare-sheet"), null, () => {
+    if (activeCategory === cat) openCompare();
+  });
 }
 function closeCompare() {
   document.getElementById("compare-backdrop").classList.remove("open");
@@ -1965,7 +2015,9 @@ function catalogUrl() {
   return location.origin + location.pathname.replace(/index\.html$/, "");
 }
 
-document.getElementById("qr-btn").addEventListener("click", () => {
+document.getElementById("qr-btn").addEventListener("click", openQr);
+
+function openQr() {
   const canvas = document.getElementById("qr-canvas");
   const url = qrLink();
   // Модуль в 8 точек: код остаётся читаемым и когда его показывают
@@ -1975,8 +2027,8 @@ document.getElementById("qr-btn").addEventListener("click", () => {
   resetCopyBtn();
   document.getElementById("qr-backdrop").classList.add("open");
   document.getElementById("qr-sheet").classList.add("open");
-  openOverlay(closeQr, document.getElementById("qr-sheet"));
-});
+  openOverlay(closeQr, document.getElementById("qr-sheet"), null, openQr);
+}
 
 // Копирование ссылки. Современный способ работает только на защищённом
 // соединении; на старых Safari и при открытии по http остаётся запасной —
@@ -2072,10 +2124,14 @@ document.getElementById("install-yes").addEventListener("click", async () => {
     document.getElementById("install-bar").classList.remove("open");
     return;
   }
+  openIosHelp();
+});
+
+function openIosHelp() {
   document.getElementById("ios-backdrop").classList.add("open");
   document.getElementById("ios-sheet").classList.add("open");
-  openOverlay(closeIos, document.getElementById("ios-sheet"));
-});
+  openOverlay(closeIos, document.getElementById("ios-sheet"), null, openIosHelp);
+}
 
 function closeIos() {
   document.getElementById("ios-backdrop").classList.remove("open");
