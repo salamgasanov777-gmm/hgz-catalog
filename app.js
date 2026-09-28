@@ -138,6 +138,7 @@ async function load() {
   renderPages();
   render();
   openFromHash();
+  warmPhotoCache();
 }
 
 let dataDate = null;
@@ -503,13 +504,35 @@ const PAGES = [
           // пор виден один кадр.
           if (v.file) {
             const poster = v.poster ? ` poster="${photoUrl({ photo: v.poster })}"` : "";
-            return `<div class="video-item local"><video controls playsinline preload="none"${poster} src="${esc(v.file)}"></video><div class="title">${esc(v.title || "Видео")}</div></div>`;
+            return `<div class="video-item local"><video controls playsinline preload="none"${poster} src="${esc(v.file)}"></video><div class="title">${esc(v.title || "Видео")}</div><p class="video-offline" hidden>Видео не загрузилось: для просмотра нужен интернет.</p></div>`;
           }
           return `<a class="video-item" href="${esc(v.url)}" target="_blank" rel="noopener"><div class="thumb" style="${
             v.poster ? `background-image:url('${photoUrl({ photo: v.poster })}')` : ""
           }"></div><div class="title">▶ ${esc(v.title || "Смотреть")}</div></a>`;
         })
         .join("");
+    },
+    // Ролики в запас не кладутся: это десятки мегабайт, и проигрыватель
+    // просит их кусками, которые запас хранить не умеет. Без сети ролик не
+    // запустится — и вместо молча застывшего плеера говорим это словами. Как
+    // только связь вернулась, плеер сбрасываем, и следующее нажатие «плей»
+    // снова пробует загрузить ролик.
+    after: () => {
+      document.querySelectorAll("#page-body .video-item.local video").forEach((video) => {
+        const note = video.parentElement.querySelector(".video-offline");
+        if (!note) return;
+        video.addEventListener("error", () => {
+          note.hidden = false;
+          addEventListener(
+            "online",
+            () => {
+              note.hidden = true;
+              video.load();
+            },
+            { once: true }
+          );
+        });
+      });
     },
   },
 ];
@@ -542,7 +565,7 @@ function openPage(key) {
   if (page.after) page.after();
   document.getElementById("page-backdrop").classList.add("open");
   document.getElementById("page-sheet").classList.add("open");
-  openOverlay(closePage);
+  openOverlay(closePage, document.getElementById("page-sheet"));
 }
 
 function closePage() {
@@ -580,9 +603,73 @@ function unlockScroll() {
   window.scrollTo(0, savedScrollY);
 }
 
-function openOverlay(onClose) {
-  overlayStack.push(onClose);
+// Окна, которые ведут себя как диалог, и участки страницы под ними. Пока
+// открыто окно, всё остальное помечается inert: туда не уходит Tab и до него
+// не добирается программа чтения с экрана. Закрытые окна помечены всегда —
+// иначе в них остаются кнопки, доступные с клавиатуры, хотя окна не видно.
+const DIALOG_IDS = ["drawer", "sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet"];
+const PAGE_REGIONS = [".topbar", "#section-bar", "#compare-btn", "#grid", "#update-bar", "#manager-bar", "#install-bar"];
+
+function setInert(el, on) {
+  if (!el) return;
+  if (on) el.setAttribute("inert", "");
+  else el.removeAttribute("inert");
+}
+
+function topOverlay() {
+  return overlayStack.length ? overlayStack[overlayStack.length - 1] : null;
+}
+
+// Раскладывает inert заново. Окна могут лежать стопкой — например, QR поверх
+// открытой карточки товара, — поэтому «живым» остаётся ровно верхнее, а не
+// все открытые сразу.
+function syncInert() {
+  const top = topOverlay();
+  DIALOG_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    setInert(el, !top || el !== top.node);
+  });
+  PAGE_REGIONS.forEach((sel) => setInert(document.querySelector(sel), Boolean(top)));
+}
+
+// Фокус отдаём самому окну, а не первой кнопке внутри. У страницы «Где купить»
+// первой стоит строка поиска, и фокус на ней сразу поднимал бы экранную
+// клавиатуру. Окно подписано заголовком, поэтому программа чтения объявит,
+// что именно открылось, а дальше Tab идёт по кнопкам окна.
+function focusDialog(node) {
+  if (node) node.focus({ preventScroll: true });
+}
+
+// Возвращаем фокус тому, кто окно открыл. Если под закрытым окном осталось
+// другое — фокус уходит туда: так при закрытии QR поверх карточки человек
+// остаётся в карточке, а не улетает в шапку, которая ещё помечена inert.
+function restoreFocus(opener) {
+  const top = topOverlay();
+  if (top && top.node) {
+    top.node.focus({ preventScroll: true });
+    return;
+  }
+  // body в расчёт не берём: если окно открыли касанием по карточке, фокуса на
+  // странице не было вовсе, и «вернуть» его туда значит потерять место в списке.
+  const alive = opener && opener !== document.body && opener.isConnected && !opener.closest("[inert]");
+  const target = alive ? opener : document.getElementById("drawer-btn");
+  if (!target) return;
+  // Карточка товара — это div, она фокус сама не принимает. Разрешаем ей
+  // принять его один раз, не добавляя в обход по Tab: tabindex="-1" делает
+  // элемент доступным только для программного фокуса.
+  if (!target.matches('a[href], button, input, select, textarea, [tabindex]')) target.tabIndex = -1;
+  target.focus({ preventScroll: true });
+}
+
+function openOverlay(onClose, node, opener) {
+  // Кто открыл окно — запоминаем до того, как фокус уедет внутрь. Касание по
+  // карточке фокус никуда не ставит, поэтому открывающий элемент можно
+  // передать явно.
+  const from = opener || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  overlayStack.push({ onClose, node: node || null, opener: from });
   lockScroll();
+  syncInert();
+  focusDialog(node);
   history.pushState({ hgzOverlay: overlayStack.length }, "");
 }
 
@@ -592,9 +679,21 @@ function dismissOverlay() {
 }
 
 window.addEventListener("popstate", () => {
-  const onClose = overlayStack.pop();
-  if (onClose) onClose();
+  const entry = overlayStack.pop();
+  if (entry) {
+    entry.onClose();
+    syncInert();
+    restoreFocus(entry.opener);
+  }
   unlockScroll();
+});
+
+// Escape закрывает верхнее окно — раньше каталог клавиатуру не слушал вовсе.
+// Именно верхнее: при стопке окон одно нажатие снимает один слой.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !overlayStack.length) return;
+  e.preventDefault();
+  dismissOverlay();
 });
 
 // Закрытие шторки свайпом вниз. Тянуть можно только когда содержимое уже
@@ -656,7 +755,7 @@ function enableSwipeToClose(sheet) {
 function openDrawer() {
   document.getElementById("drawer").classList.add("open");
   document.getElementById("drawer-backdrop").classList.add("open");
-  openOverlay(closeDrawer);
+  openOverlay(closeDrawer, document.getElementById("drawer"));
 }
 function closeDrawer() {
   document.getElementById("drawer").classList.remove("open");
@@ -763,6 +862,91 @@ function tokenize(text) {
   return normalizeText(text).split(/[^a-zа-я0-9]+/).filter((w) => w.length > 1);
 }
 
+// ------------------------------------------------- Латинская раскладка
+// Прораб нередко набирает «plitka», а не «плитка»: забыл переключить раскладку
+// или пишет с чужого телефона. Раньше такой запрос не находил ничего — человек
+// решал, что товара нет.
+//
+// Перевод применяется ТОЛЬКО к запросу и только как ещё один вариант слова,
+// рядом с синонимами. Указатель товаров, веса полей и правило «слово из одной
+// инструкции товар не показывает» остаются нетронутыми: латинский вариант
+// ищется теми же правилами, что и русский, поэтому и состав выдачи, и её
+// порядок совпадают с набранным по-русски.
+//
+// Обратный путь — перевести в латиницу сам каталог — отвергнут: в названиях
+// есть настоящая латиница (HABEZ, EKREM, ЖАНЕ M100, клеи С2TS1), и её перевод
+// наплодил бы ложных совпадений там, где сейчас всё точно.
+
+// Сначала сочетания из нескольких букв, потом одиночные: иначе «sh» в
+// «shtukaturka» разберётся как «с» плюс «н» и получится бессмыслица.
+const TRANSLIT = [
+  ["shch", "щ"], ["sch", "щ"],
+  ["zh", "ж"], ["kh", "х"], ["ts", "ц"], ["ch", "ч"], ["sh", "ш"],
+  ["yo", "е"], ["yu", "ю"], ["ya", "я"], ["ye", "е"], ["yi", "и"],
+  ["a", "а"], ["b", "б"], ["v", "в"], ["g", "г"], ["d", "д"], ["e", "е"],
+  ["z", "з"], ["i", "и"], ["j", "ж"], ["k", "к"], ["l", "л"], ["m", "м"],
+  ["n", "н"], ["o", "о"], ["p", "п"], ["r", "р"], ["s", "с"], ["t", "т"],
+  ["u", "у"], ["f", "ф"], ["h", "х"], ["y", "й"], ["w", "в"], ["q", "к"],
+  ["x", "кс"],
+];
+
+function latinToCyrillic(word) {
+  let out = "";
+  let i = 0;
+  while (i < word.length) {
+    const pair = TRANSLIT.find(([lat]) => word.startsWith(lat, i));
+    if (pair) {
+      out += pair[1];
+      i += pair[0].length;
+      continue;
+    }
+    if (word[i] === "c") {
+      // «c» — самая двусмысленная буква. Перед e, i, y это «ц» (cement →
+      // цемент), в остальных случаях «к» (skoba → скоба). Сочетания ch и ts
+      // разобраны выше и сюда не доходят.
+      const next = word[i + 1];
+      out += next === "e" || next === "i" || next === "y" ? "ц" : "к";
+      i += 1;
+      continue;
+    }
+    out += word[i];
+    i += 1;
+  }
+  return out;
+}
+
+// Слова запроса в том виде, как их набрали. Брать их после normalizeText
+// поздно: она уже подменила часть латинских букв похожими русскими, и от
+// «plitka» остаётся «рliтка».
+function rawWords(text) {
+  return String(text || "")
+    .toLowerCase()
+    .split(/[^a-zа-яё0-9]+/)
+    .filter((w) => w.length > 1);
+}
+
+// Возвращает соответствие «слово, как его увидит поиск» → русские варианты.
+// Для русского запроса карта пустая, то есть поиск работает ровно как раньше.
+function translitVariants(query) {
+  const map = new Map();
+  for (const raw of rawWords(query)) {
+    if (!/^[a-z]+$/.test(raw)) continue; // только целиком латинское слово
+    const key = normalizeText(raw);
+    const cyr = normalizeText(latinToCyrillic(raw));
+    if (!cyr || cyr === key) continue;
+    const list = map.get(key) || [];
+    const add = (v) => {
+      if (v && !list.includes(v)) list.push(v);
+    };
+    add(cyr);
+    // «Э» и «Е» в латинице пишутся одной буквой: ekonom — это ЭКОНОМ,
+    // elitgrunt — ЭЛИТГРУНТ. Предлагаем оба прочтения.
+    if (cyr.startsWith("е")) add("э" + cyr.slice(1));
+    map.set(key, list);
+  }
+  return map;
+}
+
 // Индекс собирается один раз на товар и остаётся при нём: перебирать заново
 // на каждую букву в строке поиска незачем.
 function searchIndex(p) {
@@ -833,7 +1017,7 @@ function fieldQuality(field, variant) {
 // Каждое слово запроса должно найтись хоть где-то, иначе товар не подходит.
 // Оценка — сумма весов лучших попаданий, подсказка — самое сильное поле,
 // кроме названия: если совпало название, объяснять нечего.
-function searchMatch(p, queryTokens) {
+function searchMatch(p, queryTokens, latinVariants) {
   const index = searchIndex(p);
   let score = 0;
   let hintField = null;
@@ -841,7 +1025,7 @@ function searchMatch(p, queryTokens) {
   let strong = false;
 
   for (const token of queryTokens) {
-    const variants = [token, ...(SEARCH_SYNONYMS[token] || [])];
+    const variants = [token, ...(SEARCH_SYNONYMS[token] || []), ...((latinVariants && latinVariants.get(token)) || [])];
     let best = 0;
     let bestField = null;
     for (const field of Object.keys(FIELD_WEIGHT)) {
@@ -875,6 +1059,7 @@ function render() {
   renderTasks();
   const q = document.getElementById("search").value.trim();
   const queryTokens = tokenize(q);
+  const latinVariants = translitVariants(q);
   const grid = document.getElementById("grid");
   const hints = new Map();
 
@@ -885,7 +1070,7 @@ function render() {
     if (!matchesCat || !matchesTaskFilter) return false;
     if (!queryTokens.length) return true;
 
-    const found = searchMatch(p, queryTokens);
+    const found = searchMatch(p, queryTokens, latinVariants);
     if (!found) return false;
     hints.set(p.id, found);
     return true;
@@ -929,7 +1114,7 @@ function render() {
     // магазине решит, что плиточного клея у завода нет, хотя открыты шпаклёвки.
     const elsewhere =
       queryTokens.length && activeCategory !== "Все"
-        ? products.filter((p) => (!activeTask || matchesTask(p, activeTask)) && searchMatch(p, queryTokens)).length
+        ? products.filter((p) => (!activeTask || matchesTask(p, activeTask)) && searchMatch(p, queryTokens, latinVariants)).length
         : 0;
     const where = activeCategory === "__fav__" ? "в избранном" : `в разделе «${esc(activeCategory)}»`;
     if (elsewhere) {
@@ -1027,8 +1212,14 @@ function cardNode(p) {
   const card = document.createElement("div");
   card.className = "card";
   card.dataset.id = p.id ?? key;
+  // Карточка остаётся div: внутри неё настоящая кнопка «в избранное», а кнопку
+  // в кнопку вкладывать нельзя — браузер сломает внутреннюю. Поэтому роль и
+  // место в обходе по Tab проставляем вручную. Вид карточки не меняется.
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", p.name);
   card.innerHTML = `
-      <div class="photo${p.photo ? " loading" : ""}" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}">${p.photo ? "" : '<span class="photo-soon">Фото скоро</span>'}</div>
+      <div class="photo${p.photo ? " loading" : ""}"${p.photo ? ` data-src="${photoUrl(p)}"` : ""}>${p.photo ? "" : '<span class="photo-soon">Фото скоро</span>'}</div>
       <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
         <p class="name">${esc(p.name)}</p>
@@ -1036,7 +1227,7 @@ function cardNode(p) {
       </div>`;
 
   const photo = card.querySelector(".photo.loading");
-  if (photo) watchPhoto(photo);
+  if (photo) lazyPhoto(photo);
 
   card.querySelector(".fav-btn").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1044,7 +1235,19 @@ function cardNode(p) {
     updateFavNav();
     syncCardFav(p.id);
   });
-  card.addEventListener("click", () => openSheet(p));
+  card.addEventListener("click", () => openSheet(p, card));
+
+  // Enter и пробел открывают карточку. Оба ведут в тот же обработчик нажатия,
+  // что и палец: второго пути открытия нет, а значит нет и двойного срабатывания.
+  card.addEventListener("keydown", (e) => {
+    // Нажатие внутри кнопки избранного сюда всплывает — его не трогаем, иначе
+    // Enter на звёздочке открывал бы карточку вместо добавления в избранное.
+    if (e.target !== card) return;
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    // Пробел без этого прокручивает страницу.
+    e.preventDefault();
+    card.click();
+  });
 
   cardNodes.set(key, card);
   return card;
@@ -1142,6 +1345,64 @@ function watchPhoto(el) {
   if (img.complete) done();
 }
 
+// Фотография карточки ставится только когда карточка подъезжает к экрану —
+// за один экран до появления. Раньше все полсотни фото запрашивались разом при
+// открытии каталога и делили слабый канал между собой, поэтому и первые восемь,
+// которые человек видит, приходили последними. Место под фото задано
+// пропорцией в стилях, так что карточка не прыгает, пока фото едет, — на его
+// месте та же переливающаяся заглушка, что и раньше.
+const photoObserver =
+  "IntersectionObserver" in window
+    ? new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (!e.isIntersecting) return;
+            photoObserver.unobserve(e.target);
+            showCardPhoto(e.target);
+          });
+        },
+        { rootMargin: "100% 0px" }
+      )
+    : null;
+
+function showCardPhoto(el) {
+  el.style.backgroundImage = `url('${el.dataset.src}')`;
+  watchPhoto(el);
+}
+
+function lazyPhoto(el) {
+  if (photoObserver) photoObserver.observe(el);
+  else showCardPhoto(el);
+}
+
+// Офлайн каталог показывает только те фото, что уже побывали в запасе. Раз
+// карточки внизу теперь не грузятся сами, дотягиваем их фото в запас фоном:
+// по два за раз, с низким приоритетом, чтобы не отнимать канал у того, что
+// на экране. Ждём, пока страницей начнёт управлять service worker, — только
+// тогда запрос проходит через него и фото откладывается в запас. Заодно в
+// запас попадают и фото первого экрана: при самом первом заходе они
+// приходят раньше, чем service worker успевает включиться, и раньше в запас
+// не попадали до второго открытия каталога.
+function warmPhotoCache() {
+  if (!("serviceWorker" in navigator)) return;
+  const start = () =>
+    setTimeout(() => {
+      const urls = [...new Set(products.map(photoUrl).filter(Boolean))];
+      let i = 0;
+      const next = () => {
+        if (i >= urls.length) return;
+        fetch(urls[i++], { priority: "low" })
+          .then((res) => res.blob())
+          .catch(() => {})
+          .finally(next);
+      };
+      next();
+      next();
+    }, 1500);
+  if (navigator.serviceWorker.controller) start();
+  else navigator.serviceWorker.addEventListener("controllerchange", start, { once: true });
+}
+
 function photoUrl(p) {
   if (!p.photo) return "";
   return WEBP_OK ? p.photo.replace(/\.jpg$/i, ".webp") : p.photo;
@@ -1166,7 +1427,7 @@ document.getElementById("sheet-fav").addEventListener("click", () => {
   syncCardFav(currentProduct.id);
 });
 
-function openSheet(p) {
+function openSheet(p, openedFrom) {
   currentProduct = p;
   updateSheetFavButton();
   showPhotos(p);
@@ -1222,7 +1483,7 @@ function openSheet(p) {
   document.getElementById("backdrop").classList.add("open");
   document.getElementById("sheet").classList.add("open");
   document.getElementById("sheet").scrollTop = 0;
-  openOverlay(closeSheet);
+  openOverlay(closeSheet, document.getElementById("sheet"), openedFrom);
 }
 
 function shareText(p) {
@@ -1636,7 +1897,7 @@ function openCompare() {
   document.getElementById("compare-title").textContent = config.title;
   document.getElementById("compare-backdrop").classList.add("open");
   document.getElementById("compare-sheet").classList.add("open");
-  openOverlay(closeCompare);
+  openOverlay(closeCompare, document.getElementById("compare-sheet"));
 }
 function closeCompare() {
   document.getElementById("compare-backdrop").classList.remove("open");
@@ -1666,7 +1927,7 @@ document.getElementById("qr-btn").addEventListener("click", () => {
   resetCopyBtn();
   document.getElementById("qr-backdrop").classList.add("open");
   document.getElementById("qr-sheet").classList.add("open");
-  openOverlay(closeQr);
+  openOverlay(closeQr, document.getElementById("qr-sheet"));
 });
 
 // Копирование ссылки. Современный способ работает только на защищённом
@@ -1765,7 +2026,7 @@ document.getElementById("install-yes").addEventListener("click", async () => {
   }
   document.getElementById("ios-backdrop").classList.add("open");
   document.getElementById("ios-sheet").classList.add("open");
-  openOverlay(closeIos);
+  openOverlay(closeIos, document.getElementById("ios-sheet"));
 });
 
 function closeIos() {
@@ -1921,6 +2182,10 @@ document.getElementById("manager-bar-open").addEventListener("click", () => {
 document.getElementById("manager-bar-hide").addEventListener("click", () => {
   document.getElementById("manager-bar").classList.remove("open");
 });
+
+// Закрытые окна помечаем сразу: до первого открытия в них тоже нельзя
+// попадать с клавиатуры.
+syncInert();
 
 loadManager();
 if (readManagerFromUrl()) showManagerBar();

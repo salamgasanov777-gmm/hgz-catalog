@@ -388,6 +388,7 @@ html {
   background: var(--accent-soft) center/cover no-repeat;
 }
 .video-item .title { padding: 12px 14px; font-size: 15px; font-weight: 700; color: var(--ink); }
+.video-offline { margin: -4px 14px 12px; font-size: 13.5px; line-height: 1.4; color: var(--muted); }
 /* Ролики сняты вертикально, поэтому ограничиваем высоту: иначе один
    восемнадцатисекундный ролик занимает весь экран. */
 .video-item.local video {
@@ -543,6 +544,15 @@ html {
 }
 /* Лёгкое нажатие: палец видит, что карточка отозвалась. */
 .card:active { transform: scale(0.985); }
+
+/* Рамка фокуса — только когда идут с клавиатуры (:focus-visible), поэтому при
+   касании пальцем она не появляется. Обводка рисуется снаружи и в раскладке не
+   участвует, так что карточка не дёргается и сетка не разъезжается. Цвет
+   берётся из темы: виден и на светлом, и на тёмном. */
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 @media (hover: hover) {
   .card:hover { box-shadow: 0 6px 20px rgba(16, 32, 52, 0.08); }

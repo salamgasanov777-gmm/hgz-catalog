@@ -2,7 +2,11 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- Запрет масштабирования снят: человек с неидеальным зрением должен иметь
+     возможность приблизить таблицу характеристик. Двойной тап по-прежнему не
+     увеличивает — это делает touch-action: manipulation в стилях, а раздражал
+     именно он. На iPhone запрет и так не работал с iOS 10. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Хабезский гипсовый завод</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <!-- iPhone подписывает значок на экране «Домой» этим тегом, а не именем
@@ -39,7 +43,7 @@
 <link rel="icon" href="icon-192-v2.png">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=39">
 </head>
 <body>
   <div class="topbar">
@@ -75,8 +79,8 @@
   </div>
 
   <div id="drawer-backdrop" class="drawer-backdrop"></div>
-  <div id="drawer" class="drawer">
-    <div class="drawer-head">Разделы</div>
+  <div id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+    <div class="drawer-head" id="drawer-title">Разделы</div>
     <div id="drawer-list" class="drawer-list"></div>
     <div id="pages-list" class="drawer-pages"></div>
     <div id="drawer-foot" class="drawer-foot"></div>
@@ -90,16 +94,16 @@
   <div id="grid" class="grid"></div>
 
   <div id="compare-backdrop" class="sheet-backdrop"></div>
-  <div id="compare-sheet" class="sheet compare-sheet">
+  <div id="compare-sheet" class="sheet compare-sheet" role="dialog" aria-modal="true" aria-labelledby="compare-title" tabindex="-1">
     <div class="sheet-tools"><button id="compare-close" class="close" aria-label="Закрыть">✕</button></div>
     <h2 id="compare-title">Сравнение</h2>
     <div id="compare-table-wrap" class="compare-table-wrap"></div>
   </div>
 
   <div id="qr-backdrop" class="sheet-backdrop"></div>
-  <div id="qr-sheet" class="sheet qr-sheet">
+  <div id="qr-sheet" class="sheet qr-sheet" role="dialog" aria-modal="true" aria-labelledby="qr-title" tabindex="-1">
     <div class="sheet-tools"><button id="qr-close" class="close" aria-label="Закрыть">✕</button></div>
-    <h2>Каталог на телефон</h2>
+    <h2 id="qr-title">Каталог на телефон</h2>
     <p class="qr-hint">Наведите камеру телефона на код — откроется этот каталог. Его можно установить на телефон и пользоваться как приложением.</p>
     <canvas id="qr-canvas" class="qr-canvas"></canvas>
     <button id="qr-copy" class="qr-copy">Скопировать ссылку</button>
@@ -124,9 +128,9 @@
   </div>
 
   <div id="ios-backdrop" class="sheet-backdrop"></div>
-  <div id="ios-sheet" class="sheet ios-sheet">
+  <div id="ios-sheet" class="sheet ios-sheet" role="dialog" aria-modal="true" aria-labelledby="ios-title" tabindex="-1">
     <div class="sheet-tools"><button id="ios-close" class="close" aria-label="Закрыть">✕</button></div>
-    <h2>Установка на iPhone</h2>
+    <h2 id="ios-title">Установка на iPhone</h2>
     <ol class="ios-steps">
       <li>Нажмите <b>Поделиться</b> — квадрат со стрелкой вверх внизу экрана.</li>
       <li>Пролистайте список и выберите <b>На экран «Домой»</b>.</li>
@@ -135,14 +139,14 @@
   </div>
 
   <div id="page-backdrop" class="sheet-backdrop"></div>
-  <div id="page-sheet" class="sheet page-sheet">
+  <div id="page-sheet" class="sheet page-sheet" role="dialog" aria-modal="true" aria-labelledby="page-title" tabindex="-1">
     <div class="sheet-tools"><button id="page-close" class="close" aria-label="Закрыть">✕</button></div>
     <h2 id="page-title"></h2>
     <div id="page-body"></div>
   </div>
 
   <div id="backdrop" class="sheet-backdrop"></div>
-  <div id="sheet" class="sheet">
+  <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-name" tabindex="-1">
     <div class="sheet-tools">
       <button id="sheet-fav" class="fav-toggle" aria-label="Избранное">☆</button>
       <button id="sheet-close" class="close" aria-label="Закрыть">✕</button>
@@ -157,7 +161,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=36"></script>
-  <script src="app.js?v=36"></script>
+  <script src="qr.js?v=39"></script>
+  <script src="app.js?v=39"></script>
 </body>
 </html>
