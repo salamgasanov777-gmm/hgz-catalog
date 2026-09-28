@@ -104,7 +104,10 @@ applyTheme();
 async function load() {
   let res;
   try {
-    res = await fetch("./products.json", { cache: "no-store" });
+    // no-cache, а не no-store: свежесть та же — браузер каждый раз сверяется
+    // с сайтом, — но ответ остаётся в его кеше. При первом заходе запас
+    // (sw.js) забирает товары оттуда, а не качает все 350 КБ второй раз.
+    res = await fetch("./products.json", { cache: "no-cache" });
     products = await res.json();
     // Сортировка устойчивая: внутри раздела товары идут как в products.json.
     products.sort((x, y) => categoryRank(x.category) - categoryRank(y.category));
@@ -123,7 +126,7 @@ async function load() {
   // Страницы про сам завод лежат отдельным файлом: их наполняют текстом и
   // ссылками, а не карточками товаров, и без них каталог обязан работать.
   try {
-    const info = await fetch("./content.json", { cache: "no-store" });
+    const info = await fetch("./content.json", { cache: "no-cache" });
     content = info.ok ? await info.json() : null;
   } catch {
     content = null;
@@ -1100,6 +1103,10 @@ function render() {
   const q = document.getElementById("search").value.trim();
   const queryTokens = tokenize(q);
   const latinVariants = translitVariants(q);
+  // Запрос из одних знаков («!!!», «…», «-») не даёт ни одного слова. Раньше
+  // пустой список слов значил «фильтра нет», и такой запрос показывал все
+  // товары разом. Одна буква — другое дело: человек только начал набирать.
+  const noWords = q && !/[a-zа-яё0-9]/i.test(q);
   showHome(activeCategory === "Все" && !activeTask && !q);
   const grid = document.getElementById("grid");
   const hints = new Map();
@@ -1108,7 +1115,7 @@ function render() {
     const matchesCat =
       activeCategory === "Все" ? true : activeCategory === "__fav__" ? isFavorite(p.id) : p.category === activeCategory;
     const matchesTaskFilter = !activeTask || matchesTask(p, activeTask);
-    if (!matchesCat || !matchesTaskFilter) return false;
+    if (!matchesCat || !matchesTaskFilter || noWords) return false;
     if (!queryTokens.length) return true;
 
     const found = searchMatch(p, queryTokens, latinVariants);
