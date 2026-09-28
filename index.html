@@ -2,6 +2,13 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<!-- Правило безопасности (CSP). GitHub Pages не даёт ставить заголовки, поэтому
+     оно здесь. Каталог берёт скрипты, данные, фото и видео только со своего
+     адреса; скрипты внутри разметки (onclick="…") запрещены. Даже если в
+     страницу когда-нибудь попадёт чужой текст с кодом, браузер его не
+     выполнит. Стили внутри разметки разрешены: фото карточек подставляются
+     через style. Внешние ссылки (WhatsApp, карты) это правило не трогает. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self'; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
 <!-- Запрет масштабирования снят: человек с неидеальным зрением должен иметь
      возможность приблизить таблицу характеристик. Двойной тап по-прежнему не
      увеличивает — это делает touch-action: manipulation в стилях, а раздражал
@@ -43,7 +50,7 @@
 <link rel="icon" href="icon-192-v2.png">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=41">
 </head>
 <body>
   <div class="topbar">
@@ -158,7 +165,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=40"></script>
-  <script src="app.js?v=40"></script>
+  <script src="qr.js?v=41"></script>
+  <script src="app.js?v=41"></script>
 </body>
 </html>

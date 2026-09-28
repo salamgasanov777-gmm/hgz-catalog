@@ -114,7 +114,10 @@ async function load() {
     // решит, что каталог сломан.
     document.getElementById("grid").innerHTML =
       `<div class="empty">Каталог не загрузился.<br>Проверьте связь и попробуйте ещё раз.` +
-      `<button class="empty-retry" onclick="location.reload()">Обновить</button></div>`;
+      `<button class="empty-retry" id="empty-retry">Обновить</button></div>`;
+    // Обработчик вешаем из скрипта, а не атрибутом onclick: правило
+    // безопасности в index.html (CSP) запрещает скрипты внутри разметки.
+    document.getElementById("empty-retry").addEventListener("click", () => location.reload());
     return;
   }
   // Страницы про сам завод лежат отдельным файлом: их наполняют текстом и
@@ -355,7 +358,12 @@ function loadManager() {
   } catch (e) {
     manager = null;
   }
-  if (!(manager && manager.phone)) manager = null;
+  // Сохранённое перепроверяем так же строго, как ввод: номер идёт в ссылки
+  // tel: и wa.me, имя — на экран. Всё, что не похоже на номер, отбрасываем.
+  const phone = manager && typeof manager === "object" ? phoneDigits(manager.phone) : "";
+  manager = phone
+    ? { name: String(manager.name || "").trim().replace(/\s+/g, " ").slice(0, 60), phone, own: manager.own === true }
+    : null;
 }
 
 function saveManager(m) {
@@ -385,21 +393,37 @@ function managerName() {
   return (manager && manager.name) || "Менеджер завода";
 }
 
-// Контакт, приехавший в адресе с чужого QR-кода. Сохраняем и сразу вычищаем
-// параметры из строки браузера: иначе номер уедет дальше, если клиент
+// Контакт, приехавший в адресе с QR-кода менеджера. Параметры сразу
+// вычищаем из строки браузера: иначе номер уедет дальше, если клиент
 // перешлёт ссылку кому-то ещё, и попадёт в закладку.
+//
+// Ссылку может собрать кто угодно, поэтому молча она контакт не подменяет:
+// раньше чужая ссылка с подписью «Менеджер завода» навсегда перехватывала
+// заявки клиента в WhatsApp, а на телефоне самого менеджера затирала его
+// собственный контакт — и его QR-код переставал нести его номер.
+//   • свой контакт менеджера (own) ссылкой не заменяется никогда;
+//   • иначе — только с согласия человека: «Записать менеджера …?» или
+//     «Сменить менеджера на …?». Раньше у нового клиента первая же ссылка
+//     записывалась молча, и ею можно было выдать себя за менеджера завода
+//     (находка проверки Strix, 28.09.2026).
+// Возвращает контакт-кандидат, о котором нужно спросить, или null, если
+// делать ничего не нужно.
 function readManagerFromUrl() {
   const q = new URLSearchParams(location.search);
+  if (!q.has("m") && !q.has("n")) return null;
   const phone = phoneDigits(q.get("m"));
-  if (!phone) return false;
   const name = (q.get("n") || "").trim().replace(/\s+/g, " ").slice(0, 60);
-  const changed = !(manager && manager.phone === phone);
-  saveManager({ name, phone, own: false });
   q.delete("m");
   q.delete("n");
   const rest = q.toString();
   history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
-  return changed;
+  if (!phone) return null;
+  if (manager && manager.own) return null;
+  if (manager && manager.phone === phone) {
+    if (name && name !== manager.name) saveManager({ name, phone, own: false });
+    return null;
+  }
+  return { name, phone, own: false };
 }
 
 // Адрес для QR-кода. Длинное имя подрезаем по словам, пока ссылка не влезет в
@@ -2182,21 +2206,32 @@ function wireManagerButtons(box) {
   });
 }
 
-// Полоса о новом менеджере: клиент отсканировал код и должен понять, чей
-// контакт у него теперь в каталоге. Сама уходит через десять секунд.
-function showManagerBar() {
+// Полоса о менеджере из ссылки: клиент отсканировал код и решает, записать
+// ли этот контакт. Сама не уходит — без нажатия ничего не записывается, а
+// крестик значит «не записывать» (или «оставить прежнего»).
+let pendingManager = null;
+
+function offerManager(m) {
   const bar = document.getElementById("manager-bar");
-  if (!bar || !manager) return;
-  document.getElementById("manager-bar-text").textContent = `Ваш менеджер — ${managerName()}`;
+  if (!bar) return;
+  pendingManager = m;
+  const who = m.name ? `${m.name}, ${phonePretty(m.phone)}` : phonePretty(m.phone);
+  const first = !manager;
+  document.getElementById("manager-bar-text").textContent = first ? `Записать менеджера: ${who}?` : `Сменить менеджера на ${who}?`;
+  document.getElementById("manager-bar-open").textContent = first ? "Записать" : "Сменить";
   bar.classList.add("open");
-  setTimeout(() => bar.classList.remove("open"), 10000);
 }
 
 document.getElementById("manager-bar-open").addEventListener("click", () => {
   document.getElementById("manager-bar").classList.remove("open");
+  if (pendingManager) {
+    saveManager(pendingManager);
+    pendingManager = null;
+  }
   openPage("contact");
 });
 document.getElementById("manager-bar-hide").addEventListener("click", () => {
+  pendingManager = null;
   document.getElementById("manager-bar").classList.remove("open");
 });
 
@@ -2205,6 +2240,7 @@ document.getElementById("manager-bar-hide").addEventListener("click", () => {
 syncInert();
 
 loadManager();
-if (readManagerFromUrl()) showManagerBar();
+const managerFromUrl = readManagerFromUrl();
+if (managerFromUrl) offerManager(managerFromUrl);
 
 load();
