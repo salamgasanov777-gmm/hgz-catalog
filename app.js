@@ -717,6 +717,15 @@ function restoreFocus(opener) {
   target.focus({ preventScroll: true });
 }
 
+// На iPhone окна в историю браузера не пишутся. Там жест от правого края —
+// «вперёд», и Safari показывает под пальцем снимок той записи, какой он её
+// запомнил: закрыл сравнение, ушёл на главную, потянул экран — а оттуда
+// выезжает старое окно сравнения. Убрать снимок нельзя, можно только не
+// оставлять записей. Закрываются окна там крестиком, нажатием мимо окна и
+// свайпом вниз. На Android запись нужна: системная кнопка «Назад» закрывает
+// окно, а не выходит из каталога, а жеста «вперёд» там нет.
+const OVERLAY_HISTORY = !isIOS();
+
 // Окна, закрытые кнопкой «Назад». Запись о них в истории браузера остаётся,
 // и «Вперёд» ведёт туда же — раньше при этом ничего не открывалось, а при
 // стопке окон (QR поверх карточки) «Вперёд» даже закрывал карточку: стек
@@ -736,20 +745,31 @@ function openOverlay(onClose, node, opener, reopen) {
   lockScroll();
   syncInert();
   focusDialog(node);
-  if (restoring) return;
+  if (restoring || !OVERLAY_HISTORY) return;
   // Новое окно обрывает дорогу вперёд — как новая страница в браузере.
   forwardStack = [];
   history.pushState({ hgzOverlay: overlayStack.length }, "");
 }
 
-// Закрытие всегда идёт через историю, чтобы состояние стека и истории совпадали.
+// Закрытие идёт через историю, чтобы состояние стека и истории совпадали.
+// На iPhone записей нет — там окно закрывается напрямую.
 function dismissOverlay() {
-  if (overlayStack.length) history.back();
+  if (!overlayStack.length) return;
+  if (OVERLAY_HISTORY) {
+    history.back();
+    return;
+  }
+  const entry = overlayStack.pop();
+  entry.onClose();
+  syncInert();
+  restoreFocus(entry.opener);
+  unlockScroll();
 }
 
 // Глубина записи в истории — сколько окон должно быть открыто. У записи без
 // окон состояния нет, это глубина 0.
 window.addEventListener("popstate", (e) => {
+  if (!OVERLAY_HISTORY) return;
   const depth = (e.state && e.state.hgzOverlay) || 0;
 
   // «Назад»: закрываем лишние окна сверху.
@@ -2100,8 +2120,24 @@ function isStandalone() {
 }
 
 function isIOS() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // iPad с iPadOS 13 представляется компьютером Mac — узнаём его по экрану
+  // с касаниями: у настоящего Mac их нет.
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
+
+// Увеличение щипком выключено по просьбе владельца: каталог дают в руки
+// клиенту, и случайный щипок раздувал экран. Safari на iPhone запрет в теге
+// viewport не соблюдает с iOS 10, поэтому гасим сам жест: gesturestart —
+// событие только Safari, touchmove двумя пальцами — запасной путь.
+// Прокрутку одним пальцем это не задевает.
+["gesturestart", "gesturechange"].forEach((type) => document.addEventListener(type, (e) => e.preventDefault()));
+document.addEventListener(
+  "touchmove",
+  (e) => {
+    if (e.touches.length > 1) e.preventDefault();
+  },
+  { passive: false }
+);
 
 function showInstallBar() {
   if (isStandalone() || localStorage.getItem("hgz-install-hidden")) return;
