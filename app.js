@@ -147,6 +147,27 @@ const HOME_PHOTO = "products/factory-2.jpg";
 // только через меню ☰. Теперь сверху короткая справка о заводе с кнопками
 // страниц завода и лента разделов, внизу — реквизиты и контакты из
 // content.json. Меню ☰ после этого убрано: оно только дублировало одно и то же.
+// Кто сделал приложение: имя, чем занимается, сайт, телефон и WhatsApp.
+// Данные — content.json → developer. Нет блока — подвал без подписи.
+function developerHtml(d) {
+  if (!d || !d.name) return "";
+  const tel = String(d.phone || "").replace(/[^\d+]/g, "");
+  const wa = tel.replace(/\D/g, "");
+  const host = d.site ? d.site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : "";
+  const hello = encodeURIComponent("Здравствуйте! Увидел каталог завода, хочу узнать про ваши услуги.");
+  return `
+        <div class="site-foot-dev">
+          <div class="site-foot-dev-label">Разработчик приложения</div>
+          <div class="site-foot-dev-name">${esc(d.name)}${d.brand ? ` · ${esc(d.brand)}` : ""}</div>
+          ${d.about ? `<div class="site-foot-dev-about">${esc(d.about)}</div>` : ""}
+          <div class="site-foot-dev-links">
+            ${d.site ? `<a href="${esc(d.site)}" target="_blank" rel="noopener">${esc(host)}</a>` : ""}
+            ${tel ? `<a href="tel:${esc(tel)}">Позвонить</a>` : ""}
+            ${wa ? `<a href="https://wa.me/${esc(wa)}?text=${hello}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
+          </div>
+        </div>`;
+}
+
 function renderHome() {
   const intro = document.getElementById("home-intro");
   const rail = document.getElementById("home-rail");
@@ -209,6 +230,7 @@ function renderHome() {
           <button type="button" data-page="about">О заводе</button>
           <button type="button" data-page="videos">Видео</button>
         </div>
+        ${developerHtml(content.developer)}
       </div>`;
     foot.hidden = false;
   }
