@@ -1009,17 +1009,24 @@ html.locked { overscroll-behavior: none; }
 .cert-sheet h2 { margin: 0 0 4px; font-size: 20px; }
 .cert-sheet .cert-note { margin: 0 0 12px; }
 .cert-view {
-  height: 64vh;
+  max-height: calc(92vh - 120px);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: #fff;
 }
-.cert-view img { display: block; width: 190%; max-width: none; height: auto; }
-@media (min-width: 700px) {
-  .cert-view img { width: 100%; }
+/* Сначала виден весь сертификат целиком, по нажатию он увеличивается вдвое, и
+   его двигают пальцем. Обычный щипок в каталоге выключен, поэтому увеличение
+   сделано нажатием. */
+.cert-view img {
+  display: block;
+  width: auto; max-width: 100%;
+  height: auto; max-height: calc(92vh - 124px);
+  margin: 0 auto;
+  cursor: zoom-in;
 }
+.cert-view.zoomed img { width: 220%; max-width: none; max-height: none; margin: 0; cursor: zoom-out; }
 
 .summary {
   font-size: 15px;

@@ -1649,12 +1649,14 @@ let currentCert = null;
 function openCert(cert) {
   const img = document.getElementById("cert-img");
   const note = document.getElementById("cert-note");
-  note.textContent = `Действует до ${cert.until}. Двигайте пальцем, чтобы прочитать.`;
+  const view = document.getElementById("cert-view");
+  view.classList.remove("zoomed");
+  note.textContent = `Действует до ${cert.until}. ${CERT_HINT_FIT}`;
   img.onerror = () => {
     note.textContent = "Сертификат не загрузился. Проверьте связь и откройте снова.";
   };
   img.src = cert.file.replace(/\.pdf$/i, ".jpg");
-  document.getElementById("cert-view").scrollTo(0, 0);
+  view.scrollTo(0, 0);
   document.getElementById("cert-backdrop").classList.add("open");
   document.getElementById("cert-sheet").classList.add("open");
   openOverlay(closeCert, document.getElementById("cert-sheet"), null, () => openCert(cert));
@@ -1669,6 +1671,26 @@ document.getElementById("sheet-cert").addEventListener("click", (e) => {
   if (!currentCert) return;
   e.preventDefault();
   openCert(currentCert);
+});
+// Нажатие по сертификату — увеличить или вернуть целиком. Увеличивается то
+// место, куда нажали: оно остаётся под пальцем, а не уезжает в угол.
+const CERT_HINT_FIT = "Нажмите на сертификат, чтобы увеличить.";
+const CERT_HINT_ZOOM = "Двигайте пальцем. Нажмите ещё раз, чтобы вернуть целиком.";
+document.getElementById("cert-img").addEventListener("click", (e) => {
+  const view = document.getElementById("cert-view");
+  const img = e.currentTarget;
+  const box = img.getBoundingClientRect();
+  const fx = (e.clientX - box.left) / box.width;
+  const fy = (e.clientY - box.top) / box.height;
+  const zoomed = view.classList.toggle("zoomed");
+  document.getElementById("cert-note").textContent =
+    document.getElementById("cert-note").textContent.split(". ")[0] + ". " + (zoomed ? CERT_HINT_ZOOM : CERT_HINT_FIT);
+  if (zoomed) {
+    view.scrollLeft = fx * img.offsetWidth - view.clientWidth / 2;
+    view.scrollTop = fy * img.offsetHeight - view.clientHeight / 2;
+  } else {
+    view.scrollTo(0, 0);
+  }
 });
 document.getElementById("cert-backdrop").addEventListener("click", dismissOverlay);
 document.getElementById("cert-close").addEventListener("click", dismissOverlay);
