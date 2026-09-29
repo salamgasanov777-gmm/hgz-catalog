@@ -997,6 +997,30 @@ html.locked { overscroll-behavior: none; }
 }
 .cert-note { margin: 6px 2px 0; font-size: 12px; color: var(--muted); }
 
+/* Просмотр сертификата внутри каталога. Раньше кнопка открывала PDF прямо в
+   окне приложения, и на iPhone из него нельзя было вернуться — у встроенного
+   просмотра PDF нет кнопки «назад». Теперь сертификат — картинка в обычном
+   окне с крестиком. Картинка шире экрана, её двигают пальцем: щипок в каталоге
+   выключен, а текст на скане мелкий. */
+/* Окно сертификата открывается поверх карточки товара: слой выше, чем у
+   обычных окон (21), иначе карточка, стоящая в разметке позже, закрыла бы его. */
+#cert-backdrop { z-index: 22; }
+.cert-sheet { max-height: 92vh; z-index: 23; }
+.cert-sheet h2 { margin: 0 0 4px; font-size: 20px; }
+.cert-sheet .cert-note { margin: 0 0 12px; }
+.cert-view {
+  height: 64vh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+.cert-view img { display: block; width: 190%; max-width: none; height: auto; }
+@media (min-width: 700px) {
+  .cert-view img { width: 100%; }
+}
+
 .summary {
   font-size: 15px;
   color: var(--ink);

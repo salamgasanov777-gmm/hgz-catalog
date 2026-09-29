@@ -662,7 +662,7 @@ function unlockScroll() {
 // открыто окно, всё остальное помечается inert: туда не уходит Tab и до него
 // не добирается программа чтения с экрана. Закрытые окна помечены всегда —
 // иначе в них остаются кнопки, доступные с клавиатуры, хотя окна не видно.
-const DIALOG_IDS = ["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet"];
+const DIALOG_IDS = ["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet", "cert-sheet"];
 const PAGE_REGIONS = [".topbar", "#home-intro", "#home-rail", "#section-bar", "#compare-btn", "#grid", "#site-foot", "#update-bar", "#manager-bar", "#install-bar"];
 
 function setInert(el, on) {
@@ -1625,11 +1625,12 @@ function openSheet(p, openedFrom) {
   // обслуживает много товаров, поэтому срок меняется в одном месте. Если
   // реестра нет (content.json не загрузился) или ключ не найден — кнопки нет.
   const cert = p.cert && content && content.certificates ? content.certificates[p.cert] : null;
+  currentCert = cert;
   const certWrap = document.getElementById("sheet-cert-wrap");
   certWrap.hidden = !cert;
   if (cert) {
     document.getElementById("sheet-cert").href = cert.file;
-    document.getElementById("sheet-cert-note").textContent = `Действует до ${cert.until}. Откроется файл PDF.`;
+    document.getElementById("sheet-cert-note").textContent = `Действует до ${cert.until}.`;
   }
 
   document.getElementById("backdrop").classList.add("open");
@@ -1637,6 +1638,40 @@ function openSheet(p, openedFrom) {
   document.getElementById("sheet").scrollTop = 0;
   openOverlay(closeSheet, document.getElementById("sheet"), openedFrom, () => openSheet(p, openedFrom));
 }
+
+// Сертификат открытой карточки — по нему кнопка открывает просмотр.
+let currentCert = null;
+
+// Сертификат показываем в окне поверх карточки, а не ссылкой на PDF: в окне
+// есть крестик, а у PDF на iPhone кнопки «назад» нет. В реестре лежит PDF, а
+// показывается картинка рядом с ним (тем же именем, .jpg). PDF остаётся как
+// исходник — для отправки клиенту.
+function openCert(cert) {
+  const img = document.getElementById("cert-img");
+  const note = document.getElementById("cert-note");
+  note.textContent = `Действует до ${cert.until}. Двигайте пальцем, чтобы прочитать.`;
+  img.onerror = () => {
+    note.textContent = "Сертификат не загрузился. Проверьте связь и откройте снова.";
+  };
+  img.src = cert.file.replace(/\.pdf$/i, ".jpg");
+  document.getElementById("cert-view").scrollTo(0, 0);
+  document.getElementById("cert-backdrop").classList.add("open");
+  document.getElementById("cert-sheet").classList.add("open");
+  openOverlay(closeCert, document.getElementById("cert-sheet"), null, () => openCert(cert));
+}
+
+function closeCert() {
+  document.getElementById("cert-backdrop").classList.remove("open");
+  document.getElementById("cert-sheet").classList.remove("open");
+}
+
+document.getElementById("sheet-cert").addEventListener("click", (e) => {
+  if (!currentCert) return;
+  e.preventDefault();
+  openCert(currentCert);
+});
+document.getElementById("cert-backdrop").addEventListener("click", dismissOverlay);
+document.getElementById("cert-close").addEventListener("click", dismissOverlay);
 
 function shareText(p) {
   const lines = [];

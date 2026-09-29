@@ -233,6 +233,7 @@ function checkCertificates() {
     const where = `content.json → certificates → ${key}`;
     if (!cert.file) fail(where, "нет поля file", "кнопка «Сертификат» не откроет файл");
     else if (!exists(cert.file)) fail(where, "файл сертификата не найден", cert.file);
+    else if (!exists(cert.file.replace(/\.pdf$/i, ".jpg"))) fail(where, "нет картинки рядом с PDF", cert.file.replace(/\.pdf$/i, ".jpg") + " — её показывает окно просмотра");
     const m = String(cert.until || "").match(/^(\d\d)\.(\d\d)\.(\d{4})$/);
     if (!m) {
       fail(where, "срок действия не в виде ДД.ММ.ГГГГ", String(cert.until));
