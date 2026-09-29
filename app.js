@@ -84,13 +84,19 @@ function effectiveTheme() {
 // и через миг после загрузки полоса меняла цвет. Теперь значение одно.
 const THEME_COLOR = { light: "#1f5fa8", dark: "#14181c" };
 
+// Значки переключателя темы: показывается тот, на который переключит нажатие.
+const ICON_MOON = '<path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.7 6.7 0 0 0 9.7 9.7z"/>';
+const ICON_SUN =
+  '<circle cx="12" cy="12" r="4"/>' +
+  '<path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>';
+
 function applyTheme() {
   const stored = storedTheme();
   if (stored) document.documentElement.setAttribute("data-theme", stored);
   else document.documentElement.removeAttribute("data-theme");
 
   const dark = effectiveTheme() === "dark";
-  document.getElementById("theme-icon").textContent = dark ? "☀️" : "🌙";
+  document.getElementById("theme-icon").innerHTML = dark ? ICON_SUN : ICON_MOON;
   document.getElementById("theme-label").textContent = dark ? "Светлая тема" : "Тёмная тема";
   document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? THEME_COLOR.dark : THEME_COLOR.light);
 }
