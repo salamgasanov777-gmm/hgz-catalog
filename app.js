@@ -195,8 +195,8 @@ function renderHome() {
   // Без content.json подвалу нечего показать — он остаётся скрытым.
   const a = content && content.about;
   if (a) {
-    const tel = String(a.phone || "").replace(/[^\d+]/g, "");
-    const legal = [a.inn && `ИНН ${a.inn}`, a.ogrn && `ОГРН ${a.ogrn}`].filter(Boolean).join(" · ");
+    // Телефон, сайт, ИНН и ОГРН в подвале убраны по решению владельца: всё это
+    // есть на странице «О заводе» и «Связаться».
     foot.innerHTML = `
       <div class="site-foot-in">
         <div>
@@ -209,11 +209,6 @@ function renderHome() {
           <button type="button" data-page="about">О заводе</button>
           <button type="button" data-page="videos">Видео</button>
         </div>
-        <div class="site-foot-contacts">
-          ${a.phone ? `<a href="tel:${tel}">${esc(a.phone)}</a>` : ""}
-          ${a.site ? `<a href="${esc(a.site)}" target="_blank" rel="noopener">${esc(a.site.replace(/^https?:\/\/(www\.)?/, ""))}</a>` : ""}
-        </div>
-        ${legal ? `<div class="site-foot-legal">${esc(legal)}</div>` : ""}
       </div>`;
     foot.hidden = false;
   }
