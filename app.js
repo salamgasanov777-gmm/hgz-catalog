@@ -1620,6 +1620,18 @@ function openSheet(p, openedFrom) {
   shareBtn.href = `https://wa.me/${shareTo}?text=${encodeURIComponent(shareText(p))}`;
   shareBtn.textContent = shareTo ? `📤 Отправить менеджеру в WhatsApp` : `📤 Отправить в WhatsApp`;
 
+  // Сертификат: в карточке лежит только ключ («cert»), сам файл и срок его
+  // действия — в реестре content.json → certificates. Один сертификат
+  // обслуживает много товаров, поэтому срок меняется в одном месте. Если
+  // реестра нет (content.json не загрузился) или ключ не найден — кнопки нет.
+  const cert = p.cert && content && content.certificates ? content.certificates[p.cert] : null;
+  const certWrap = document.getElementById("sheet-cert-wrap");
+  certWrap.hidden = !cert;
+  if (cert) {
+    document.getElementById("sheet-cert").href = cert.file;
+    document.getElementById("sheet-cert-note").textContent = `Действует до ${cert.until}. Откроется файл PDF.`;
+  }
+
   document.getElementById("backdrop").classList.add("open");
   document.getElementById("sheet").classList.add("open");
   document.getElementById("sheet").scrollTop = 0;

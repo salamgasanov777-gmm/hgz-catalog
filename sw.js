@@ -1,4 +1,4 @@
-const CACHE = "hgz-cache-v45";
+const CACHE = "hgz-cache-v46";
 
 // Адреса с ?v= должны совпадать с index.html: иначе браузер сохранит одно,
 // а страница попросит другое. Версия поднимается при правках style.css,
@@ -7,7 +7,7 @@ const CACHE = "hgz-cache-v45";
 // Согласованность версий проверяет tools/check.mjs.
 
 // Без этих файлов каталог не откроется вовсе — они обязательны.
-const CORE = ["./", "./index.html", "./style.css?v=45", "./app.js?v=45", "./qr.js?v=45"];
+const CORE = ["./", "./index.html", "./style.css?v=46", "./app.js?v=46", "./qr.js?v=46"];
 
 // А эти каталог переживёт: товары и страницы завода и так берутся «сначала
 // сеть», значок с манифестом нужны только при установке на телефон. Класть их
@@ -141,6 +141,10 @@ self.addEventListener("fetch", (e) => {
   // играть отказывается. Без сети ролик честно не играет, об этом говорит
   // подпись под плеером.
   if (/\.(mp4|webm|mov|m4v)$/i.test(url.pathname)) return;
+
+  // Сертификаты (PDF) — тоже мимо запаса: это сканы по 1–2 МБ, открываются
+  // редко и по нажатию. Без сети файл не откроется, как и ролик.
+  if (/\.pdf$/i.test(url.pathname)) return;
 
   e.respondWith(isPhoto(url.pathname) ? cacheFirst(e.request) : networkFirst(e.request));
 });

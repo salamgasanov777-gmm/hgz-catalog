@@ -109,5 +109,67 @@
       "file": "video/otgruzka.mp4",
       "poster": "video/otgruzka.jpg"
     }
-  ]
+  ],
+  "certificates": {
+    "finish-shov": {
+      "file": "certs/finish-shov.pdf",
+      "until": "19.05.2029"
+    },
+    "gypsum-plasters": {
+      "file": "certs/gypsum-plasters.pdf",
+      "until": "19.05.2029"
+    },
+    "melissa": {
+      "file": "certs/melissa.pdf",
+      "until": "19.05.2029"
+    },
+    "floors-composite": {
+      "file": "certs/floors-composite.pdf",
+      "until": "19.05.2029"
+    },
+    "cement-plasters": {
+      "file": "certs/cement-plasters.pdf",
+      "until": "19.05.2029"
+    },
+    "aquastop": {
+      "file": "certs/aquastop.pdf",
+      "until": "04.06.2029"
+    },
+    "gypsum": {
+      "file": "certs/gypsum.pdf",
+      "until": "04.06.2029"
+    },
+    "zhako": {
+      "file": "certs/zhako.pdf",
+      "until": "04.06.2029"
+    },
+    "nal": {
+      "file": "certs/nal.pdf",
+      "until": "04.06.2029"
+    },
+    "tile-adhesives": {
+      "file": "certs/tile-adhesives.pdf",
+      "until": "04.06.2029"
+    },
+    "medical-gypsum": {
+      "file": "certs/medical-gypsum.pdf",
+      "until": "31.10.2028"
+    },
+    "pgp": {
+      "file": "certs/pgp.pdf",
+      "until": "31.10.2028"
+    },
+    "paints-primers": {
+      "file": "certs/paints-primers.pdf",
+      "until": "26.09.2027"
+    },
+    "betonokontakt-waterproofing": {
+      "file": "certs/betonokontakt-waterproofing.pdf",
+      "until": "02.10.2027"
+    },
+    "drywall": {
+      "file": "certs/drywall.pdf",
+      "until": "25.09.2027"
+    }
+  }
 }

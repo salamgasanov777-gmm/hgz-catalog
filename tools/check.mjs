@@ -64,7 +64,7 @@ function checkVersions() {
 const REQUIRED = ["id", "name", "category", "unit", "photo"];
 const KNOWN = [
   "id", "name", "category", "unit", "price", "gost", "photo", "photos",
-  "summary", "badges", "sections", "tables", "calc", "tasks",
+  "summary", "badges", "sections", "tables", "calc", "tasks", "cert",
 ];
 
 function parseJson(file) {
@@ -217,12 +217,52 @@ function checkContent() {
   console.log(`  страницы завода: точек продаж ${(c.stores || []).length}, видео ${(c.videos || []).length}`);
 }
 
+// ------------------------------------------------- Сертификаты
+// Товар ссылается на сертификат ключом («cert»), а файл и срок лежат в реестре
+// content.json → certificates. Проверяем связку целиком и следим за сроками:
+// просроченный сертификат в карточке — ошибка, скоро истекающий — предупреждение.
+function checkCertificates() {
+  const c = parseJson("content.json");
+  const products = parseJson("products.json");
+  if (!c || !Array.isArray(products)) return;
+  const reg = c.certificates || {};
+  const today = new Date();
+  const used = new Set();
+
+  for (const [key, cert] of Object.entries(reg)) {
+    const where = `content.json → certificates → ${key}`;
+    if (!cert.file) fail(where, "нет поля file", "кнопка «Сертификат» не откроет файл");
+    else if (!exists(cert.file)) fail(where, "файл сертификата не найден", cert.file);
+    const m = String(cert.until || "").match(/^(\d\d)\.(\d\d)\.(\d{4})$/);
+    if (!m) {
+      fail(where, "срок действия не в виде ДД.ММ.ГГГГ", String(cert.until));
+      continue;
+    }
+    const end = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 23, 59, 59);
+    const days = Math.floor((end - today) / 86400000);
+    if (days < 0) fail(where, "сертификат просрочен", `срок истёк ${cert.until} — замените файл и дату`);
+    else if (days < 90) warn(where, "сертификат скоро истекает", `осталось ${days} дн., до ${cert.until}`);
+  }
+
+  for (const p of products) {
+    if (p.cert === undefined) continue;
+    used.add(p.cert);
+    if (!reg[p.cert]) fail(`товар ${p.id} «${String(p.name).slice(0, 40)}»`, "сертификата нет в реестре", `cert: «${p.cert}»`);
+  }
+  for (const key of Object.keys(reg)) {
+    if (!used.has(key)) warn(`content.json → certificates → ${key}`, "сертификат никому не назначен", "файл лежит зря");
+  }
+
+  console.log(`  сертификаты: файлов ${Object.keys(reg).length}, товаров с кнопкой ${products.filter((p) => p.cert).length} из ${products.length}`);
+}
+
 // ------------------------------------------------- Запуск
 console.log("Проверка версий");
 checkVersions();
 console.log("\nПроверка данных");
 checkProducts();
 checkContent();
+checkCertificates();
 
 if (warnings.length) {
   console.log(`\nПредупреждения (${warnings.length}) — публиковать можно, но посмотрите:`);
