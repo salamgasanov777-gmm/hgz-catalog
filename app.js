@@ -164,6 +164,7 @@ function developerHtml(d) {
             ${d.site ? `<a href="${esc(d.site)}" target="_blank" rel="noopener">${esc(host)}</a>` : ""}
             ${tel ? `<a href="tel:${esc(tel)}">Позвонить</a>` : ""}
             ${wa ? `<a href="https://wa.me/${esc(wa)}?text=${hello}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
+            ${d.instagram ? `<a href="https://instagram.com/${esc(d.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}
           </div>
         </div>`;
 }
