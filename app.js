@@ -71,12 +71,25 @@ function toggleFavorite(id) {
   localStorage.setItem("hgz-favorites", JSON.stringify([...favorites]));
 }
 
-function storedTheme() {
-  return localStorage.getItem("hgz-theme");
-}
+// Тема по умолчанию как на телефоне: днём светлая, ночью тёмная, и меняется сама,
+// даже пока каталог открыт. Вручную её можно переключить пунктом меню «⋯»:
+// как на телефоне → светлая → тёмная → снова как на телефоне. Ручной выбор
+// хранится в hgz-theme-choice; пока его нет, тема идёт за системой. Старый
+// ключ hgz-theme стираем: прежний выбор владельца не должен перебивать телефон.
+const THEME_KEY = "hgz-theme-choice";
+try {
+  localStorage.removeItem("hgz-theme");
+} catch {}
 
-function effectiveTheme() {
-  return storedTheme() || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+const systemDark = matchMedia("(prefers-color-scheme: dark)");
+
+function themeChoice() {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v === "light" || v === "dark" ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 // Цвет полосы статуса на телефоне. Светлое значение — то же, что в
@@ -84,28 +97,40 @@ function effectiveTheme() {
 // и через миг после загрузки полоса меняла цвет. Теперь значение одно.
 const THEME_COLOR = { light: "#1f5fa8", dark: "#14181c" };
 
-// Значки переключателя темы: показывается тот, на который переключит нажатие.
-const ICON_MOON = '<path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.7 6.7 0 0 0 9.7 9.7z"/>';
-const ICON_SUN =
-  '<circle cx="12" cy="12" r="4"/>' +
-  '<path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>';
+// Значки режимов: полукруг — как на телефоне, солнце, луна.
+const THEME_ICON = {
+  auto: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/>',
+  light:
+    '<circle cx="12" cy="12" r="4"/>' +
+    '<path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>',
+  dark: '<path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.7 6.7 0 0 0 9.7 9.7z"/>',
+};
+const THEME_LABEL = { auto: "Тема: как на телефоне", light: "Тема: светлая", dark: "Тема: тёмная" };
 
 function applyTheme() {
-  const stored = storedTheme();
-  if (stored) document.documentElement.setAttribute("data-theme", stored);
+  const choice = themeChoice();
+  if (choice) document.documentElement.setAttribute("data-theme", choice);
   else document.documentElement.removeAttribute("data-theme");
 
-  const dark = effectiveTheme() === "dark";
-  document.getElementById("theme-icon").innerHTML = dark ? ICON_SUN : ICON_MOON;
-  document.getElementById("theme-label").textContent = dark ? "Светлая тема" : "Тёмная тема";
+  const dark = (choice || (systemDark.matches ? "dark" : "light")) === "dark";
   document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? THEME_COLOR.dark : THEME_COLOR.light);
+
+  const mode = choice || "auto";
+  document.getElementById("theme-icon").innerHTML = THEME_ICON[mode];
+  document.getElementById("theme-label").textContent = THEME_LABEL[mode];
 }
 
 document.getElementById("theme-btn").addEventListener("click", () => {
-  localStorage.setItem("hgz-theme", effectiveTheme() === "dark" ? "light" : "dark");
+  const next = { auto: "light", light: "dark", dark: null }[themeChoice() || "auto"];
+  try {
+    if (next) localStorage.setItem(THEME_KEY, next);
+    else localStorage.removeItem(THEME_KEY);
+  } catch {}
   applyTheme();
 });
 
+// Сменилась тема телефона (наступила ночь) — подхватываем, если выбрано «как на телефоне».
+systemDark.addEventListener("change", applyTheme);
 applyTheme();
 
 async function load() {
@@ -2199,9 +2224,11 @@ function closeMoreMenu(returnFocus) {
 
 moreBtn.addEventListener("click", () => (moreMenuOpen() ? closeMoreMenu(true) : openMoreMenu()));
 moreScrim.addEventListener("click", () => closeMoreMenu(false));
-// Любой пункт закрывает меню; само действие пункта повешено на него отдельно.
+// Пункт закрывает меню; само действие пункта повешено на него отдельно.
 moreMenu.addEventListener("click", (e) => {
-  if (e.target.closest('[role="menuitem"]')) closeMoreMenu(false);
+  // Пункт темы меню не закрывает: режимов три, и переключают их по кругу.
+  const item = e.target.closest('[role="menuitem"]');
+  if (item && !item.dataset.keep) closeMoreMenu(false);
 });
 moreMenu.addEventListener("keydown", (e) => {
   const items = moreItems();
