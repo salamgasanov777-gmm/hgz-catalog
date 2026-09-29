@@ -1678,7 +1678,7 @@ function openSheet(p, openedFrom) {
   const shareTo = manager && !manager.own ? manager.phone : "";
   const shareBtn = document.getElementById("sheet-share");
   shareBtn.href = `https://wa.me/${shareTo}?text=${encodeURIComponent(shareText(p))}`;
-  shareBtn.textContent = shareTo ? `📤 Отправить менеджеру в WhatsApp` : `📤 Отправить в WhatsApp`;
+  document.getElementById("sheet-share-label").textContent = shareTo ? "Отправить менеджеру в WhatsApp" : "Отправить в WhatsApp";
 
   // Сертификат: в карточке лежит только ключ («cert»), сам файл и срок его
   // действия — в реестре content.json → certificates. Один сертификат
