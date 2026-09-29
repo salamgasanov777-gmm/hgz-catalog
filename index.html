@@ -50,7 +50,7 @@
 <link rel="icon" href="icon-192-v2.png">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=51">
+<link rel="stylesheet" href="style.css?v=52">
 </head>
 <body>
   <div class="topbar">
@@ -59,13 +59,17 @@
         <div class="brand-eyebrow">Хабезский гипсовый завод</div>
         <h1>Каталог продукции</h1>
       </div>
-      <button id="theme-btn" class="theme-btn" aria-label="Тема">🌙</button>
       <button id="fav-nav-btn" class="fav-nav-btn" aria-label="Избранное">
         <span class="fav-nav-star">☆</span>
         <span id="fav-count" class="fav-count"></span>
       </button>
-      <button id="qr-btn" class="icon-btn" aria-label="QR-код каталога">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <button id="more-btn" class="icon-btn" type="button" aria-label="Ещё" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+      </button>
+      <div id="more-scrim" class="more-scrim" hidden></div>
+      <div id="more-menu" class="more-menu" role="menu" aria-label="Ещё" hidden>
+        <button id="qr-btn" class="more-item" type="button" role="menuitem">
+          <svg class="more-ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <rect x="2" y="2" width="7.6" height="7.6" rx="1.2" stroke="currentColor" stroke-width="1.7"/>
           <rect x="14.4" y="2" width="7.6" height="7.6" rx="1.2" stroke="currentColor" stroke-width="1.7"/>
           <rect x="2" y="14.4" width="7.6" height="7.6" rx="1.2" stroke="currentColor" stroke-width="1.7"/>
@@ -78,7 +82,22 @@
           <rect x="13.2" y="19.4" width="2.4" height="2.4" rx="0.6" fill="currentColor"/>
           <rect x="19.4" y="19.4" width="2.4" height="2.4" rx="0.6" fill="currentColor"/>
         </svg>
-      </button>
+          <span>QR-код каталога</span>
+        </button>
+        <button id="theme-btn" class="more-item" type="button" role="menuitem">
+          <span id="theme-icon" class="more-ico" aria-hidden="true">🌙</span>
+          <span id="theme-label">Тёмная тема</span>
+        </button>
+        <div class="more-sep" role="separator"></div>
+        <a id="share-catalog" class="more-item" role="menuitem" target="_blank" rel="noopener">
+          <span class="more-ico" aria-hidden="true">📤</span>
+          <span>Поделиться каталогом</span>
+        </a>
+        <button id="contact-btn" class="more-item" type="button" role="menuitem">
+          <span class="more-ico" aria-hidden="true">📞</span>
+          <span>Связаться с менеджером</span>
+        </button>
+      </div>
     </div>
     <input id="search" class="search" type="search" placeholder="Поиск по названию…">
     <div id="task-row" class="task-row"></div>
@@ -177,7 +196,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=51"></script>
-  <script src="app.js?v=51"></script>
+  <script src="qr.js?v=52"></script>
+  <script src="app.js?v=52"></script>
 </body>
 </html>

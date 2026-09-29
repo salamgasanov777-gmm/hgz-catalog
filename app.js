@@ -90,7 +90,8 @@ function applyTheme() {
   else document.documentElement.removeAttribute("data-theme");
 
   const dark = effectiveTheme() === "dark";
-  document.getElementById("theme-btn").textContent = dark ? "☀️" : "🌙";
+  document.getElementById("theme-icon").textContent = dark ? "☀️" : "🌙";
+  document.getElementById("theme-label").textContent = dark ? "Светлая тема" : "Тёмная тема";
   document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? THEME_COLOR.dark : THEME_COLOR.light);
 }
 
@@ -760,7 +761,11 @@ function openOverlay(onClose, node, opener, reopen) {
   // Кто открыл окно — запоминаем до того, как фокус уедет внутрь. Касание по
   // карточке фокус никуда не ставит, поэтому открывающий элемент можно
   // передать явно.
-  const from = opener || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  let from = opener || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  // Окно открыли пунктом меню «⋯»: меню сейчас закроется, поэтому фокус после
+  // закрытия окна возвращаем на саму кнопку «⋯», а не на скрытый пункт.
+  if (from && from.closest && from.closest("#more-menu")) from = document.getElementById("more-btn");
+  closeMoreMenu(false);
   // Смещение от прошлого свайпа, которым окно закрыли, — иначе оно
   // откроется не до конца.
   if (node) node.style.removeProperty("--drag");
@@ -832,7 +837,13 @@ window.addEventListener("popstate", (e) => {
 // Escape закрывает верхнее окно — раньше каталог клавиатуру не слушал вовсе.
 // Именно верхнее: при стопке окон одно нажатие снимает один слой.
 document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape" || !overlayStack.length) return;
+  if (e.key !== "Escape") return;
+  if (moreMenuOpen()) {
+    e.preventDefault();
+    closeMoreMenu(true);
+    return;
+  }
+  if (!overlayStack.length) return;
   e.preventDefault();
   dismissOverlay();
 });
@@ -2150,6 +2161,54 @@ function catalogUrl() {
 }
 
 document.getElementById("qr-btn").addEventListener("click", openQr);
+
+// ------------------------------------------------- Меню «⋯» в шапке
+const moreBtn = document.getElementById("more-btn");
+const moreMenu = document.getElementById("more-menu");
+const moreScrim = document.getElementById("more-scrim");
+const moreItems = () => [...moreMenu.querySelectorAll('[role="menuitem"]')];
+
+function moreMenuOpen() {
+  return !moreMenu.hidden;
+}
+
+function openMoreMenu() {
+  // Ссылка строится при каждом открытии: у менеджера в ней его контакт (та же,
+  // что в QR-коде), и клиент, открыв её, получит предложение записать менеджера.
+  const text = `Каталог продукции Хабезского гипсового завода: ${qrLink()}`;
+  document.getElementById("share-catalog").href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  moreMenu.hidden = false;
+  moreScrim.hidden = false;
+  moreBtn.setAttribute("aria-expanded", "true");
+  moreItems()[0].focus();
+}
+
+function closeMoreMenu(returnFocus) {
+  if (moreMenu.hidden) return;
+  moreMenu.hidden = true;
+  moreScrim.hidden = true;
+  moreBtn.setAttribute("aria-expanded", "false");
+  if (returnFocus) moreBtn.focus();
+}
+
+moreBtn.addEventListener("click", () => (moreMenuOpen() ? closeMoreMenu(true) : openMoreMenu()));
+moreScrim.addEventListener("click", () => closeMoreMenu(false));
+// Любой пункт закрывает меню; само действие пункта повешено на него отдельно.
+moreMenu.addEventListener("click", (e) => {
+  if (e.target.closest('[role="menuitem"]')) closeMoreMenu(false);
+});
+moreMenu.addEventListener("keydown", (e) => {
+  const items = moreItems();
+  const i = items.indexOf(document.activeElement);
+  if (e.key === "ArrowDown") items[(i + 1) % items.length].focus();
+  else if (e.key === "ArrowUp") items[(i - 1 + items.length) % items.length].focus();
+  else if (e.key === "Home") items[0].focus();
+  else if (e.key === "End") items[items.length - 1].focus();
+  else if (e.key === "Tab") return closeMoreMenu(false);
+  else return;
+  e.preventDefault();
+});
+document.getElementById("contact-btn").addEventListener("click", () => openPage("contact"));
 
 function openQr() {
   const canvas = document.getElementById("qr-canvas");

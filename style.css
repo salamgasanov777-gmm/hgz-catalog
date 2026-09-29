@@ -95,6 +95,7 @@ html {
 }
 
 .topbar-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -102,6 +103,48 @@ html {
 }
 
 .brand { min-width: 0; flex: 1 1 auto; }
+
+/* Меню «⋯»: тема, QR, «Поделиться» и «Связаться» убраны с глаз в одну кнопку,
+   на виду осталось только избранное. Меню лежит внутри шапки, а «завеса» под
+   ним ловит нажатие мимо — на iPhone слушать нажатия по всему документу
+   ненадёжно, а закрывающий слой работает всегда. z-index: -1 ставит её под
+   кнопки шапки (они остаются нажимаемыми), но над остальной страницей. */
+.more-scrim { position: fixed; inset: 0; z-index: -1; }
+.more-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  min-width: 250px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 12px 32px -12px rgba(16, 32, 52, 0.35);
+}
+.more-menu[hidden], .more-scrim[hidden] { display: none; }
+.more-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+}
+.more-item:hover, .more-item:focus-visible { background: var(--accent-soft); outline: none; }
+.more-ico { width: 22px; flex: 0 0 22px; text-align: center; font-size: 17px; color: var(--accent); }
+svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
+.more-sep { height: 1px; margin: 4px 8px; background: var(--border); }
 
 .fav-nav-btn {
   position: relative;
