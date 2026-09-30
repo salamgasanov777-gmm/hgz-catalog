@@ -135,6 +135,10 @@ applyTheme();
 
 async function load() {
   let res;
+  // Оба файла запрашиваем сразу, а не по очереди: на медленной связи второй
+  // запрос не ждёт окончания первого. Ошибку страниц завода ловим здесь же,
+  // чтобы она не всплыла необработанной, пока ждём товары.
+  const infoRequest = fetch("./content.json", { cache: "no-cache" }).catch(() => null);
   try {
     // no-cache, а не no-store: свежесть та же — браузер каждый раз сверяется
     // с сайтом, — но ответ остаётся в его кеше. При первом заходе запас
@@ -158,8 +162,8 @@ async function load() {
   // Страницы про сам завод лежат отдельным файлом: их наполняют текстом и
   // ссылками, а не карточками товаров, и без них каталог обязан работать.
   try {
-    const info = await fetch("./content.json", { cache: "no-cache" });
-    content = info.ok ? await info.json() : null;
+    const info = await infoRequest;
+    content = info && info.ok ? await info.json() : null;
   } catch {
     content = null;
   }
@@ -675,6 +679,9 @@ function openPage(key) {
 function closePage() {
   document.getElementById("page-backdrop").classList.remove("open");
   document.getElementById("page-sheet").classList.remove("open");
+  // Окно только прячется, а не удаляется: запущенный ролик так и играл бы
+  // со звуком под закрытым окном.
+  document.querySelectorAll("#page-body video").forEach((v) => v.pause());
 }
 
 function selectCategory(cat) {
@@ -777,6 +784,18 @@ function restoreFocus(opener) {
 // свайпом вниз. На Android запись нужна: системная кнопка «Назад» закрывает
 // окно, а не выходит из каталога, а жеста «вперёд» там нет.
 const OVERLAY_HISTORY = !isIOS();
+
+// Прокрутку после «Назад» возвращаем сами (unlockScroll), браузеру не даём.
+// Запись окна добавляется, когда страница уже закреплена (position:fixed), и
+// браузер запоминает для неё прокрутку 0. На Android при закрытии окна он
+// восстанавливал этот 0 уже после нашего scrollTo — и список прыгал наверх.
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+// Страницу перезагрузили или телефон выгрузил вкладку, пока было открыто
+// окно: запись в истории говорит «открыто окно», а окон нет. Тогда первое
+// нажатие ✕ уходило на эту пустую запись, и окно закрывалось только со
+// второго раза. Стираем пометку — адрес страницы при этом не меняется.
+if (history.state && history.state.hgzOverlay) history.replaceState(null, "");
 
 // Окна, закрытые кнопкой «Назад». Запись о них в истории браузера остаётся,
 // и «Вперёд» ведёт туда же — раньше при этом ничего не открывалось, а при
@@ -1402,7 +1421,15 @@ function cardNode(p) {
   const key = p.id ?? p.name;
   const kept = cardNodes.get(key);
   if (kept) {
-    syncCardFav(p.id);
+    // Звезду ставим на самом узле, а не ищем в сетке: сохранённая карточка
+    // сейчас может лежать вне #grid, и поиск её не находил — после смены
+    // избранного звезда возвращалась в сетку со старым видом.
+    const btn = kept.querySelector(".fav-btn");
+    if (btn) {
+      const on = isFavorite(p.id);
+      btn.classList.toggle("active", on);
+      btn.textContent = on ? "★" : "☆";
+    }
     return kept;
   }
 
@@ -1712,6 +1739,9 @@ function openCert(cert) {
   const view = document.getElementById("cert-view");
   view.classList.remove("zoomed");
   note.textContent = `Действует до ${cert.until}. ${CERT_HINT_FIT}`;
+  // Сначала убираем прошлую картинку: на медленной связи новая грузится не
+  // сразу, и всё это время в окне стоял бы сертификат другого товара.
+  img.removeAttribute("src");
   img.onerror = () => {
     note.textContent = "Сертификат не загрузился. Проверьте связь и откройте снова.";
   };
@@ -1788,12 +1818,15 @@ function plural(n, forms) {
   return forms[2];
 }
 
+// Поля ввода — текстовые с цифровой клавиатурой (inputmode="decimal"), а не
+// type="number": часть браузеров в числовом поле не принимает запятую, а на
+// русской клавиатуре дробь пишут именно через неё. Запятую разбирает wireCalc.
 function calcHtml(calc) {
   const thicknessRow =
     calc.type === "thickness"
       ? `<label class="calc-field">
           <span>Толщина слоя, мм</span>
-          <input id="calc-mm" type="number" inputmode="decimal" min="0.1" step="${calc.stepMm ?? 1}" value="${calc.defaultMm ?? 10}">
+          <input id="calc-mm" type="text" inputmode="decimal" autocomplete="off" value="${calc.defaultMm ?? 10}">
         </label>`
       : "";
 
@@ -1813,7 +1846,7 @@ function calcHtml(calc) {
       <div class="calc-row">
         <label class="calc-field">
           <span>Площадь, м²</span>
-          <input id="calc-area" type="number" inputmode="decimal" min="0" step="0.1" placeholder="напр. 10">
+          <input id="calc-area" type="text" inputmode="decimal" autocomplete="off" placeholder="напр. 10">
         </label>
         ${thicknessRow}
       </div>
@@ -1842,6 +1875,12 @@ function wireCalc(calc) {
       result.textContent = "Введите площадь";
       return;
     }
+    // Лишний ноль или случайно зажатая цифра дают миллионы мешков — такой
+    // «результат» только сбивает с толку. Просим проверить число.
+    if (area > 100000) {
+      result.textContent = "Проверьте площадь — больше 100 000 м²";
+      return;
+    }
 
     if (calc.type === "pieces") {
       // Площадь штуки: либо задана прямо, либо выводится из упаковки — так
@@ -1865,6 +1904,10 @@ function wireCalc(calc) {
     if (calc.type === "thickness") {
       if (!mm || mm <= 0) {
         result.textContent = "Введите толщину слоя";
+        return;
+      }
+      if (mm > 200) {
+        result.textContent = "Проверьте толщину слоя";
         return;
       }
       total = calc.ratePerM2 * area * mm;
@@ -1931,18 +1974,32 @@ function consumptionText(p) {
   return null;
 }
 
-// Строки «Область применения» берём из первого товара раздела: таблица у них
-// одинаковая, а перечислять её вручную в каждом разделе — только плодить
-// расхождения с products.json.
-function areaBoolRows(items, skip = []) {
-  const table = (items[0]?.tables || []).find((t) => t.title === "Область применения");
-  return (table?.rows || [])
-    .filter(([label]) => !skip.includes(label))
-    .map(([label]) => ({
-      label,
-      type: "bool",
-      get: (p) => tableValue(p, "Область применения", label) === "ДА",
-    }));
+// Строки «Область применения» собираем со всех товаров раздела, в порядке
+// появления, а не перечисляем вручную — иначе расходились бы с products.json.
+// Раньше брали только первый товар, но таблицы в разделе разные: в «Полах»
+// так пропадали «Устройство уклонов» и «Наливной пол». Ячейка тройная:
+// «ДА» — ✓, «НЕТ» — прочерк, строки у товара нет — «нет данных» (null): завод
+// об этом не писал, и прочерком мы бы выдумали ответ «нельзя».
+// title — из какой таблицы брать строки «ДА/НЕТ»: по умолчанию «Область
+// применения», у полов ещё и «Последующие покрытия».
+function areaBoolRows(items, skip = [], title = "Область применения") {
+  const table = (p) => (p.tables || []).find((t) => t.title === title);
+  const labels = [];
+  items.forEach((p) => {
+    (table(p)?.rows || []).forEach(([label]) => {
+      if (!labels.includes(label) && !skip.includes(label)) labels.push(label);
+    });
+  });
+  // Строку ищем по точному совпадению: при частичном (как в tableValue)
+  // короткая метка из одного товара нашла бы чужую длинную у другого.
+  return labels.map((label) => ({
+    label,
+    type: "bool",
+    get: (p) => {
+      const row = (table(p)?.rows || []).find(([l]) => l === label);
+      return row ? row[1] === "ДА" : null;
+    },
+  }));
 }
 
 const ROW = {
@@ -2021,6 +2078,11 @@ const COMPARE_CONFIG = {
     title: "Как выбрать пол",
     rows: (items) => [
       ...areaBoolRows(items),
+      // Что можно укладывать поверх пола — отдельным блоком с подзаголовком,
+      // иначе строки «Линолеум», «Паркет» читались бы как область применения.
+      { type: "head", label: "Что укладывать сверху" },
+      ...areaBoolRows(items, [], "Последующие покрытия"),
+      { type: "head", label: "Характеристики" },
       ROW.unit("Мешок"),
       ROW.tech("Толщина слоя", "олщина слоя"),
       ROW.consumption,
@@ -2149,12 +2211,16 @@ function openCompare() {
   html += "</tr></thead><tbody>";
 
   rows.forEach((row) => {
+    if (row.type === "head") {
+      html += `<tr class="cmp-head"><td colspan="${items.length + 1}">${esc(row.label)}</td></tr>`;
+      return;
+    }
     html += `<tr><td class="cmp-label">${esc(row.label)}</td>`;
     items.forEach((p) => {
       const v = row.get(p);
       html +=
         row.type === "bool"
-          ? `<td class="cmp-cell">${v ? '<span class="cmp-check">✓</span>' : '<span class="cmp-no">—</span>'}</td>`
+          ? `<td class="cmp-cell">${v === null ? '<span class="cmp-none">нет данных</span>' : v ? '<span class="cmp-check">✓</span>' : '<span class="cmp-no">—</span>'}</td>`
           : `<td class="cmp-cell cmp-text">${esc(v ?? "—")}</td>`;
     });
     html += "</tr>";

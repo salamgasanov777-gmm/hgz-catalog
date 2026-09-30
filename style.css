@@ -286,6 +286,19 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 /* «Нет» в сравнении должно быть видно. Пустая клетка читается как «данные
    потеряли», прочерк — как ответ. */
 .cmp-no { color: var(--muted); opacity: 0.7; }
+/* Завод по этому товару строку не заполнял — не «нет», а «неизвестно».
+   Мельче и тише прочерка, чтобы не спорить с ответами ✓ и —. */
+.cmp-none { color: var(--muted); font-size: 11px; line-height: 1.2; }
+/* Подзаголовок блока в таблице сравнения (у полов: «Что укладывать сверху»). */
+.cmp-head td {
+  padding: 14px 8px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-align: left;
+}
 
 .empty-retry {
   display: block;
