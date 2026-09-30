@@ -819,6 +819,23 @@ html.locked { overscroll-behavior: none; }
   gap: 14px;
   z-index: 3;
 }
+
+/* Окна, которые начинаются с заголовка (не карточка товара, где крестик лежит
+   на фото): крестик должен стоять в одной строке с заголовком. Он «прилипает»
+   (sticky) к месту, отсчитанному от верха окна с учётом его внутреннего
+   отступа, и стоял на 16 px ниже заголовка — там налезал на поле поиска в
+   «Где купить» и на подпись в окне QR. top: -4px ставит его вровень с
+   заголовком. Заголовку оставлено место справа, чтобы длинный не ушёл под
+   кнопку, и высота под сам крестик. */
+.sheet:not(#sheet) .sheet-tools { top: -4px; }
+.sheet:not(#sheet) h2 {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding-right: 44px;
+  box-sizing: border-box;
+}
+.qr-sheet h2 { justify-content: center; padding-left: 44px; }
 .sheet .close {
   background: var(--accent-soft);
   border: none; border-radius: 50%;
