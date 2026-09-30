@@ -30,6 +30,12 @@
   }
 }
 
+/* Родные элементы (полосы прокрутки, поля ввода, выпадающие списки) —
+   в тон теме: без этого в тёмной теме они оставались светлыми. */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
 :root[data-theme="dark"] {
   --bg: #11161c;
   --card: #1b232c;
@@ -162,7 +168,6 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 }
 .fav-nav-btn.active { color: #e0a52c; border-color: #e0a52c; }
 
-.theme-btn,
 .icon-btn {
   width: 34px;
   height: 34px;
@@ -874,13 +879,11 @@ html.locked { overscroll-behavior: none; }
    растягивается не кнопка, а невидимый слой вокруг неё. Размер подобран под
    соседей: зоны соприкасаются, но не налезают друг на друга, иначе палец
    попадал бы в соседнюю кнопку. */
-.theme-btn,
 .icon-btn,
 .task-chip,
 .sheet .close,
 .fav-toggle { position: relative; }
 
-.theme-btn::after,
 .icon-btn::after,
 .fav-nav-btn::after {
   content: "";
@@ -1446,4 +1449,24 @@ html.locked { overscroll-behavior: none; }
    держит --content-max, лишнее место уходит в поля по краям. */
 @media (min-width: 1000px) {
   .grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Альбомная ориентация на iPhone с вырезом: viewport-fit=cover отдаёт странице
+   весь экран, и края каталога уходили под вырез. В портретной ориентации эти
+   отступы равны нулю. */
+body {
+  /* border-box: пока открыто окно, body становится fixed с width: 100%, и
+     отступы не должны делать его шире экрана. */
+  box-sizing: border-box;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* На компьютере окно ниже (не выше 84vh / 860px), чем на телефоне, —
+   картинка сертификата должна помещаться в него, иначе появлялась вторая
+   полоса прокрутки. */
+@media (min-width: 700px) {
+  .cert-sheet { max-height: min(88vh, 900px); }
+  .cert-view { max-height: calc(min(88vh, 900px) - 120px); }
+  .cert-view img { max-height: calc(min(88vh, 900px) - 124px); }
 }

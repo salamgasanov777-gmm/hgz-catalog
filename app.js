@@ -68,7 +68,11 @@ function isFavorite(id) {
 function toggleFavorite(id) {
   if (favorites.has(id)) favorites.delete(id);
   else favorites.add(id);
-  localStorage.setItem("hgz-favorites", JSON.stringify([...favorites]));
+  // Safari с запретом cookie бросает исключение при записи — избранное тогда
+  // живёт до закрытия страницы, но каталог не обрывается.
+  try {
+    localStorage.setItem("hgz-favorites", JSON.stringify([...favorites]));
+  } catch {}
 }
 
 // Тема по умолчанию как на телефоне: днём светлая, ночью тёмная, и меняется сама,
@@ -130,7 +134,9 @@ document.getElementById("theme-btn").addEventListener("click", () => {
 });
 
 // Сменилась тема телефона (наступила ночь) — подхватываем, если выбрано «как на телефоне».
-systemDark.addEventListener("change", applyTheme);
+// На iOS 13 у списка медиазапросов есть только старый addListener.
+if (systemDark.addEventListener) systemDark.addEventListener("change", applyTheme);
+else if (systemDark.addListener) systemDark.addListener(applyTheme);
 applyTheme();
 
 async function load() {
@@ -476,10 +482,9 @@ function readManagerFromUrl() {
   history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
   if (!phone) return null;
   if (manager && manager.own) return null;
-  if (manager && manager.phone === phone) {
-    if (name && name !== manager.name) saveManager({ name, phone, own: false });
-    return null;
-  }
+  // Номер тот же, а имя другое — тоже спрашиваем, а не переписываем молча:
+  // правило «ссылка ничего не записывает без согласия» касается и имени.
+  if (manager && manager.phone === phone && (!name || name === manager.name)) return null;
   return { name, phone, own: false };
 }
 
@@ -543,7 +548,8 @@ const PAGES = [
     key: "about",
     label: "О заводе",
     render: (c) => {
-      const a = c.about;
+      const a = c && c.about;
+      if (!a) return `<p class="page-empty">Сведения о заводе появятся здесь.</p>`;
       let html = "";
       if (a.company) html += `<p class="page-lead">${esc(a.company)}</p>`;
       if (a.address) html += `<p class="page-sub">${esc(a.address)}</p>`;
@@ -589,7 +595,7 @@ const PAGES = [
       const finder = all.length >= 4 || cities.length > 1;
       let html = "";
       if (finder) {
-        html += `<input id="store-search" class="search store-search" type="search" inputmode="search" autocomplete="off" placeholder="Город, улица или магазин…">`;
+        html += `<input id="store-search" class="search store-search" type="search" inputmode="search" autocomplete="off" placeholder="Город, улица или магазин…" aria-label="Поиск точки продаж">`;
         if (cities.length > 1) {
           html += `<div id="store-cities" class="task-row store-cities">${["Все", ...cities]
             .map((x) => `<button class="task-chip${x === "Все" ? " active" : ""}" data-city="${esc(x)}">${esc(x === "Все" ? "Все города" : x)}</button>`)
@@ -912,7 +918,8 @@ function enableSwipeToClose(sheet) {
   sheet.addEventListener(
     "touchstart",
     (e) => {
-      if (e.touches.length !== 1 || sheet.scrollTop > 0) {
+      // Увеличенный сертификат двигают пальцем — это не жест закрытия окна.
+      if (e.touches.length !== 1 || sheet.scrollTop > 0 || e.target.closest(".cert-view.zoomed")) {
         dragging = false;
         return;
       }
@@ -972,7 +979,7 @@ function enableSwipeToClose(sheet) {
   sheet.addEventListener("touchcancel", finish);
 }
 
-["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet"].forEach((id) =>
+["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet", "cert-sheet"].forEach((id) =>
   enableSwipeToClose(document.getElementById(id))
 );
 
@@ -1014,10 +1021,12 @@ function syncCardFav(id) {
   const on = isFavorite(id);
   btn.classList.toggle("active", on);
   btn.textContent = on ? "★" : "☆";
+  btn.setAttribute("aria-pressed", String(on));
   // В разделе «Избранное» снятая звезда означает, что товару здесь больше не место.
   if (activeCategory === "__fav__" && !on) {
     btn.closest(".card").remove();
-    if (!grid.querySelector(".card")) render();
+    // render и счётчик «N товаров в избранном» обновит, и пустоту покажет.
+    render();
   }
 }
 
@@ -1429,6 +1438,7 @@ function cardNode(p) {
       const on = isFavorite(p.id);
       btn.classList.toggle("active", on);
       btn.textContent = on ? "★" : "☆";
+      btn.setAttribute("aria-pressed", String(on));
     }
     return kept;
   }
@@ -1438,7 +1448,7 @@ function cardNode(p) {
   card.dataset.id = p.id ?? key;
   card.innerHTML = `
       <div class="photo${p.photo ? " loading" : ""}"${p.photo ? ` data-src="${photoUrl(p)}"` : ""}>${p.photo ? "" : '<span class="photo-soon">Фото скоро</span>'}</div>
-      <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="Избранное">${isFavorite(p.id) ? "★" : "☆"}</button>
+      <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="В избранное: ${esc(p.name)}" aria-pressed="${isFavorite(p.id)}">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
         <p class="name">${esc(p.name)}</p>
         <p class="meta">${esc(p.unit || "")}${p.price ? " · " + esc(p.price) : ""}</p>
@@ -1614,7 +1624,11 @@ function warmPhotoCache() {
   if (!("serviceWorker" in navigator)) return;
   const start = () =>
     setTimeout(() => {
-      const urls = [...new Set([photoUrl({ photo: HOME_PHOTO }), ...products.map(photoUrl)].filter(Boolean))];
+      // Все снимки: и главные, и листаемые (этикетки), и фото страницы «О
+      // заводе» — иначе без сети они остаются пустыми, если их не открывали.
+      const extra = [...products.flatMap((p) => p.photos || []), ...((content && content.about && content.about.photos) || [])];
+      const all = [photoUrl({ photo: HOME_PHOTO }), ...products.map(photoUrl), ...extra.map((photo) => photoUrl({ photo }))];
+      const urls = [...new Set(all.filter(Boolean))];
       let i = 0;
       const next = () => {
         if (i >= urls.length) return;
@@ -1644,6 +1658,7 @@ function updateSheetFavButton() {
   const fav = currentProduct && isFavorite(currentProduct.id);
   btn.textContent = fav ? "★" : "☆";
   btn.classList.toggle("active", !!fav);
+  btn.setAttribute("aria-pressed", String(!!fav));
   updateFavNav();
 }
 
@@ -1688,10 +1703,6 @@ function openSheet(p, openedFrom) {
       .join("");
     html += `<section class="doc-section"><h3>${esc(t.title)}</h3><div class="spec-table">${rows}</div></section>`;
   });
-
-  if (p.description && !p.sections) {
-    html += `<p>${esc(p.description).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>")}</p>`;
-  }
 
   body.innerHTML = html;
 
@@ -1766,6 +1777,13 @@ document.getElementById("sheet-cert").addEventListener("click", (e) => {
 // место, куда нажали: оно остаётся под пальцем, а не уезжает в угол.
 const CERT_HINT_FIT = "Нажмите на сертификат, чтобы увеличить.";
 const CERT_HINT_ZOOM = "Двигайте пальцем. Нажмите ещё раз, чтобы вернуть целиком.";
+// С клавиатуры: Enter или пробел увеличивают середину сертификата.
+document.getElementById("cert-img").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  const box = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.dispatchEvent(new MouseEvent("click", { clientX: box.left + box.width / 2, clientY: box.top + box.height / 2 }));
+});
 document.getElementById("cert-img").addEventListener("click", (e) => {
   const view = document.getElementById("cert-view");
   const img = e.currentTarget;
@@ -2304,6 +2322,8 @@ moreMenu.addEventListener("keydown", (e) => {
   else if (e.key === "Home") items[0].focus();
   else if (e.key === "End") items[items.length - 1].focus();
   else if (e.key === "Tab") return closeMoreMenu(false);
+  // Пробел на ссылке («Поделиться») сам не срабатывает — нажимаем за человека.
+  else if (e.key === " " && document.activeElement.tagName === "A") document.activeElement.click();
   else return;
   e.preventDefault();
 });
@@ -2412,7 +2432,11 @@ document.addEventListener(
 );
 
 function showInstallBar() {
-  if (isStandalone() || localStorage.getItem("hgz-install-hidden")) return;
+  let hidden = false;
+  try {
+    hidden = Boolean(localStorage.getItem("hgz-install-hidden"));
+  } catch {}
+  if (isStandalone() || hidden) return;
   document.getElementById("install-bar").classList.add("open");
 }
 
@@ -2449,7 +2473,9 @@ document.getElementById("ios-backdrop").addEventListener("click", dismissOverlay
 document.getElementById("ios-close").addEventListener("click", dismissOverlay);
 
 document.getElementById("install-no").addEventListener("click", () => {
-  localStorage.setItem("hgz-install-hidden", "1");
+  try {
+    localStorage.setItem("hgz-install-hidden", "1");
+  } catch {}
   document.getElementById("install-bar").classList.remove("open");
 });
 
