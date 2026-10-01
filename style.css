@@ -220,6 +220,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 .page-sub { margin: 0 0 4px; font-size: 14px; color: var(--muted); line-height: 1.45; }
 .page-link { display: inline-block; text-decoration: none; margin: 6px 0 16px; font-size: 14px; color: var(--accent); font-weight: 600; }
 .page-text { margin: 0 0 12px; font-size: 15px; line-height: 1.55; color: var(--ink); }
+.app-notice-title { margin-top: 22px; }
 .page-empty { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--muted); }
 
 .about-photos {
