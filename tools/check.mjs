@@ -2,15 +2,18 @@
 //
 //   node tools/check.mjs
 //
-// Ничего не меняет — только читает и сообщает. Две части:
+// Ничего не меняет — только читает и сообщает. Три части:
 //   1. Согласованность версий (index.html, sw.js, кеш).
-//   2. Данные каталога (products.json, content.json, файлы фотографий).
+//   2. Код: разбирается ли он, есть ли в разметке всё, что ищет app.js,
+//      на месте ли файлы офлайн-запаса и значки.
+//   3. Данные каталога (products.json, content.json, файлы фотографий).
 //
 // Если что-то не так — печатает ФАЙЛ, МЕСТО и ЧТО ИМЕННО, и выходит с кодом 1.
 // Поэтому скрипт можно ставить в любую проверку перед пушем.
 
 import fs from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,8 +63,60 @@ function checkVersions() {
   return v;
 }
 
-// ------------------------------------------------- 2. Данные каталога
-const REQUIRED = ["id", "name", "category", "unit", "photo"];
+// ------------------------------------------------- 2. Код
+// Опечатка в app.js ломает каталог у всех, а проверка данных её не видит.
+// 7 сентября 2026 код искал в разметке удалённый элемент и обрывался — кнопка
+// QR перестала открываться. Обе ошибки ловятся здесь, ничего не запуская.
+function checkCode() {
+  const before = errors.length;
+  for (const f of ["app.js", "qr.js", "sw.js"]) {
+    try {
+      new vm.Script(read(f), { filename: f });
+    } catch (e) {
+      fail(f, "код не разбирается — каталог не запустится", e.message);
+    }
+  }
+
+  // Каждый getElementById("…") из app.js должен найти элемент: в index.html
+  // или в разметке, которую app.js рисует сам (id="…" в его шаблонах).
+  const app = read("app.js");
+  const html = read("index.html");
+  const wanted = new Set([...app.matchAll(/getElementById\("([^"]+)"\)/g)].map((m) => m[1]));
+  const have = new Set([
+    ...[...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]),
+    ...[...app.matchAll(/\bid="([^"$]+)"/g)].map((m) => m[1]),
+  ]);
+  const missing = [...wanted].filter((id) => !have.has(id));
+  if (missing.length) {
+    fail("app.js → index.html", "код ищет элементы, которых нет в разметке", missing.join(", "));
+  }
+
+  // Файлы, которые service worker кладёт в запас, и значки из манифеста.
+  const sw = read("sw.js");
+  const listed = ["CORE", "EXTRA"].flatMap((name) => {
+    const m = sw.match(new RegExp(`const ${name} = \\[([^\\]]*)\\]`));
+    if (!m) {
+      fail("sw.js", `не найден список ${name}`, "проверка файлов офлайн-запаса не выполнена");
+      return [];
+    }
+    return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+  });
+  for (const entry of listed) {
+    const file = entry.replace(/^\.\//, "").replace(/\?.*$/, "") || "index.html";
+    if (!exists(file)) fail("sw.js", "файла из офлайн-запаса нет в папке", entry);
+  }
+  const manifest = parseJson("manifest.json");
+  for (const icon of (manifest && manifest.icons) || []) {
+    if (!exists(icon.src)) fail("manifest.json", "значок не найден", icon.src);
+  }
+
+  if (errors.length === before) {
+    console.log(`  код разбирается; элементов, которые ищет app.js: ${wanted.size}, все на месте; файлов запаса: ${listed.length}`);
+  }
+}
+
+// ------------------------------------------------- 3. Данные каталога
+const REQUIRED =["id", "name", "category", "unit", "photo"];
 const KNOWN = [
   "id", "name", "category", "unit", "price", "gost", "photo", "photos",
   "summary", "badges", "sections", "tables", "calc", "tasks", "cert",
@@ -260,6 +315,8 @@ function checkCertificates() {
 // ------------------------------------------------- Запуск
 console.log("Проверка версий");
 checkVersions();
+console.log("\nПроверка кода");
+checkCode();
 console.log("\nПроверка данных");
 checkProducts();
 checkContent();

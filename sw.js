@@ -1,4 +1,4 @@
-const CACHE = "hgz-cache-v58";
+const CACHE = "hgz-cache-v59";
 
 // Адреса с ?v= должны совпадать с index.html: иначе браузер сохранит одно,
 // а страница попросит другое. Версия поднимается при правках style.css,
@@ -7,7 +7,7 @@ const CACHE = "hgz-cache-v58";
 // Согласованность версий проверяет tools/check.mjs.
 
 // Без этих файлов каталог не откроется вовсе — они обязательны.
-const CORE = ["./", "./index.html", "./style.css?v=58", "./app.js?v=58", "./qr.js?v=58"];
+const CORE = ["./", "./index.html", "./style.css?v=59", "./app.js?v=59", "./qr.js?v=59"];
 
 // А эти каталог переживёт: товары и страницы завода и так берутся «сначала
 // сеть», значок с манифестом нужны только при установке на телефон. Класть их
@@ -110,15 +110,24 @@ function withTimeout(promise, ms) {
 // Разметка, код и данные — сначала сеть, чтобы правки появлялись сразу. Но с
 // ограничением: если за 4 секунды ответа нет, показываем сохранённую копию.
 async function networkFirst(req) {
+  // Страница с хвостом «?…» — та же главная: ссылка менеджера из QR
+  // (?m=…&n=…), «Поделиться каталогом», метка ?new. Раньше её искали в запасе
+  // по точному адресу, не находили — и без сети вместо сохранённого каталога
+  // была ошибка браузера. Теперь берём сохранённую главную, а каждую такую
+  // ссылку отдельной копией не храним.
+  const page = req.mode === "navigate" && new URL(req.url).search !== "";
+
   const network = fetch(req).then((res) => {
-    if (res && res.status === 200) {
+    if (res && res.status === 200 && !page) {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(req, copy));
     }
     return res;
   });
 
-  const cached = await caches.match(req);
+  const cached =
+    (await caches.match(req)) ||
+    (page ? (await caches.match(req, { ignoreSearch: true })) || (await caches.match("./index.html")) : undefined);
   if (!cached) return network;
 
   try {

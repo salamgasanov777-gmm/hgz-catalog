@@ -1039,6 +1039,11 @@ html.locked { overscroll-behavior: none; }
 }
 .badge-value { font-size: 13px; font-weight: 700; color: var(--accent); }
 .badge-label { font-size: 10px; color: var(--muted); line-height: 1.2; }
+/* Самые узкие телефоны (320 px): четыре значка в ряд не помещаются, и
+   последний («+5°…+30°») вылезал за край окна. Здесь — по два в ряд. */
+@media (max-width: 359px) {
+  .badges { grid-template-columns: repeat(2, 1fr); }
+}
 
 .share-btn {
   display: flex;

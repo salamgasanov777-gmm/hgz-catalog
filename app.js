@@ -1017,7 +1017,13 @@ function renderTasks() {
 function syncCardFav(id) {
   const grid = document.getElementById("grid");
   const btn = grid.querySelector(`.fav-btn[data-fav-id="${id}"]`);
-  if (!btn) return;
+  if (!btn) {
+    // В «Избранном» звезду сняли и тут же вернули в окне товара: карточку из
+    // списка уже убрали, и без перерисовки счётчик показывал товар, а список —
+    // «пусто». Перерисовка вернёт её (cardNode отдаёт готовую карточку).
+    if (activeCategory === "__fav__" && isFavorite(id)) render();
+    return;
+  }
   const on = isFavorite(id);
   btn.classList.toggle("active", on);
   btn.textContent = on ? "★" : "☆";
@@ -1690,7 +1696,7 @@ function openSheet(p, openedFrom) {
   }
 
   if (p.calc) {
-    html += calcHtml(p.calc);
+    html += calcHtml(p.calc, p);
   }
 
   (p.sections || []).forEach((s) => {
@@ -1707,7 +1713,7 @@ function openSheet(p, openedFrom) {
   body.innerHTML = html;
 
   if (p.calc) {
-    wireCalc(p.calc);
+    wireCalc(p.calc, p);
   }
 
   // Клиенту, пришедшему по QR-коду менеджера, кнопка пишет сразу этому
@@ -1836,15 +1842,40 @@ function plural(n, forms) {
   return forms[2];
 }
 
+// Подсказка к толщине слоя — только заводские цифры из карточки товара:
+// диапазон из строки «Толщина слоя» («2–5») или, если его нет, толщина, при
+// которой завод дал расход («при толщине слоя 2,5 мм» → «2,5»). Своих чисел
+// не подставляем: раньше поле само заполнялось 10 мм, и у клея СТАНДАРТ
+// (2–5 мм) или шпаклёвки ФИНИШ (0,2–2 мм) расчёт выходил в разы больше нужного.
+function thicknessHint(p) {
+  const rows = [
+    ...(p.tables || []).flatMap((t) => t.rows || []),
+    ...(p.badges || []).map((b) => [b.label, b.value]),
+  ];
+  for (const [label, value] of rows) {
+    if (/толщина слоя/i.test(label) && !/максимальн|при толщине/i.test(label)) {
+      const range = String(value).replace(/\s*мм\s*$/, "").trim();
+      if (/^[\d,]+(\s*[–-]\s*[\d,]+)?$/.test(range)) return range;
+    }
+  }
+  for (const [label] of rows) {
+    const m = String(label).match(/при толщине слоя ([\d,]+)\s*мм/i);
+    if (m) return m[1];
+  }
+  return "";
+}
+
 // Поля ввода — текстовые с цифровой клавиатурой (inputmode="decimal"), а не
 // type="number": часть браузеров в числовом поле не принимает запятую, а на
 // русской клавиатуре дробь пишут именно через неё. Запятую разбирает wireCalc.
-function calcHtml(calc) {
+function calcHtml(calc, p) {
+  const hint = calc.type === "thickness" ? thicknessHint(p) : "";
   const thicknessRow =
     calc.type === "thickness"
       ? `<label class="calc-field">
           <span>Толщина слоя, мм</span>
-          <input id="calc-mm" type="text" inputmode="decimal" autocomplete="off" value="${calc.defaultMm ?? 10}">
+          <input id="calc-mm" type="text" inputmode="decimal" autocomplete="off"
+            value="${calc.defaultMm ?? ""}" placeholder="${esc(hint ? "напр. " + hint : "")}">
         </label>`
       : "";
 
@@ -1879,16 +1910,30 @@ function calcHtml(calc) {
     </section>`;
 }
 
-function wireCalc(calc) {
+// Число из поля: «1 200» — это 1200 (пробел между разрядами), «10,5» — 10.5.
+// Пусто — null. Всё прочее («2х5», «10м») — NaN: раньше parseFloat молча
+// брал первые цифры, и «1 200 м²» считалось как 1 м².
+function parseCalcNum(s) {
+  const t = String(s || "").replace(/[\s  ]/g, "").replace(",", ".");
+  if (!t) return null;
+  return /^(\d+\.?\d*|\.\d+)$/.test(t) ? parseFloat(t) : NaN;
+}
+
+function wireCalc(calc, p) {
   const areaInput = document.getElementById("calc-area");
   const mmInput = document.getElementById("calc-mm");
   const wasteInput = document.getElementById("calc-waste");
   const result = document.getElementById("calc-result");
+  const hint = mmInput ? thicknessHint(p) : "";
 
   function update() {
-    const area = parseFloat((areaInput.value || "").replace(",", "."));
-    const mm = mmInput ? parseFloat((mmInput.value || "").replace(",", ".")) : null;
+    const area = parseCalcNum(areaInput.value);
+    const mm = mmInput ? parseCalcNum(mmInput.value) : null;
 
+    if (Number.isNaN(area)) {
+      result.textContent = "Площадь — только цифрами, например 12,5";
+      return;
+    }
     if (!area || area <= 0) {
       result.textContent = "Введите площадь";
       return;
@@ -1920,8 +1965,14 @@ function wireCalc(calc) {
 
     let total;
     if (calc.type === "thickness") {
+      if (Number.isNaN(mm)) {
+        result.textContent = "Толщина — только цифрами, например 3";
+        return;
+      }
       if (!mm || mm <= 0) {
-        result.textContent = "Введите толщину слоя";
+        result.textContent = hint
+          ? `Введите толщину слоя — у завода: ${hint} мм`
+          : "Введите толщину слоя";
         return;
       }
       if (mm > 200) {
