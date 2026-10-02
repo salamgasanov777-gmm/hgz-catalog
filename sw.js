@@ -1,4 +1,4 @@
-const CACHE = "hgz-cache-v59";
+const CACHE = "hgz-cache-v61";
 
 // Адреса с ?v= должны совпадать с index.html: иначе браузер сохранит одно,
 // а страница попросит другое. Версия поднимается при правках style.css,
@@ -7,7 +7,7 @@ const CACHE = "hgz-cache-v59";
 // Согласованность версий проверяет tools/check.mjs.
 
 // Без этих файлов каталог не откроется вовсе — они обязательны.
-const CORE = ["./", "./index.html", "./style.css?v=59", "./app.js?v=59", "./qr.js?v=59"];
+const CORE = ["./", "./index.html", "./style.css?v=61", "./app.js?v=61", "./qr.js?v=61"];
 
 // А эти каталог переживёт: товары и страницы завода и так берутся «сначала
 // сеть», значок с манифестом нужны только при установке на телефон. Класть их
@@ -158,5 +158,13 @@ self.addEventListener("fetch", (e) => {
   // редко и по нажатию. Без сети файл не откроется, как и ролик.
   if (/\.pdf$/i.test(url.pathname)) return;
 
-  e.respondWith(isPhoto(url.pathname) ? cacheFirst(e.request) : networkFirst(e.request));
+  // Стили и код с меткой версии (app.js?v=N) под этим адресом не меняются
+  // никогда: правка кода — новый номер, новый адрес. Поэтому их, как и фото,
+  // берём сразу из запаса. Раньше они шли «сначала сеть» и на еле живой связи
+  // каждый ждал до 4 секунд: страница, стили, код, данные — до 12 секунд
+  // пустого экрана. Цена решения — номер версии обязан подниматься при каждой
+  // правке; забытый подъём ловит tools/check.mjs (сравнивает с опубликованным).
+  const versioned = e.request.mode !== "navigate" && /\.(css|js)$/i.test(url.pathname) && /[?&]v=\d+/.test(url.search);
+
+  e.respondWith(isPhoto(url.pathname) || versioned ? cacheFirst(e.request) : networkFirst(e.request));
 });

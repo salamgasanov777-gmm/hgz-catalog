@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -61,6 +62,56 @@ function checkVersions() {
     console.log(`  версии согласованы: файлы v=${v}, кеш hgz-cache-v${cacheV}`);
   }
   return v;
+}
+
+// Сравнение с опубликованным (ветка origin/main). Стили, код и фото телефон
+// берёт из запаса, не спрашивая сайт: адрес с ?v= не меняется — значит, и
+// файл не менялся. Поэтому правка app.js, style.css, qr.js или замена фото под
+// тем же именем без подъёма версии до телефонов не дойдёт. Здесь это и ловим.
+const git = (...args) =>
+  execFileSync("git", ["-C", ROOT, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+
+function checkAgainstPublished(v) {
+  let pubHtml;
+  try {
+    pubHtml = git("show", "origin/main:index.html");
+  } catch {
+    warn("git", "не удалось сравнить с опубликованной версией", "нет git или ветки origin/main — проверьте подъём версии вручную");
+    return;
+  }
+  const pubV = (pubHtml.match(/app\.js\?v=(\d+)/) || [])[1];
+  if (!pubV || !v) return;
+
+  if (Number(v) < Number(pubV)) {
+    fail("index.html", "версия ниже опубликованной", `в папке v=${v}, на сайте v=${pubV} — поставьте больше ${pubV}, иначе телефоны не обновятся`);
+    return;
+  }
+  if (v !== pubV) {
+    console.log(`  версия поднята: на сайте v=${pubV}, в папке v=${v}`);
+    return;
+  }
+
+  const changed = ["style.css", "app.js", "qr.js"].filter((f) => {
+    try {
+      return git("show", `origin/main:${f}`) !== read(f);
+    } catch {
+      return false;
+    }
+  });
+  let photos = [];
+  try {
+    photos = git("diff", "--name-only", "--diff-filter=M", "origin/main", "--", "products/").split("\n").filter(Boolean);
+  } catch {}
+
+  if (changed.length) {
+    fail(changed.join(", "), "код изменён, а версия не поднята", `на сайте и в папке v=${v} — телефоны возьмут старый файл из запаса; поднимите ?v= в index.html и sw.js и hgz-cache-v`);
+  }
+  if (photos.length) {
+    fail(photos.join(", "), "фото заменено под тем же именем, а версия не поднята", "телефоны покажут старое фото — поднимите версию или дайте файлу новое имя");
+  }
+  if (!changed.length && !photos.length) {
+    console.log(`  версия как на сайте (v=${v}): код и фото не менялись, подъём не нужен`);
+  }
 }
 
 // ------------------------------------------------- 2. Код
@@ -314,7 +365,7 @@ function checkCertificates() {
 
 // ------------------------------------------------- Запуск
 console.log("Проверка версий");
-checkVersions();
+checkAgainstPublished(checkVersions());
 console.log("\nПроверка кода");
 checkCode();
 console.log("\nПроверка данных");

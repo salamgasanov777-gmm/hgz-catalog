@@ -690,9 +690,25 @@ function closePage() {
   document.querySelectorAll("#page-body video").forEach((v) => v.pause());
 }
 
+// На Android раздел — отдельная запись в истории: системная «Назад» из
+// раздела возвращает на главную, а не закрывает каталог (решение владельца
+// 02.10.2026). Переход между разделами запись заменяет, а не копит — иначе
+// «Назад» листал бы все разделы, где человек побывал. На iPhone записей нет,
+// как и у окон (см. OVERLAY_HISTORY).
 function selectCategory(cat) {
+  const prev = activeCategory;
   activeCategory = cat;
   render();
+  if (!OVERLAY_HISTORY || overlayStack.length || cat === prev) return;
+  const inCat = history.state && history.state.hgzCat;
+  if (cat === "Все") {
+    // Кнопка «Все разделы» — тот же шаг назад, что и системная кнопка.
+    if (inCat) history.back();
+    return;
+  }
+  forwardStack = [];
+  if (inCat) history.replaceState({ hgzCat: cat }, "");
+  else history.pushState({ hgzCat: cat }, "");
 }
 
 document.getElementById("section-all").addEventListener("click", () => selectCategory("Все"));
@@ -714,6 +730,11 @@ function lockScroll() {
 
 function unlockScroll() {
   if (overlayStack.length) return;
+  // Страница не была закреплена окном — возвращать нечего. Иначе «Назад»
+  // из меню «⋯» или из раздела (у них свои записи истории, а окна нет)
+  // прыгал на старую позицию savedScrollY — наверх или туда, где когда-то
+  // открывали карточку.
+  if (!document.documentElement.classList.contains("locked")) return;
   document.body.style.position = "";
   document.documentElement.classList.remove("locked");
   document.body.style.top = "";
@@ -801,7 +822,11 @@ if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 // окно: запись в истории говорит «открыто окно», а окон нет. Тогда первое
 // нажатие ✕ уходило на эту пустую запись, и окно закрывалось только со
 // второго раза. Стираем пометку — адрес страницы при этом не меняется.
-if (history.state && history.state.hgzOverlay) history.replaceState(null, "");
+// То же с записями раздела и меню «⋯»: после перезагрузки каталог открывается
+// на главной, и запись не должна говорить другое.
+if (history.state && (history.state.hgzOverlay || history.state.hgzCat || history.state.hgzMenu)) {
+  history.replaceState(null, "");
+}
 
 // Окна, закрытые кнопкой «Назад». Запись о них в истории браузера остаётся,
 // и «Вперёд» ведёт туда же — раньше при этом ничего не открывалось, а при
@@ -821,7 +846,11 @@ function openOverlay(onClose, node, opener, reopen) {
   // Окно открыли пунктом меню «⋯»: меню сейчас закроется, поэтому фокус после
   // закрытия окна возвращаем на саму кнопку «⋯», а не на скрытый пункт.
   if (from && from.closest && from.closest("#more-menu")) from = document.getElementById("more-btn");
-  closeMoreMenu(false);
+  // Окно открыли из меню «⋯»: у меню своя запись в истории. Её не убираем
+  // шагом назад (он пришёл бы уже после записи окна и закрыл бы окно), а
+  // превращаем в запись окна — «Назад» из окна вернёт туда, где было до меню.
+  const fromMenuEntry = OVERLAY_HISTORY && !moreMenu.hidden && history.state && history.state.hgzMenu;
+  hideMoreMenu(false);
   // Смещение от прошлого свайпа, которым окно закрыли, — иначе оно
   // откроется не до конца.
   if (node) node.style.removeProperty("--drag");
@@ -832,7 +861,11 @@ function openOverlay(onClose, node, opener, reopen) {
   if (restoring || !OVERLAY_HISTORY) return;
   // Новое окно обрывает дорогу вперёд — как новая страница в браузере.
   forwardStack = [];
-  history.pushState({ hgzOverlay: overlayStack.length }, "");
+  // Раздел записываем и в запись окна: «Назад» из окна оставит человека в
+  // том же разделе, а не выкинет на главную.
+  const state = { hgzOverlay: overlayStack.length, hgzCat: activeCategory === "Все" ? null : activeCategory };
+  if (fromMenuEntry) history.replaceState(state, "");
+  else history.pushState(state, "");
 }
 
 // Закрытие идёт через историю, чтобы состояние стека и истории совпадали.
@@ -888,6 +921,24 @@ window.addEventListener("popstate", (e) => {
   }
 
   unlockScroll();
+
+  // Меню «⋯» и раздел — по записи: «Назад» закрывает меню и возвращает из
+  // раздела на главную, «Вперёд» открывает их снова.
+  const st = e.state || {};
+  if (!st.hgzMenu && !moreMenu.hidden) hideMoreMenu(false);
+  else if (st.hgzMenu && moreMenu.hidden && !overlayStack.length) {
+    restoring = true;
+    try {
+      openMoreMenu();
+    } finally {
+      restoring = false;
+    }
+  }
+  const cat = st.hgzCat || "Все";
+  if (cat !== activeCategory) {
+    activeCategory = cat;
+    render();
+  }
 });
 
 // Escape закрывает верхнее окно — раньше каталог клавиатуру не слушал вовсе.
@@ -995,6 +1046,13 @@ function updateFavNav() {
 }
 
 document.getElementById("fav-nav-btn").addEventListener("click", () => {
+  // Звезда в шапке доступна и при открытом меню «⋯». Первое касание только
+  // закрывает меню, как касание мимо него: иначе запись меню в истории
+  // оставалась позади раздела, и «Назад» открывал меню заново.
+  if (moreMenuOpen()) {
+    closeMoreMenu(false);
+    return;
+  }
   selectCategory(activeCategory === "__fav__" ? "Все" : "__fav__");
 });
 
@@ -1723,6 +1781,10 @@ function openSheet(p, openedFrom) {
   const shareBtn = document.getElementById("sheet-share");
   shareBtn.href = `https://wa.me/${shareTo}?text=${encodeURIComponent(shareText(p))}`;
   document.getElementById("sheet-share-label").textContent = shareTo ? "Отправить менеджеру в WhatsApp" : "Отправить в WhatsApp";
+  // «Узнать цену и наличие» — тому же адресату: менеджеру из QR, а без него
+  // клиент сам выбирает чат (решение владельца 02.10.2026). Текст собирается
+  // в момент нажатия, чтобы в него попал свежий расчёт из калькулятора.
+  document.getElementById("sheet-ask").href = `https://wa.me/${shareTo}?text=${encodeURIComponent(askText(p))}`;
 
   // Сертификат: в карточке лежит только ключ («cert»), сам файл и срок его
   // действия — в реестре content.json → certificates. Один сертификат
@@ -1763,6 +1825,7 @@ function openCert(cert) {
     note.textContent = "Сертификат не загрузился. Проверьте связь и откройте снова.";
   };
   img.src = cert.file.replace(/\.pdf$/i, ".jpg");
+  prepareCertFile(cert);
   view.scrollTo(0, 0);
   document.getElementById("cert-backdrop").classList.add("open");
   document.getElementById("cert-sheet").classList.add("open");
@@ -1773,6 +1836,45 @@ function closeCert() {
   document.getElementById("cert-backdrop").classList.remove("open");
   document.getElementById("cert-sheet").classList.remove("open");
 }
+
+// «Отправить сертификат»: прораб или технадзор просит документ — продавец
+// отправляет сам PDF через «Поделиться» телефона (WhatsApp, Telegram, почта).
+// Файл скачиваем заранее, при открытии окна: «Поделиться» браузер разрешает
+// только сразу после нажатия, ждать загрузки 1–2 МБ после него нельзя. Не
+// успел скачаться или телефон не умеет делиться файлами — уходит ссылка.
+// Качаем, только если телефон вообще умеет делиться файлами: на компьютере
+// лишние мегабайты ни к чему.
+let certFile = null;
+let certFileFor = "";
+
+function prepareCertFile(cert) {
+  certFile = null;
+  certFileFor = cert.file;
+  if (!navigator.canShare || !window.File) return;
+  fetch(cert.file)
+    .then((r) => (r.ok ? r.blob() : null))
+    .then((blob) => {
+      if (!blob || certFileFor !== cert.file) return;
+      const file = new File([blob], cert.file.split("/").pop(), { type: "application/pdf" });
+      if (navigator.canShare({ files: [file] })) certFile = file;
+    })
+    .catch(() => {});
+}
+
+document.getElementById("cert-send").addEventListener("click", () => {
+  if (!certFileFor) return;
+  const url = new URL(certFileFor, location.href).href;
+  const title = currentProduct ? `Сертификат соответствия — ${currentProduct.name}` : "Сертификат соответствия";
+  if (certFile) {
+    navigator.share({ files: [certFile], title }).catch(() => {});
+    return;
+  }
+  if (navigator.share) {
+    navigator.share({ title, text: title, url }).catch(() => {});
+    return;
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(`${title}: ${url}`)}`, "_blank", "noopener");
+});
 
 document.getElementById("sheet-cert").addEventListener("click", (e) => {
   if (!currentCert) return;
@@ -1808,6 +1910,31 @@ document.getElementById("cert-img").addEventListener("click", (e) => {
 });
 document.getElementById("cert-backdrop").addEventListener("click", dismissOverlay);
 document.getElementById("cert-close").addEventListener("click", dismissOverlay);
+
+// Запрос цены: товар, фасовка и — если клиент считал расход — сколько нужно.
+// Цен в каталоге нет (решение по ним не принято), поэтому вопрос задаётся
+// человеку, а не подставляется число.
+function askText(p) {
+  const lines = ["Здравствуйте! Подскажите цену и наличие:", p.name];
+  if (p.unit) lines.push(`Фасовка: ${p.unit}`);
+  const res = document.getElementById("calc-result");
+  if (res && /^Нужно:/.test(res.textContent)) {
+    const area = document.getElementById("calc-area");
+    const mm = document.getElementById("calc-mm");
+    const what = [area && area.value ? `${area.value.trim()} м²` : "", mm && mm.value ? `слой ${mm.value.trim()} мм` : ""]
+      .filter(Boolean)
+      .join(", ");
+    lines.push(`По расчёту в каталоге: ${res.textContent.replace(/^Нужно:\s*/, "")}${what ? ` — ${what}` : ""}`);
+  }
+  lines.push(`${catalogUrl()}#p=${p.id}`);
+  return lines.join("\n");
+}
+
+document.getElementById("sheet-ask").addEventListener("click", (e) => {
+  if (!currentProduct) return;
+  const to = manager && !manager.own ? manager.phone : "";
+  e.currentTarget.href = `https://wa.me/${to}?text=${encodeURIComponent(askText(currentProduct))}`;
+});
 
 function shareText(p) {
   const lines = [];
@@ -2332,7 +2459,9 @@ document.getElementById("qr-btn").addEventListener("click", openQr);
 const moreBtn = document.getElementById("more-btn");
 const moreMenu = document.getElementById("more-menu");
 const moreScrim = document.getElementById("more-scrim");
-const moreItems = () => [...moreMenu.querySelectorAll('[role="menuitem"]')];
+// Скрытые пункты (например «Установить» в уже установленном приложении)
+// стрелками не перебираются.
+const moreItems = () => [...moreMenu.querySelectorAll('[role="menuitem"]')].filter((el) => !el.hidden);
 
 function moreMenuOpen() {
   return !moreMenu.hidden;
@@ -2343,18 +2472,38 @@ function openMoreMenu() {
   // что в QR-коде), и клиент, открыв её, получит предложение записать менеджера.
   const text = `Каталог продукции Хабезского гипсового завода: ${qrLink()}`;
   document.getElementById("share-catalog").href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  // «Установить на телефон» — пока каталог не установлен и браузер умеет
+  // установку (Chrome сообщил о готовности или это iPhone с инструкцией).
+  // Раньше крестик на полосе установки прятал её навсегда, вернуть было нечем.
+  document.getElementById("install-menu").hidden = isStandalone() || !(installPrompt || isIOS());
   moreMenu.hidden = false;
   moreScrim.hidden = false;
   moreBtn.setAttribute("aria-expanded", "true");
   moreItems()[0].focus();
+  // На Android у открытого меню своя запись: «Назад» закрывает меню, а не
+  // каталог. Раздел переносим в неё, чтобы «Назад» не сбросил его.
+  if (OVERLAY_HISTORY && !restoring) {
+    forwardStack = [];
+    history.pushState({ hgzMenu: true, hgzCat: (history.state && history.state.hgzCat) || null }, "");
+  }
 }
 
-function closeMoreMenu(returnFocus) {
+// Только спрятать меню, историю не трогать — для «Назад» и для окна,
+// открытого пунктом меню (оно само забирает запись меню себе).
+function hideMoreMenu(returnFocus) {
   if (moreMenu.hidden) return;
   moreMenu.hidden = true;
   moreScrim.hidden = true;
   moreBtn.setAttribute("aria-expanded", "false");
   if (returnFocus) moreBtn.focus();
+}
+
+// Закрыть меню человеком (✕ мимо меню, Escape, пункт без окна): запись меню
+// снимаем шагом назад, чтобы следующая «Назад» не попала на пустое место.
+function closeMoreMenu(returnFocus) {
+  if (moreMenu.hidden) return;
+  hideMoreMenu(returnFocus);
+  if (OVERLAY_HISTORY && history.state && history.state.hgzMenu) history.back();
 }
 
 moreBtn.addEventListener("click", () => (moreMenuOpen() ? closeMoreMenu(true) : openMoreMenu()));
@@ -2499,7 +2648,7 @@ window.addEventListener("beforeinstallprompt", (e) => {
 
 if (isIOS()) showInstallBar();
 
-document.getElementById("install-yes").addEventListener("click", async () => {
+async function startInstall() {
   if (installPrompt) {
     installPrompt.prompt();
     await installPrompt.userChoice;
@@ -2508,7 +2657,10 @@ document.getElementById("install-yes").addEventListener("click", async () => {
     return;
   }
   openIosHelp();
-});
+}
+
+document.getElementById("install-yes").addEventListener("click", startInstall);
+document.getElementById("install-menu").addEventListener("click", startInstall);
 
 function openIosHelp() {
   document.getElementById("ios-backdrop").classList.add("open");
