@@ -1947,7 +1947,7 @@ function askText(p) {
       .join(", ");
     lines.push(`По расчёту в каталоге: ${res.textContent.replace(/^Нужно:\s*/, "")}${what ? ` — ${what}` : ""}`);
   }
-  lines.push(`${catalogUrl()}#p=${p.id}`);
+  // Без ссылки, как и в заявке: WhatsApp рисовал под вопросом карточку сайта.
   return lines.join("\n");
 }
 
@@ -2039,10 +2039,10 @@ function orderItems() {
 
 function orderText() {
   const lines = ["Заявка из каталога ХГЗ:"];
-  orderItems().forEach((p, i) => {
-    lines.push(`${i + 1}. ${p.name} — ${orderLine(p)}`);
-    lines.push(`   ${catalogUrl()}#p=${p.id}`);
-  });
+  // Только названия и количество, без ссылок: по ссылке WhatsApp рисует
+  // большую карточку сайта с картинкой, а в заявке она лишняя (владелец,
+  // проверка на телефоне 05.10.2026).
+  orderItems().forEach((p, i) => lines.push(`${i + 1}. ${p.name} — ${orderLine(p)}`));
   const obj = document.getElementById("order-object").value.trim();
   const when = document.getElementById("order-when").value.trim();
   if (obj || when) lines.push("");
