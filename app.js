@@ -66,8 +66,15 @@ function isFavorite(id) {
 }
 
 function toggleFavorite(id) {
-  if (favorites.has(id)) favorites.delete(id);
-  else favorites.add(id);
+  if (favorites.has(id)) {
+    favorites.delete(id);
+    // Убрали из избранного — убираем и из заявки, чтобы при следующем
+    // добавлении не всплыло старое количество.
+    if (order[id]) {
+      delete order[id];
+      saveOrder();
+    }
+  } else favorites.add(id);
   // Safari с запретом cookie бросает исключение при записи — избранное тогда
   // живёт до закрытия страницы, но каталог не обрывается.
   try {
@@ -139,6 +146,10 @@ if (systemDark.addEventListener) systemDark.addEventListener("change", applyThem
 else if (systemDark.addListener) systemDark.addListener(applyTheme);
 applyTheme();
 
+// Данные, с которыми открыт каталог, и когда их последний раз сверяли с сайтом.
+const dataText = { products: "", content: "" };
+let dataCheckedAt = 0;
+
 async function load() {
   let res;
   // Оба файла запрашиваем сразу, а не по очереди: на медленной связи второй
@@ -150,7 +161,9 @@ async function load() {
     // с сайтом, — но ответ остаётся в его кеше. При первом заходе запас
     // (sw.js) забирает товары оттуда, а не качает все 350 КБ второй раз.
     res = await fetch("./products.json", { cache: "no-cache" });
-    products = await res.json();
+    // Текст запоминаем: по нему потом видно, поменялись ли данные на сайте.
+    dataText.products = await res.text();
+    products = JSON.parse(dataText.products);
     // Сортировка устойчивая: внутри раздела товары идут как в products.json.
     products.sort((x, y) => categoryRank(x.category) - categoryRank(y.category));
   } catch (e) {
@@ -169,10 +182,12 @@ async function load() {
   // ссылками, а не карточками товаров, и без них каталог обязан работать.
   try {
     const info = await infoRequest;
-    content = info && info.ok ? await info.json() : null;
+    dataText.content = info && info.ok ? await info.text() : "";
+    content = dataText.content ? JSON.parse(dataText.content) : null;
   } catch {
     content = null;
   }
+  dataCheckedAt = Date.now();
 
   renderHome();
   render();
@@ -747,7 +762,7 @@ function unlockScroll() {
 // не добирается программа чтения с экрана. Закрытые окна помечены всегда —
 // иначе в них остаются кнопки, доступные с клавиатуры, хотя окна не видно.
 const DIALOG_IDS = ["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet", "cert-sheet"];
-const PAGE_REGIONS = [".topbar", "#home-intro", "#home-rail", "#section-bar", "#compare-btn", "#grid", "#site-foot", "#update-bar", "#manager-bar", "#install-bar"];
+const PAGE_REGIONS = [".topbar", "#home-intro", "#home-rail", "#section-bar", "#compare-btn", "#order-btn", "#grid", "#site-foot", "#update-bar", "#manager-bar", "#install-bar"];
 
 function setInert(el, on) {
   if (!el) return;
@@ -1396,6 +1411,12 @@ function render() {
   compareBtn.style.display = compareConfig ? "block" : "none";
   if (compareConfig) compareBtn.textContent = compareConfig.buttonLabel;
 
+  // «Оформить заявку» — только в «Избранном» и только когда там есть товары.
+  const orderBtn = document.getElementById("order-btn");
+  const orderCount = activeCategory === "__fav__" ? orderItems().length : 0;
+  orderBtn.style.display = orderCount ? "block" : "none";
+  if (orderCount) orderBtn.textContent = `Оформить заявку · ${orderCount} ${plural(orderCount, ["товар", "товара", "товаров"])}`;
+
   if (filtered.length === 0) {
     let msg;
     // Поиск работает внутри открытого раздела. Если здесь пусто, а в других
@@ -1936,6 +1957,201 @@ document.getElementById("sheet-ask").addEventListener("click", (e) => {
   e.currentTarget.href = `https://wa.me/${to}?text=${encodeURIComponent(askText(currentProduct))}`;
 });
 
+// ---------------------------------------------------------------- Заявка
+// Заявка списком из «Избранного» (решение владельца 05.10.2026): клиент
+// отмечает товары звёздочкой, в окне заявки ставит количество и фасовку и
+// одной кнопкой отправляет список в WhatsApp — менеджеру из QR или в чат,
+// который выберет сам. Сервера нет: каталог ничего не отправляет сам, на
+// телефоне помнит только количество и фасовку по каждому товару.
+const ORDER_KEY = "hgz-order";
+
+function loadOrder() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ORDER_KEY) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch {
+    return {};
+  }
+}
+let order = loadOrder();
+
+function saveOrder() {
+  try {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  } catch {}
+}
+
+// Считаем в том, в чём товар продаётся: мешками, вёдрами, листами. Поддоны
+// не предлагаем — сколько мешков на поддоне, завод ещё не подтвердил.
+const PACK_NOUNS = {
+  мешок: ["мешок", "мешка", "мешков"],
+  канистра: ["канистра", "канистры", "канистр"],
+  ведро: ["ведро", "ведра", "вёдер"],
+  лист: ["лист", "листа", "листов"],
+  плита: ["плита", "плиты", "плит"],
+  упаковка: ["упаковка", "упаковки", "упаковок"],
+};
+
+// Фасовки из поля unit: «мешок 30 кг / 25 кг» — две на выбор, «ведро 6 кг /
+// 11 кг / 20 кг» — три. «упаковка 30 плит / 10 м²» — одна, просто описанная
+// двумя способами: варианты считаются фасовками, только если у всех частей
+// одна и та же мера (кг, л, мм).
+function packOptions(p) {
+  const unit = String(p.unit || "").trim();
+  const m = unit.match(/^([а-яё]+)\s+(.+)$/i);
+  const noun = m && PACK_NOUNS[m[1].toLowerCase()] ? m[1].toLowerCase() : "";
+  const rest = noun ? m[2] : unit;
+  const parts = rest.split(/\s*\/\s*/);
+  const measure = (s) => (s.match(/^[\d,]+\s*([^\d\s]+)$/) || [])[1];
+  const several = parts.length > 1 && parts.every((x) => measure(x) && measure(x) === measure(parts[0]));
+  return { forms: noun ? PACK_NOUNS[noun] : ["уп.", "уп.", "уп."], options: several ? parts : [rest] };
+}
+
+function orderEntry(p) {
+  const e = order[p.id] || {};
+  const { options } = packOptions(p);
+  const qty = Number.isInteger(e.qty) && e.qty > 0 ? e.qty : 1;
+  const opt = Number.isInteger(e.opt) && e.opt >= 0 && e.opt < options.length ? e.opt : 0;
+  return { qty, opt, calc: Boolean(e.calc) };
+}
+
+// «14 мешков по 30 кг», «6 листов 12,5 мм», «2 уп. по 6 кг».
+function orderLine(p) {
+  const { forms, options } = packOptions(p);
+  const { qty, opt } = orderEntry(p);
+  const pack = options[opt];
+  return `${qty} ${plural(qty, forms)} ${/мм$/.test(pack) ? pack : "по " + pack}`;
+}
+
+// Калькулятор в карточке подсказывает количество для заявки: что посчитали
+// последним, то и подставится. Фасовка — та, по которой считал калькулятор.
+function rememberCalc(p, qty, packValue) {
+  if (!p || !(qty > 0)) return;
+  const { options } = packOptions(p);
+  const i = packValue == null ? -1 : options.findIndex((o) => parseFloat(o.replace(",", ".")) === packValue);
+  order[p.id] = { qty, opt: i >= 0 ? i : orderEntry(p).opt, calc: true };
+  saveOrder();
+}
+
+function orderItems() {
+  return products.filter((p) => favorites.has(p.id));
+}
+
+function orderText() {
+  const lines = ["Заявка из каталога ХГЗ:"];
+  orderItems().forEach((p, i) => {
+    lines.push(`${i + 1}. ${p.name} — ${orderLine(p)}`);
+    lines.push(`   ${catalogUrl()}#p=${p.id}`);
+  });
+  const obj = document.getElementById("order-object").value.trim();
+  const when = document.getElementById("order-when").value.trim();
+  if (obj || when) lines.push("");
+  if (obj) lines.push(`Объект: ${obj}`);
+  if (when) lines.push(`Когда нужно: ${when}`);
+  return lines.join("\n");
+}
+
+function renderOrderRow(p) {
+  const { forms, options } = packOptions(p);
+  const e = orderEntry(p);
+  const pack =
+    options.length > 1
+      ? `<select class="order-pack" aria-label="Фасовка">${options
+          .map((o, i) => `<option value="${i}"${i === e.opt ? " selected" : ""}>${esc(o)}</option>`)
+          .join("")}</select>`
+      : `<span class="order-pack-one">${esc(options[0])}</span>`;
+  return (
+    `<div class="order-row" data-id="${p.id}">` +
+    `<div class="order-name">${esc(p.name)}</div>` +
+    `<div class="order-ctrl">${pack}` +
+    `<div class="order-qty"><button type="button" class="order-minus" aria-label="Меньше">−</button>` +
+    `<input class="order-num" type="text" inputmode="numeric" autocomplete="off" value="${e.qty}" aria-label="Количество">` +
+    `<button type="button" class="order-plus" aria-label="Больше">+</button></div>` +
+    `<span class="order-word">${plural(e.qty, forms)}</span></div>` +
+    (e.calc ? `<p class="order-hint">Количество — по расчёту в каталоге</p>` : "") +
+    `</div>`
+  );
+}
+
+function openOrder() {
+  const items = orderItems();
+  if (!items.length) return;
+  document.getElementById("order-list").innerHTML = items.map(renderOrderRow).join("");
+  document.getElementById("order-send-label").textContent =
+    manager && !manager.own ? "Отправить заявку менеджеру" : "Отправить заявку в WhatsApp";
+  document.getElementById("order-copy-label").textContent = "Скопировать текст";
+  document.getElementById("order-backdrop").classList.add("open");
+  document.getElementById("order-sheet").classList.add("open");
+  document.getElementById("order-sheet").scrollTop = 0;
+  openOverlay(closeOrder, document.getElementById("order-sheet"), document.getElementById("order-btn"), () => {
+    if (activeCategory === "__fav__") openOrder();
+  });
+}
+
+function closeOrder() {
+  document.getElementById("order-backdrop").classList.remove("open");
+  document.getElementById("order-sheet").classList.remove("open");
+}
+
+// Количество и фасовку человек правит сам — запоминаем, и подсказка «по
+// расчёту» больше не нужна.
+function setOrderQty(row, qty, opt) {
+  const p = products.find((x) => x.id === Number(row.dataset.id));
+  if (!p) return;
+  const e = orderEntry(p);
+  const next = { qty: Math.min(9999, Math.max(1, qty ?? e.qty)), opt: opt ?? e.opt, calc: false };
+  order[p.id] = next;
+  saveOrder();
+  row.querySelector(".order-word").textContent = plural(next.qty, packOptions(p).forms);
+  row.querySelector(".order-hint")?.remove();
+  return next;
+}
+
+const orderList = document.getElementById("order-list");
+orderList.addEventListener("click", (e) => {
+  const btn = e.target.closest(".order-minus, .order-plus");
+  if (!btn) return;
+  const row = btn.closest(".order-row");
+  const input = row.querySelector(".order-num");
+  const now = parseInt(input.value, 10) || 1;
+  const next = setOrderQty(row, now + (btn.classList.contains("order-plus") ? 1 : -1));
+  if (next) input.value = next.qty;
+});
+orderList.addEventListener("input", (e) => {
+  if (!e.target.classList.contains("order-num")) return;
+  const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+  if (digits !== e.target.value) e.target.value = digits;
+  if (digits) setOrderQty(e.target.closest(".order-row"), parseInt(digits, 10));
+});
+// Поле оставили пустым или с нулём — возвращаем то, что сохранено.
+orderList.addEventListener("focusout", (e) => {
+  if (!e.target.classList.contains("order-num")) return;
+  const next = setOrderQty(e.target.closest(".order-row"), parseInt(e.target.value, 10) || null);
+  if (next) e.target.value = next.qty;
+});
+orderList.addEventListener("change", (e) => {
+  if (e.target.classList.contains("order-pack")) setOrderQty(e.target.closest(".order-row"), null, Number(e.target.value));
+});
+
+document.getElementById("order-btn").addEventListener("click", openOrder);
+document.getElementById("order-backdrop").addEventListener("click", dismissOverlay);
+document.getElementById("order-close").addEventListener("click", dismissOverlay);
+
+// Адресат — как у «Узнать цену»: менеджер из QR, иначе клиент выбирает чат.
+document.getElementById("order-send").addEventListener("click", (e) => {
+  const to = manager && !manager.own ? manager.phone : "";
+  e.currentTarget.href = `https://wa.me/${to}?text=${encodeURIComponent(orderText())}`;
+});
+
+// Запасной путь, если WhatsApp нет: текст в буфер — дальше в Telegram или SMS.
+document.getElementById("order-copy").addEventListener("click", async () => {
+  // Тот же способ, что у «Скопировать ссылку» в окне QR (copyText ниже).
+  const ok = await copyText(orderText());
+  document.getElementById("order-copy-label").textContent = ok
+    ? "Скопировано — вставьте в любой мессенджер"
+    : "Не удалось скопировать";
+});
+
 function shareText(p) {
   const lines = [];
   lines.push(p.name);
@@ -2082,11 +2298,14 @@ function wireCalc(calc, p) {
       const pieces = Math.ceil(withWaste / areaPerItem - 1e-9);
       const covered = pieces * areaPerItem;
       let text = `Нужно: <b>${pieces} ${plural(pieces, calc.item)}</b> — это ${formatNum(covered)} м²`;
+      let packs = 0;
       if (calc.pack) {
-        const packs = Math.ceil(pieces / calc.pack);
+        packs = Math.ceil(pieces / calc.pack);
         text += ` (${packs} ${plural(packs, calc.packLabel)} по ${calc.pack} шт)`;
       }
       result.innerHTML = text;
+      // В заявку — в тех же единицах, что в фасовке: упаковками или штуками.
+      rememberCalc(p, /^упаковка/i.test(p.unit || "") && packs ? packs : pieces, null);
       return;
     }
 
@@ -2115,12 +2334,14 @@ function wireCalc(calc, p) {
       const bigUnit = calc.packUnit === "г" ? "кг" : "л";
       const containers = Math.ceil(total / calc.pack);
       result.innerHTML = `Нужно: <b>${formatNum(total / 1000)} ${bigUnit}</b> (~${containers} уп. по ${formatNum(calc.pack / 1000)} ${bigUnit})`;
+      rememberCalc(p, containers, calc.pack / 1000);
     } else {
       const bags = Math.ceil(total / calc.pack);
       // Сухие смеси приходят в мешках, но не всё: жидкая гидроизоляция — в
       // ведре. Товар может назвать свою тару полем "packWord" в products.json.
       const packWord = calc.packWord || "меш.";
       result.innerHTML = `Нужно: <b>${formatNum(total)} кг</b> (~${bags} ${packWord} по ${calc.pack} кг)`;
+      rememberCalc(p, bags, calc.pack);
     }
   }
 
@@ -2748,6 +2969,42 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+
+// Свежесть данных. Каталог на телефоне обычно не закрывают, а сворачивают:
+// товары и страницы завода читались один раз при запуске, и неделю спустя
+// человек мог смотреть старые данные, хотя на сайте их давно поправили (код
+// обновляется полосой выше, а правка только данных её не вызывает). Теперь при
+// возвращении в каталог — не чаще раза в 30 минут — сверяем данные с сайтом
+// и, если они изменились, показываем ту же полосу: «Обновить» перезагружает
+// страницу. Сами посреди работы не перерисовываем — человек мог листать.
+const DATA_CHECK_EVERY = 30 * 60 * 1000;
+
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState !== "visible" || !dataText.products) return;
+  if (Date.now() - dataCheckedAt < DATA_CHECK_EVERY) return;
+  dataCheckedAt = Date.now();
+  try {
+    const [p, c] = await Promise.all([
+      fetch("./products.json", { cache: "no-cache" }),
+      fetch("./content.json", { cache: "no-cache" }),
+    ]);
+    if (!p.ok) return;
+    const productsNow = await p.text();
+    const contentNow = c.ok ? await c.text() : dataText.content;
+    if (productsNow === dataText.products && contentNow === dataText.content) return;
+    document.getElementById("update-text").textContent = "Каталог обновился";
+    document.getElementById("install-bar").classList.remove("open");
+    document.getElementById("update-bar").classList.add("open");
+  } catch {
+    // Нет сети — сверим в следующий раз.
+  }
+});
+
+// Кнопку «Обновить» обслуживает блок service worker выше; где его нет,
+// она просто перезагружает страницу.
+if (!("serviceWorker" in navigator)) {
+  document.getElementById("update-yes").addEventListener("click", () => location.reload());
+}
 
 // ------------------------------------------------- Настройка контакта в QR
 // Форма живёт прямо в окне QR-кода: менеджер открывает код, чтобы показать

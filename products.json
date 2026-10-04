@@ -342,7 +342,7 @@
     "id": 5,
     "name": "Штукатурка гипсовая «Старт»",
     "category": "Гипсовая штукатурка",
-    "unit": "мешок 25 кг",
+    "unit": "мешок 30 кг / 25 кг",
     "price": "",
     "gost": "ГОСТ Р 58279-2024",
     "photo": "products/start.jpg",
@@ -508,7 +508,7 @@
     "calc": {
       "type": "thickness",
       "ratePerM2": 1.05,
-      "pack": 25
+      "pack": 30
     },
     "cert": "gypsum-plasters"
   },

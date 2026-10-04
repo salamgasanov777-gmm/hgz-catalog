@@ -51,7 +51,7 @@
 <link rel="icon" href="icon-192-v2.png">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=61">
+<link rel="stylesheet" href="style.css?v=64">
 </head>
 <body>
   <div class="topbar">
@@ -118,7 +118,8 @@
     <button id="section-all" class="section-all">Все разделы</button>
   </div>
   <button id="compare-btn" class="compare-btn" style="display:none">⇄ Сравнить клеи</button>
-  <div id="grid" class="grid"></div>
+  <button id="order-btn" class="compare-btn" style="display:none">Оформить заявку</button>
+  <div id="grid" class="grid"><div class="empty grid-loading" role="status">Загружаем каталог…</div></div>
   <footer id="site-foot" class="site-foot" hidden></footer>
 
   <div id="compare-backdrop" class="sheet-backdrop"></div>
@@ -126,6 +127,19 @@
     <div class="sheet-tools"><button id="compare-close" class="close" aria-label="Закрыть">✕</button></div>
     <h2 id="compare-title">Сравнение</h2>
     <div id="compare-table-wrap" class="compare-table-wrap"></div>
+  </div>
+
+  <div id="order-backdrop" class="sheet-backdrop"></div>
+  <div id="order-sheet" class="sheet order-sheet" role="dialog" aria-modal="true" aria-labelledby="order-title" tabindex="-1">
+    <div class="sheet-tools"><button id="order-close" class="close" aria-label="Закрыть">✕</button></div>
+    <h2 id="order-title">Заявка</h2>
+    <p class="order-lead">Проверьте количество. В WhatsApp уйдёт готовый список, цену и наличие назовёт менеджер.</p>
+    <div id="order-list" class="order-list"></div>
+    <label class="order-field"><span>Объект</span><input id="order-object" type="text" autocomplete="off" placeholder="адрес или что строите"></label>
+    <label class="order-field"><span>Когда нужно</span><input id="order-when" type="text" autocomplete="off" placeholder="например, на следующей неделе"></label>
+    <a id="order-send" class="ask-btn order-send" target="_blank" rel="noopener"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg><span id="order-send-label">Отправить заявку в WhatsApp</span></a>
+    <button id="order-copy" class="cert-btn order-copy" type="button"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span id="order-copy-label">Скопировать текст</span></button>
+    <p class="order-note">Каталог сам ничего не отправляет: заявка уходит из вашего WhatsApp, когда вы нажмёте «Отправить».</p>
   </div>
 
   <div id="qr-backdrop" class="sheet-backdrop"></div>
@@ -139,7 +153,7 @@
   </div>
 
   <div id="update-bar" class="update-bar">
-    <span class="install-text">Вышла новая версия каталога</span>
+    <span id="update-text" class="install-text">Вышла новая версия каталога</span>
     <button id="update-yes" class="install-yes">Обновить</button>
   </div>
 
@@ -203,7 +217,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=61"></script>
-  <script src="app.js?v=61"></script>
+  <script src="qr.js?v=64"></script>
+  <script src="app.js?v=64"></script>
 </body>
 </html>

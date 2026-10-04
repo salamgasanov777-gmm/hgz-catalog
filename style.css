@@ -446,6 +446,65 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 .compare-sheet {
   max-height: 88vh;
 }
+
+/* Окно заявки: строка на товар — название, фасовка, количество кнопками.
+   Поля ввода 16 px: меньший шрифт iPhone увеличивает при наборе. */
+.order-sheet { max-height: 92vh; }
+.order-sheet h2 { margin: 0 0 6px; font-size: 19px; }
+.order-lead { margin: 0 0 6px; font-size: 13.5px; line-height: 1.4; color: var(--muted); }
+.order-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.order-name { margin-bottom: 8px; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.order-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.order-pack {
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--ink);
+}
+.order-pack-one { font-size: 13.5px; color: var(--muted); }
+.order-qty { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.order-qty button {
+  width: 44px;
+  height: 42px;
+  border: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.order-num {
+  width: 56px;
+  height: 42px;
+  border: none;
+  text-align: center;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--card);
+  color: var(--ink);
+}
+.order-word { font-size: 14px; color: var(--ink); }
+.order-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.order-field { display: block; margin: 14px 0 0; }
+.order-field span { display: block; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+.order-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+.order-send { margin-top: 18px; }
+.order-copy { cursor: pointer; font-family: inherit; text-align: left; }
+.order-note { margin: 10px 2px 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
 .compare-sheet h2 { margin: 0 0 14px; font-size: 19px; }
 
 .compare-table-wrap {
