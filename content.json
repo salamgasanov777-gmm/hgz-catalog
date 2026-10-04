@@ -86,6 +86,11 @@
   ],
   "videos": [
     {
+      "title": "Продукция Хабезского завода",
+      "file": "video/produkciya.mp4",
+      "poster": "video/produkciya.jpg"
+    },
+    {
       "title": "Фильм о заводе (2 минуты)",
       "file": "video/presentation.mp4",
       "poster": "video/presentation.jpg"
