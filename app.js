@@ -1060,6 +1060,20 @@ function updateFavNav() {
   btn.classList.toggle("active", activeCategory === "__fav__");
 }
 
+// Эмблема и «Habez Gips» в шапке — сразу на главную, как в приложении №2:
+// без раздела, поиска и фильтра задачи, наверх страницы. Раздел закрывается
+// тем же шагом, что «Все разделы», поэтому «Назад» на Android не сбивается.
+document.getElementById("brand").addEventListener("click", () => {
+  if (moreMenuOpen()) {
+    closeMoreMenu(false);
+    return;
+  }
+  document.getElementById("search").value = "";
+  activeTask = null;
+  selectCategory("Все");
+  scrollTo({ top: 0 });
+});
+
 document.getElementById("fav-nav-btn").addEventListener("click", () => {
   // Звезда в шапке доступна и при открытом меню «⋯». Первое касание только
   // закрывает меню, как касание мимо него: иначе запись меню в истории
@@ -1391,8 +1405,11 @@ function render() {
   // Название открытого раздела — в заголовке шапки, она всегда на виду.
   // Под шапкой — счёт товаров и возврат ко всем разделам.
   const title = document.querySelector(".topbar h1");
-  title.textContent = activeCategory === "Все" ? "Каталог продукции" : activeCategory === "__fav__" ? "Избранное" : activeCategory;
+  title.textContent = activeCategory === "Все" ? "каталог продукции" : activeCategory === "__fav__" ? "Избранное" : activeCategory;
   title.title = title.textContent;
+  // На главной вторая строка — тихая подпись под «Habez Gips», как в приложении №2;
+  // в разделе там его название, и оно должно читаться.
+  title.classList.toggle("home", activeCategory === "Все");
   // Длинное название («Цементные и цементно-известковые штукатурки») в одну
   // строку не помещается — даём ему две строки шрифтом поменьше.
   title.classList.toggle("long", title.textContent.length > 22);
