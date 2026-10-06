@@ -641,6 +641,13 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 @supports selector(:has(*)) {
   .card .name:focus-visible { outline: none; }
 }
+/* После закрытия окна фокус возвращается на товар, который открывали. iPhone
+   иногда (чаще сразу после обновления) считает такой возврат «клавиатурным»
+   и рисует рамку, хотя человек нажимал пальцем. Последнее касание помечает
+   страницу классом touch-nav (app.js) — тогда рамки нет; клавиша снимает метку. */
+html.touch-nav .card:has(.name:focus-visible),
+html.touch-nav .card .name:focus-visible,
+html.touch-nav .brand-home:focus-visible { outline: none; }
 
 @media (hover: hover) {
   .card:hover { translate: 0 -2px; box-shadow: 0 10px 24px -14px rgba(22, 32, 43, 0.35); }

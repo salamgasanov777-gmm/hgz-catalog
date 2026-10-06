@@ -827,6 +827,23 @@ function focusDialog(node) {
 // Возвращаем фокус тому, кто окно открыл. Если под закрытым окном осталось
 // другое — фокус уходит туда: так при закрытии QR поверх карточки человек
 // остаётся в карточке, а не улетает в шапку, которая ещё помечена inert.
+// Чем человек пользуется сейчас — пальцем (мышью) или клавиатурой. От этого
+// зависит, рисовать ли рамку фокуса вокруг товара после закрытия окна
+// (style.css, html.touch-nav). Клавиши-модификаторы метку не снимают.
+document.addEventListener(
+  "pointerdown",
+  () => document.documentElement.classList.add("touch-nav"),
+  { capture: true, passive: true }
+);
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return;
+    document.documentElement.classList.remove("touch-nav");
+  },
+  true
+);
+
 function restoreFocus(opener) {
   const top = topOverlay();
   if (top && top.node) {
