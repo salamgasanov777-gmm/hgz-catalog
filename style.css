@@ -1,17 +1,19 @@
 :root {
-  /* Палитра снята с мешков ХАБЕЗ: холодная белая бумага, синий логотипа
-     и его светлый оттенок для подложек. Каталог читается как продолжение
-     упаковки, а не как отдельная программа. */
-  --bg: #eff2f6;
+  /* Палитра — как у приложения №2 (HGZ Pro): тёплый светлый фон гипса и
+     крафтовой бумаги мешка, глубокий синий завода и охра — только для
+     действий «узнать цену», «заявка», «избранное». */
+  --bg: #f4f1ec;
   --card: #ffffff;
   --ink: #16202b;
-  --muted: #68757f;
-  --accent: #1f5fa8;
-  --accent-soft: #e7eff8;
-  --border: #dfe5ec;
+  --muted: #5f6b76;
+  --accent: #1f3b57;
+  --accent-soft: #eaf0f6;
+  --border: #e2ddd4;
   /* Цвет текста поверх акцентной заливки: в тёмной теме акцент светлеет,
      поэтому белым по нему уже не прочитать. */
   --on-accent: #ffffff;
+  --gold: #b9722a;
+  --on-gold: #ffffff;
   /* Предел ширины контента на большом экране: дальше карточки не растягиваются,
      а добавляются колонки. */
   --content-max: 1080px;
@@ -19,14 +21,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #11161c;
-    --card: #1b232c;
-    --ink: #e9eef4;
-    --muted: #94a3b1;
-    --accent: #74aae2;
-    --accent-soft: #1e3149;
-    --border: #29323c;
-    --on-accent: #0d141b;
+    --bg: #0e1318;
+    --card: #161d25;
+    --ink: #e8eef4;
+    --muted: #a7b6c3;
+    --accent: #5b9bd5;
+    --accent-soft: #18232f;
+    --border: #263039;
+    --on-accent: #08131e;
+    --gold: #e0954a;
+    --on-gold: #1d1408;
   }
 }
 
@@ -37,14 +41,16 @@
 :root[data-theme="dark"] { color-scheme: dark; }
 
 :root[data-theme="dark"] {
-  --bg: #11161c;
-  --card: #1b232c;
-  --ink: #e9eef4;
-  --muted: #94a3b1;
-  --accent: #74aae2;
-  --accent-soft: #1e3149;
-  --border: #29323c;
-  --on-accent: #0d141b;
+  --bg: #0e1318;
+  --card: #161d25;
+  --ink: #e8eef4;
+  --muted: #a7b6c3;
+  --accent: #5b9bd5;
+  --accent-soft: #18232f;
+  --border: #263039;
+  --on-accent: #08131e;
+  --gold: #e0954a;
+  --on-gold: #1d1408;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -169,7 +175,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   align-items: center;
   justify-content: center;
 }
-.fav-nav-btn.active { color: #e0a52c; border-color: #e0a52c; }
+.fav-nav-btn.active { color: var(--gold); border-color: var(--gold); }
 
 .icon-btn {
   width: 34px;
@@ -198,8 +204,8 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   height: 17px;
   padding: 0 4px;
   border-radius: 9px;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--gold);
+  color: var(--on-gold);
   font-size: 10.5px;
   font-weight: 700;
   align-items: center;
@@ -442,6 +448,8 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   font-weight: 700;
   width: calc(100% - 32px);
 }
+/* «Оформить заявку» — действие, как «Узнать цену»: охрой. «Сравнить» остаётся синей. */
+#order-btn { background: var(--gold); color: var(--on-gold); }
 
 .compare-sheet {
   max-height: 88vh;
@@ -683,7 +691,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
      вниз и влево — с запасом. В сумме 25 + 7 + 12 = 44 в обе стороны. */
   inset: -7px -7px -12px -12px;
 }
-.fav-btn.active { color: #e0a52c; border-color: #e0a52c; }
+.fav-btn.active { color: var(--gold); border-color: var(--gold); }
 
 /* Все фото товаров — 1000×520, поэтому блок под них той же пропорции:
    иначе сверху и снизу остаются пустые полосы в половину карточки. */
@@ -933,7 +941,7 @@ html.locked { overscroll-behavior: none; }
   box-shadow: 0 1px 4px rgba(16, 32, 52, 0.14);
   flex: 0 0 auto;
 }
-.fav-toggle.active { color: #e0a52c; }
+.fav-toggle.active { color: var(--gold); }
 
 /* ------------------------------------------------- Область нажатия
    Пальцу нужно около 44×44, но сами значки должны остаться прежнего размера:
@@ -1135,9 +1143,9 @@ html.locked { overscroll-behavior: none; }
   margin: 0 0 10px;
   padding: 11px 14px;
   border-radius: 12px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: var(--on-accent);
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--on-gold);
   font-size: 14.5px;
   font-weight: 700;
 }
