@@ -734,8 +734,38 @@ document.getElementById("section-all").addEventListener("click", () => selectCat
 const overlayStack = [];
 let savedScrollY = 0;
 
+// Страницу под окном отпускаем не сразу, а когда окно уже уехало вниз
+// (уход длится 0,22–0,32 с). Отпустить — значит перестроить весь каталог и
+// вернуть прокрутку; посреди ухода окна это давало рывок, а в приложении №2
+// страница отпускается после ухода шторки — потому там закрытие и плавное.
+const UNLOCK_DELAY = 340;
+let unlockTimer = 0;
+
+function unlockScrollSoon() {
+  clearTimeout(unlockTimer);
+  unlockTimer = setTimeout(() => {
+    unlockTimer = 0;
+    unlockScroll();
+  }, UNLOCK_DELAY);
+}
+
+// Отпустить сейчас — перед переходом, который сам прокручивает страницу
+// (крошки в карточке): иначе отложенное отпускание вернуло бы старую прокрутку.
+function unlockScrollNow() {
+  if (!unlockTimer) return;
+  clearTimeout(unlockTimer);
+  unlockTimer = 0;
+  unlockScroll();
+}
+
 function lockScroll() {
   if (overlayStack.length > 1) return;
+  // Окно открыли снова, пока страница ещё не отпущена после прошлого: она
+  // по-прежнему закреплена на нужном месте, запоминать заново нечего
+  // (window.scrollY сейчас 0, и место в списке потерялось бы).
+  clearTimeout(unlockTimer);
+  unlockTimer = 0;
+  if (document.documentElement.classList.contains("locked")) return;
   savedScrollY = window.scrollY;
   document.body.style.position = "fixed";
   document.documentElement.classList.add("locked");
@@ -905,7 +935,7 @@ function dismissOverlay() {
   entry.onClose();
   syncInert();
   restoreFocus(entry.opener);
-  unlockScroll();
+  unlockScrollSoon();
 }
 
 // Глубина записи в истории — сколько окон должно быть открыто. У записи без
@@ -945,7 +975,7 @@ window.addEventListener("popstate", (e) => {
     }
   }
 
-  unlockScroll();
+  unlockScrollSoon();
 
   // Меню «⋯» и раздел — по записи: «Назад» закрывает меню и возвращает из
   // раздела на главную, «Вперёд» открывает их снова.
@@ -1043,6 +1073,11 @@ function enableSwipeToClose(sheet) {
         dragging = dy > 0 && Math.abs(dy) > Math.abs(dx) && e.cancelable && sheet.scrollTop <= 0;
         if (!dragging) return;
         sheet.style.transition = "none";
+        // Окно — отдельным слоем видеокарты, как в приложении №2: телефон
+        // двигает готовую картинку, а не перерисовывает карточку с фото на
+        // каждом кадре. Только на время жеста и ухода — постоянный слой у
+        // каждого из семи окон съедал бы память.
+        sheet.style.willChange = "transform";
         if (backdrop) backdrop.style.transition = "none";
       }
 
@@ -1076,6 +1111,9 @@ function enableSwipeToClose(sheet) {
         backdrop.style.opacity = "0";
       }
       dismissOverlay();
+      setTimeout(() => {
+        if (!dragging) sheet.style.willChange = "";
+      }, UNLOCK_DELAY);
     } else {
       sheet.style.transition = SWIPE_BACK;
       sheet.style.removeProperty("--drag");
@@ -1088,6 +1126,7 @@ function enableSwipeToClose(sheet) {
       setTimeout(() => {
         if (dragging) return;
         sheet.style.transition = "";
+        sheet.style.willChange = "";
         if (backdrop) backdrop.style.transition = "";
       }, 250);
     }
@@ -1139,9 +1178,13 @@ function afterOverlaysClosed(fn) {
   if (!overlayStack.length) return fn();
   if (!OVERLAY_HISTORY) {
     while (overlayStack.length) dismissOverlay();
+    unlockScrollNow();
     return fn();
   }
-  window.addEventListener("popstate", () => fn(), { once: true });
+  window.addEventListener("popstate", () => {
+    unlockScrollNow();
+    fn();
+  }, { once: true });
   history.go(-overlayStack.length);
 }
 
