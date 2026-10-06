@@ -791,7 +791,7 @@ function unlockScroll() {
 // открыто окно, всё остальное помечается inert: туда не уходит Tab и до него
 // не добирается программа чтения с экрана. Закрытые окна помечены всегда —
 // иначе в них остаются кнопки, доступные с клавиатуры, хотя окна не видно.
-const DIALOG_IDS = ["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet", "cert-sheet"];
+const DIALOG_IDS = ["sheet", "compare-sheet", "order-sheet", "qr-sheet", "ios-sheet", "page-sheet", "cert-sheet"];
 const PAGE_REGIONS = [".topbar", "#home-intro", "#home-rail", "#section-bar", "#compare-btn", "#order-btn", "#grid", "#site-foot", "#update-bar", "#manager-bar", "#install-bar"];
 
 function setInert(el, on) {
@@ -1154,7 +1154,7 @@ function enableSwipeToClose(sheet) {
   sheet.addEventListener("touchcancel", finish);
 }
 
-["sheet", "compare-sheet", "qr-sheet", "ios-sheet", "page-sheet", "cert-sheet"].forEach((id) =>
+["sheet", "compare-sheet", "order-sheet", "qr-sheet", "ios-sheet", "page-sheet", "cert-sheet"].forEach((id) =>
   enableSwipeToClose(document.getElementById(id))
 );
 
@@ -2243,6 +2243,7 @@ function openOrder() {
   document.getElementById("order-send-label").textContent =
     manager && !manager.own ? "Отправить заявку менеджеру" : "Отправить заявку в WhatsApp";
   document.getElementById("order-copy-label").textContent = "Скопировать текст";
+  updateOrderLink();
   document.getElementById("order-backdrop").classList.add("open");
   document.getElementById("order-sheet").classList.add("open");
   document.getElementById("order-sheet").scrollTop = 0;
@@ -2301,10 +2302,22 @@ document.getElementById("order-backdrop").addEventListener("click", dismissOverl
 document.getElementById("order-close").addEventListener("click", dismissOverlay);
 
 // Адресат — как у «Узнать цену»: менеджер из QR, иначе клиент выбирает чат.
-document.getElementById("order-send").addEventListener("click", (e) => {
+// Адрес у кнопки есть всегда, а не появляется в момент нажатия: иначе во
+// встроенном браузере WhatsApp, при долгом нажатии («скопировать ссылку») и у
+// экранной читалки кнопка была ссылкой без адреса. Обновляется при открытии
+// окна и при любой правке — количества, фасовки, «Объекта», «Когда нужно».
+const orderSend = document.getElementById("order-send");
+function updateOrderLink() {
   const to = manager && !manager.own ? manager.phone : "";
-  e.currentTarget.href = `https://wa.me/${to}?text=${encodeURIComponent(orderText())}`;
-});
+  orderSend.href = `https://wa.me/${to}?text=${encodeURIComponent(orderText())}`;
+}
+document.getElementById("order-sheet").addEventListener("input", updateOrderLink);
+document.getElementById("order-sheet").addEventListener("change", updateOrderLink);
+document.getElementById("order-sheet").addEventListener("focusout", updateOrderLink);
+// Кнопки «−» и «+» меняют число без события input.
+orderList.addEventListener("click", updateOrderLink);
+// Запасной путь: на самом нажатии — самый свежий текст.
+orderSend.addEventListener("click", updateOrderLink);
 
 // Запасной путь, если WhatsApp нет: текст в буфер — дальше в Telegram или SMS.
 document.getElementById("order-copy").addEventListener("click", async () => {
