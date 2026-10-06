@@ -1288,19 +1288,83 @@ const SEARCH_SYNONYMS = {
   улица: ["фасад", "наружные"],
   снаружи: ["фасад", "наружные"],
   // Сокращения, которыми называют товар на объекте, а в названии их нет.
+  // «Машинное» нанесение завод называет «механизированным».
+  // «Влагостойкий» лист ГКЛ бывает ещё и влагоогнестойким.
+  машинная: ["механизированный", "машине"],
+  машинное: ["механизированный", "машине"],
+  машинный: ["механизированный", "машине"],
+  машинного: ["механизированный", "машине"],
+  машинным: ["механизированный", "машине"],
+  машинной: ["механизированный", "машине"],
+  машинную: ["механизированный", "машине"],
+  машинные: ["механизированный", "машине"],
+  влагостойкий: ["влагоогнестойкий"],
+  влагостойкая: ["влагоогнестойкий"],
+  влагостойкое: ["влагоогнестойкий"],
+  влагостойкие: ["влагоогнестойкий"],
+  влагостойкую: ["влагоогнестойкий"],
+  влагостойкого: ["влагоогнестойкий"],
+  покраска: ["окраска", "окрашивание"],
+  покраску: ["окраска", "окраску", "окрашивание"],
+  покраски: ["окраска", "окраски", "окрашивание"],
+  окраска: ["покраска", "окрашивание"],
+  окраску: ["покраска", "покраску", "окрашивание"],
+  окраски: ["покраска", "покраски", "окрашивание"],
+  плитка: ["плиточный"],
+  плитку: ["плиточный"],
+  плитки: ["плиточный"],
+  плиткой: ["плиточный"],
   гкл: ["гипсокартонный"],
   гклв: ["гипсокартонный"],
   пгп: ["пазогребневая"],
 };
 
-const FIELD_WEIGHT = { name: 100, gost: 45, summary: 50, unit: 40, area: 35, section: 14, table: 12 };
+// Слова, за которыми стоит чип «Подбор по задаче» (TASKS). Запрос «ванная»
+// даёт ровно тех, кого показывает чип «Ванная»: раньше он искал по тексту
+// и находил 21 товар из 30. Слово принимается в любой форме: «ванной»,
+// «ванную», «спальне».
+const TASK_STEMS = [
+  ["wet", ["ванн", "санузел", "санузл", "душев"]],
+  ["dry", ["комнат", "спальн"]],
+  ["facade", ["фасад", "улиц", "снаружи", "наружн"]],
+  ["plinth", ["цокол"]],
+];
+function taskOfWord(token) {
+  for (const [key, stems] of TASK_STEMS) {
+    if (stems.some((s) => token.startsWith(s) && token.length - s.length <= 3)) return key;
+  }
+  return null;
+}
+
+// Одно слово, два написания: завод и ГОСТ пишут «шпатлёвка», на упаковках и в
+// названиях каталога — «шпаклёвка», а люди говорят и так, и так. Раньше
+// «шпатлёвка» находила 2 товара из 14. Пары работают в обе стороны и для всех
+// форм слова («шпатлёвочная», «шпатлёвку»).
+const SPELLINGS = [["шпатл", "шпакл"]];
+function spellVariants(token) {
+  const out = [];
+  for (const [a, b] of SPELLINGS) {
+    if (token.includes(a)) out.push(token.replace(a, b));
+    if (token.includes(b)) out.push(token.replace(b, a));
+  }
+  return out;
+}
+
+const FIELD_WEIGHT = { name: 100, gost: 45, summary: 50, unit: 40, area: 35, usage: 30, section: 14, table: 12 };
 // Слово, найденное только в инструкции или в таблице характеристик, товар в
 // выдачу не пускает. Иначе «грунт» находит все 49 товаров: грунтовать
 // основание велено в инструкции у каждого. Такое совпадение по-прежнему
 // поднимает товар в списке и объясняется подписью «найдено в: инструкция»,
 // но само по себе поводом показать товар не является.
-const STRONG_FIELDS = ["name", "gost", "summary", "unit", "area"];
-const FIELD_LABEL = { gost: "ГОСТ", summary: "описание", unit: "фасовка", area: "область применения", section: "инструкция", table: "характеристики" };
+// «usage» — текст раздела «Область применения» (не таблица, а абзац). Слово
+// оттуда — настоящий повод показать товар: так «керамогранит» находит клеи
+// ГРАНИТ и ПРЕМИУМ, где он назван в области применения. Раздел «Описание» сюда
+// не берём: он пересказывает полкаталога («плита», «штукатурка» находили бы
+// клеи и грунты). Остальные разделы («Подготовка основания», «Порядок работы»,
+// хранение) по-прежнему считаются фоном.
+const STRONG_FIELDS = ["name", "gost", "summary", "unit", "area", "usage"];
+const FIELD_LABEL = { gost: "ГОСТ", summary: "описание", unit: "фасовка", area: "область применения", usage: "применение", section: "инструкция", table: "характеристики" };
+const USAGE_TITLES = ["область применения"];
 
 // Латинские буквы, неотличимые от русских на вид. В названиях они намешаны:
 // у клея «ГРАНИТ» С2TS1 первая буква русская, а «TS1» — латинские. Человек
@@ -1422,6 +1486,7 @@ function searchIndex(p) {
     summary: field(p.summary),
     unit: field(p.unit + " " + p.category),
     area: field(areaRows.join(" ")),
+    usage: field((p.sections || []).filter((x) => USAGE_TITLES.includes(normalizeText(x.title))).map((x) => x.text).join(" ")),
     section: field((p.sections || []).map((x) => x.title + " " + x.text).join(" ")),
     table: field(otherTables.join(" ")),
   };
@@ -1457,7 +1522,32 @@ function wordMatches(indexed, query) {
   if (limit < 5) return 0;
   let same = 0;
   while (same < limit && indexed[same] === query[same]) same++;
-  return same >= 4 && Math.abs(indexed.length - query.length) <= 4 ? 1 : 0;
+  // Общее начало должно быть заметной частью слова, а не просто четыре буквы:
+  // «подвес» и «подвалы» делили «подв», и по подвесу находились товары «для
+  // подвалов». Для длинных слов («штукатурка» — «штукатурная») требование
+  // растёт вместе с длиной.
+  const need = Math.max(4, Math.ceil(query.length * 0.7));
+  return same >= need && Math.abs(indexed.length - query.length) <= 4 ? 1 : 0;
+}
+
+// Слово из текста «Область применения» делает товар подходящим в двух случаях
+// сразу: (1) оно редкое — встречается там не больше чем у шести товаров;
+// (2) его нет ни в одном названии. «Керамогранит» и «обои» — про поверхность:
+// назван у четырёх клеев, в названиях не встречается — находит эти клеи.
+// «Плита», «штукатурка», «стяжка» — названия самих товаров; в области
+// применения они упомянуты как соседний материал («клей для стяжки»), и если
+// пускать такие совпадения, любой запрос про материал тянет полкаталога. По
+// ним ищем только в названии и описании, как и раньше.
+const USAGE_MAX_PRODUCTS = 6;
+const usageSpread = new Map();
+function usageIsSpecific(variants) {
+  const key = variants.join("|");
+  if (!usageSpread.has(key)) {
+    const inName = products.some((p) => variants.some((v) => fieldQuality(searchIndex(p).name, v) >= 2));
+    const n = products.filter((p) => variants.some((v) => fieldQuality(searchIndex(p).usage, v) >= 2)).length;
+    usageSpread.set(key, !inName && n <= USAGE_MAX_PRODUCTS);
+  }
+  return usageSpread.get(key);
 }
 
 function fieldQuality(field, variant) {
@@ -1482,10 +1572,22 @@ function searchMatch(p, queryTokens, latinVariants) {
   let strong = false;
 
   for (const token of queryTokens) {
-    const variants = [token, ...(SEARCH_SYNONYMS[token] || []), ...((latinVariants && latinVariants.get(token)) || [])];
+    // Слово как набрали и его русское прочтение, если набрано латиницей
+    // («plitka» → «плитка»). Синонимы и написания применяются к обоим.
+    const base = [token, ...((latinVariants && latinVariants.get(token)) || [])];
+    const variants = [...new Set(base.flatMap((v) => [v, ...(SEARCH_SYNONYMS[v] || []), ...spellVariants(v)]))];
     let best = 0;
     let bestField = null;
+    // Слово задачи («ванная», «фасад») — как нажатый чип: товар подходит, если
+    // его подходит чип. Баллы как у описания; подпись — «область применения».
+    const taskKey = base.map(taskOfWord).find(Boolean);
+    if (taskKey && matchesTask(p, taskKey)) {
+      best = FIELD_WEIGHT.summary;
+      bestField = "area";
+    }
+    const usageOk = usageIsSpecific(variants);
     for (const field of Object.keys(FIELD_WEIGHT)) {
+      if (field === "usage" && !usageOk) continue;
       const weight = FIELD_WEIGHT[field];
       // Слово целиком весит больше начала слова, начало — больше общего корня.
       const quality = Math.max(...variants.map((v) => fieldQuality(index[field], v)));

@@ -7,6 +7,8 @@
 //   2. Код: разбирается ли он, есть ли в разметке всё, что ищет app.js,
 //      на месте ли файлы офлайн-запаса и значки.
 //   3. Данные каталога (products.json, content.json, файлы фотографий).
+//   4. Поиск: эталонные запросы из tools/search-cases.json прогоняются через
+//      настоящий код поиска из app.js на настоящих товарах.
 //
 // Если что-то не так — печатает ФАЙЛ, МЕСТО и ЧТО ИМЕННО, и выходит с кодом 1.
 // Поэтому скрипт можно ставить в любую проверку перед пушем.
@@ -363,6 +365,98 @@ function checkCertificates() {
   console.log(`  сертификаты: файлов ${Object.keys(reg).length}, товаров с кнопкой ${products.filter((p) => p.cert).length} из ${products.length}`);
 }
 
+// ------------------------------------------------- 4. Поиск
+// Код поиска вырезается из app.js по меткам и запускается на товарах из
+// products.json — это тот же код, что работает у клиента, а не его копия.
+// Эталонные запросы лежат в tools/search-cases.json. Условия записи:
+//   equalsTask / includeTask — результат совпадает с чипом задачи (все товары
+//     чипа находятся); sameAs — тот же набор, что у другого запроса;
+//   min / max — число найденных; include / exclude — части названий, которые
+//     должны / не должны встретиться; first — часть названия первого товара.
+function loadSearchEngine(products) {
+  const src = read("app.js");
+  const a = src.indexOf("const TASKS = [");
+  const b = src.indexOf("function loadFavorites()");
+  const c = src.indexOf("// ---------------------------------------------------------------- Поиск");
+  const d = src.indexOf("function render() {");
+  if ([a, b, c, d].some((x) => x < 0)) throw new Error("не найдены метки блока поиска в app.js (TASKS / «Поиск» / render)");
+  const code =
+    "let products = [];\n" + src.slice(a, b) + "\n" + src.slice(c, d) + "\n" +
+    "globalThis.__api = { searchMatch, tokenize, translitVariants, matchesTask, setProducts: (p) => { products = p; } };";
+  const ctx = {};
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(code, ctx);
+  const api = ctx.__api;
+  api.setProducts(products);
+  const run = (q) => {
+    const tokens = api.tokenize(q);
+    const lat = api.translitVariants(q);
+    if (!tokens.length) return [];
+    return products
+      .map((p, i) => ({ p, i, m: api.searchMatch(p, tokens, lat) }))
+      .filter((x) => x.m)
+      .sort((x, y) => y.m.score - x.m.score || x.i - y.i)
+      .map((x) => x.p);
+  };
+  return { run, task: (key) => products.filter((p) => api.matchesTask(p, key)) };
+}
+
+function checkSearch() {
+  const products = parseJson("products.json");
+  const cases = parseJson("tools/search-cases.json");
+  if (!Array.isArray(products) || !Array.isArray(cases)) return;
+  let engine;
+  try {
+    engine = loadSearchEngine(products);
+  } catch (e) {
+    fail("app.js", "не удалось запустить поиск для проверки", e.message);
+    return;
+  }
+  const norm = (s) => String(s).toLowerCase().replace(/ё/g, "е");
+  const has = (list, part) => list.some((p) => norm(p.name).includes(norm(part)));
+  const ids = (list) => new Set(list.map((p) => p.id));
+  let bad = 0;
+
+  for (const k of cases) {
+    const where = `поиск «${k.q}»`;
+    const res = engine.run(k.q);
+    const names = (list) => list.slice(0, 4).map((p) => String(p.name).slice(0, 30)).join("; ");
+    const problem = (what, detail) => {
+      bad++;
+      fail(where, what, detail + (k.why ? ` (${k.why})` : ""));
+    };
+
+    for (const key of [k.equalsTask, k.includeTask].filter(Boolean)) {
+      const chip = engine.task(key);
+      const got = ids(res);
+      const missing = chip.filter((p) => !got.has(p.id));
+      if (missing.length) problem(`не нашёл товары чипа «${key}»`, `нет ${missing.length} из ${chip.length}: ${names(missing)}`);
+      if (k.equalsTask) {
+        const chipIds = ids(chip);
+        const extra = res.filter((p) => !chipIds.has(p.id));
+        if (extra.length) problem(`нашёл лишнее сверх чипа «${key}»`, `${extra.length} шт.: ${names(extra)}`);
+      }
+    }
+    if (k.sameAs) {
+      const other = engine.run(k.sameAs);
+      const a = ids(res);
+      const b = ids(other);
+      if (a.size !== b.size || [...a].some((id) => !b.has(id))) {
+        problem(`результат не совпал с запросом «${k.sameAs}»`, `${res.length} против ${other.length}`);
+      }
+    }
+    if (k.min !== undefined && res.length < k.min) problem("нашлось меньше нужного", `${res.length}, нужно не меньше ${k.min}`);
+    if (k.max !== undefined && res.length > k.max) problem("нашлось больше допустимого", `${res.length}, допустимо не больше ${k.max}: ${names(res)}…`);
+    for (const part of k.include || []) if (!has(res, part)) problem("не нашёл нужный товар", `«${part}»; нашлось ${res.length}: ${names(res)}`);
+    for (const part of k.exclude || []) if (has(res, part)) problem("нашёл лишнее", `«${part}»`);
+    if (k.first && !(res[0] && norm(res[0].name).includes(norm(k.first)))) {
+      problem("первым стоит не тот товар", `ожидали «${k.first}», первым — «${res[0] ? String(res[0].name).slice(0, 40) : "ничего"}»`);
+    }
+  }
+  console.log(`  поиск: ${cases.length} эталонных запросов${bad ? `, не прошли: ${bad}` : ", все прошли"}`);
+}
+
 // ------------------------------------------------- Запуск
 console.log("Проверка версий");
 checkAgainstPublished(checkVersions());
@@ -372,6 +466,8 @@ console.log("\nПроверка данных");
 checkProducts();
 checkContent();
 checkCertificates();
+console.log("\nПроверка поиска");
+checkSearch();
 
 if (warnings.length) {
   console.log(`\nПредупреждения (${warnings.length}) — публиковать можно, но посмотрите:`);
