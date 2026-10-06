@@ -68,9 +68,14 @@ self.addEventListener("message", (e) => {
   if (e.data && e.data.type === "skip-waiting") self.skipWaiting();
 });
 
+// Удаляем только свои старые запасы (hgz-cache-…). Хранилище общее на весь
+// адрес github.io, там же лежат запасы приложения №2 (habez-pro) — раньше
+// каждое наше обновление стирало и их.
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("hgz-cache-") && k !== CACHE).map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
