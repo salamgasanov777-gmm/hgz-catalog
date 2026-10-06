@@ -868,7 +868,17 @@ function openOverlay(onClose, node, opener, reopen) {
   hideMoreMenu(false);
   // Смещение от прошлого свайпа, которым окно закрыли, — иначе оно
   // откроется не до конца.
-  if (node) node.style.removeProperty("--drag");
+  // То же со своим движением смахивания и затемнением, которое при смахивании
+  // светлело: открывается окно по общим правилам из style.css.
+  if (node) {
+    node.style.removeProperty("--drag");
+    node.style.transition = "";
+    const backdrop = swipeBackdrop(node);
+    if (backdrop) {
+      backdrop.style.opacity = "";
+      backdrop.style.transition = "";
+    }
+  }
   overlayStack.push({ onClose, node: node || null, opener: from, reopen });
   lockScroll();
   syncInert();
@@ -972,11 +982,26 @@ document.addEventListener("keydown", (e) => {
 
 // Закрытие шторки свайпом вниз. Тянуть можно только когда содержимое уже
 // прокручено к началу — иначе жест конфликтовал бы с чтением длинных карточек.
+// Движение — как у шторки приложения №2: пока тянут, затемнение за окном
+// светлеет; отпустили — окно уходит вниз с ускорением за 0,22 с; быстрый
+// короткий взмах тоже закрывает; недотянули — мягко возвращается на место.
+const SWIPE_OUT = "transform 0.22s cubic-bezier(0.4, 0, 1, 1)";
+const SWIPE_BACK = "transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1)";
+
+function swipeBackdrop(sheet) {
+  const prev = sheet.previousElementSibling;
+  return prev && prev.classList.contains("sheet-backdrop") ? prev : null;
+}
+
 function enableSwipeToClose(sheet) {
-  const CLOSE_AFTER = 90; // столько нужно протянуть, чтобы окно закрылось
+  const backdrop = swipeBackdrop(sheet);
   let startX = 0;
   let startY = 0;
   let shift = 0;
+  // Скорость пальца (точек за миллисекунду) — для быстрого взмаха.
+  let lastY = 0;
+  let lastAt = 0;
+  let speed = 0;
   // null — ещё не ясно, что за жест; true — тянем окно; false — не наш жест
   // (прокрутка, листание фото, перемотка ролика), до конца касания не трогаем.
   let dragging = null;
@@ -991,6 +1016,9 @@ function enableSwipeToClose(sheet) {
       }
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
+      lastY = startY;
+      lastAt = e.timeStamp;
+      speed = 0;
       shift = 0;
       dragging = null;
     },
@@ -1015,11 +1043,17 @@ function enableSwipeToClose(sheet) {
         dragging = dy > 0 && Math.abs(dy) > Math.abs(dx) && e.cancelable && sheet.scrollTop <= 0;
         if (!dragging) return;
         sheet.style.transition = "none";
+        if (backdrop) backdrop.style.transition = "none";
       }
 
       e.preventDefault();
+      const y = e.touches[0].clientY;
+      if (e.timeStamp > lastAt) speed = (y - lastY) / (e.timeStamp - lastAt);
+      lastY = y;
+      lastAt = e.timeStamp;
       shift = Math.max(0, dy);
       sheet.style.setProperty("--drag", `${shift}px`);
+      if (backdrop) backdrop.style.opacity = String(Math.max(0, 1 - shift / 420));
     },
     { passive: false }
   );
@@ -1028,15 +1062,34 @@ function enableSwipeToClose(sheet) {
     const was = dragging;
     dragging = null;
     if (!was) return;
-    sheet.style.transition = "";
-    if (shift > CLOSE_AFTER) {
+    // Закрыть: протянули на 22 % высоты окна (но не больше 150 точек) или
+    // быстро смахнули вниз.
+    const closeAfter = Math.min(150, sheet.offsetHeight * 0.22);
+    if (shift > closeAfter || (speed > 0.6 && shift > 10)) {
       // Смещение не сбрасываем: окно уезжает вниз с той точки, где его
       // отпустили. Раньше его сбрасывали сразу, а на Android окно
       // закрывается через историю, на кадр позже, — и оно успевало прыгнуть
       // вверх, а потом уже уезжало вниз. Сбрасывает смещение openOverlay.
+      sheet.style.transition = SWIPE_OUT;
+      if (backdrop) {
+        backdrop.style.transition = "opacity 0.22s, visibility 0.22s";
+        backdrop.style.opacity = "0";
+      }
       dismissOverlay();
     } else {
+      sheet.style.transition = SWIPE_BACK;
       sheet.style.removeProperty("--drag");
+      if (backdrop) {
+        backdrop.style.transition = "opacity 0.2s";
+        backdrop.style.opacity = "";
+      }
+      // Вернулось — своё движение больше не нужно: ✕ и открытие снова идут
+      // по общим правилам из style.css.
+      setTimeout(() => {
+        if (dragging) return;
+        sheet.style.transition = "";
+        if (backdrop) backdrop.style.transition = "";
+      }, 250);
     }
     shift = 0;
   };
