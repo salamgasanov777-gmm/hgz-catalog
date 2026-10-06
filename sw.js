@@ -49,7 +49,8 @@ async function precache() {
     EXTRA.map(async (url) => {
       try {
         const res = await fetch(url, { cache: mode(url) });
-        if (res && res.ok) await cache.put(url, res);
+        // Битые данные в запас не кладём — см. isGoodData ниже.
+        if (res && res.ok && (!isData(url) || (await isGoodData(res, url)))) await cache.put(url, res);
       } catch (e) {
         // Молча пропускаем: этот файл попадёт в запас при первом обращении.
       }
@@ -112,6 +113,28 @@ function withTimeout(promise, ms) {
   });
 }
 
+// Файлы данных: товары и страницы завода.
+function isData(pathname) {
+  return /\/(products|content)\.json$/i.test(pathname);
+}
+
+// Целы ли данные. Сайт может ответить «успешно» и испорченным файлом —
+// например, если на сайт попала правка products.json с ошибкой. Раньше такой
+// файл ложился в запас поверх хорошей копии, и каталог у клиентов пустел даже
+// без интернета, пока не выложат исправление. Теперь битый файл не показываем
+// и не сохраняем — остаётся прежняя копия.
+async function isGoodData(res, pathname) {
+  try {
+    const data = await res.clone().json();
+    if (/products\.json$/i.test(pathname)) {
+      return Array.isArray(data) && data.length > 0 && data.every((p) => p && p.id != null && typeof p.name === "string");
+    }
+    return Boolean(data) && typeof data === "object" && !Array.isArray(data);
+  } catch {
+    return false;
+  }
+}
+
 // Разметка, код и данные — сначала сеть, чтобы правки появлялись сразу. Но с
 // ограничением: если за 4 секунды ответа нет, показываем сохранённую копию.
 async function networkFirst(req) {
@@ -120,26 +143,34 @@ async function networkFirst(req) {
   // по точному адресу, не находили — и без сети вместо сохранённого каталога
   // была ошибка браузера. Теперь берём сохранённую главную, а каждую такую
   // ссылку отдельной копией не храним.
-  const page = req.mode === "navigate" && new URL(req.url).search !== "";
+  const url = new URL(req.url);
+  const page = req.mode === "navigate" && url.search !== "";
+  const data = isData(url.pathname);
 
-  const network = fetch(req).then((res) => {
-    if (res && res.status === 200 && !page) {
+  // good — ответ годится и показать, и сохранить: код 200, а у данных ещё и
+  // целое содержимое. Проверка данных читает файл целиком, поэтому 4 секунды
+  // ниже считаются до конца загрузки, а не до первого байта.
+  const network = fetch(req).then(async (res) => {
+    const good = Boolean(res) && res.status === 200 && (!data || (await isGoodData(res, url.pathname)));
+    if (good && !page) {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(req, copy));
     }
-    return res;
+    return { res, good };
   });
 
   const cached =
     (await caches.match(req)) ||
     (page ? (await caches.match(req, { ignoreSearch: true })) || (await caches.match("./index.html")) : undefined);
-  if (!cached) return network;
+  // Копии ещё нет (первый заход) — отдаём, что пришло: каталог сам покажет
+  // «Каталог не загрузился» с кнопкой «Обновить».
+  if (!cached) return network.then((r) => r.res);
 
   try {
-    const res = await withTimeout(network, 4000);
-    // Сайт ответил ошибкой (404, сбой сервера) — рабочая копия лучше
-    // страницы с ошибкой или битых данных.
-    return res && res.status === 200 ? res : cached;
+    const { res, good } = await withTimeout(network, 4000);
+    // Сайт ответил ошибкой (404, сбой сервера) или прислал битые данные —
+    // рабочая копия лучше страницы с ошибкой или пустого каталога.
+    return good ? res : cached;
   } catch {
     return cached;
   }
