@@ -1063,15 +1063,46 @@ function updateFavNav() {
 // Эмблема и «Habez Gips» в шапке — сразу на главную, как в приложении №2:
 // без раздела, поиска и фильтра задачи, наверх страницы. Раздел закрывается
 // тем же шагом, что «Все разделы», поэтому «Назад» на Android не сбивается.
+// Раздел (или главная, cat = "Все") целиком: без поиска и фильтра задачи, с начала.
+function goToCategory(cat) {
+  document.getElementById("search").value = "";
+  activeTask = null;
+  selectCategory(cat);
+  scrollTo({ top: 0 });
+}
+
 document.getElementById("brand").addEventListener("click", () => {
   if (moreMenuOpen()) {
     closeMoreMenu(false);
     return;
   }
-  document.getElementById("search").value = "";
-  activeTask = null;
-  selectCategory("Все");
-  scrollTo({ top: 0 });
+  goToCategory("Все");
+});
+
+// Сначала закрыть все окна, потом сделать переход. На Android окна закрываются
+// шагом назад по истории, и переход ждёт, пока этот шаг пройдёт, — иначе новая
+// запись раздела легла бы раньше шага назад и «Назад» потом сбивался.
+function afterOverlaysClosed(fn) {
+  if (!overlayStack.length) return fn();
+  if (!OVERLAY_HISTORY) {
+    while (overlayStack.length) dismissOverlay();
+    return fn();
+  }
+  window.addEventListener("popstate", () => fn(), { once: true });
+  history.go(-overlayStack.length);
+}
+
+// Крошки над фото товара — как в приложении №2: «Каталог / Раздел / Имя».
+// Короткое имя — то, что в кавычках («ГРАНИТ»); без кавычек — название без
+// марки завода в конце («Плита пазогребневая полнотелая ПГП»).
+function shortName(p) {
+  const m = p.name.match(/«([^»]+)»/);
+  return m ? m[1] : p.name.replace(/\s+(ХАБЕЗ|HABEZ)$/i, "");
+}
+document.getElementById("sheet-crumb-home").addEventListener("click", () => afterOverlaysClosed(() => goToCategory("Все")));
+document.getElementById("sheet-crumb-cat").addEventListener("click", () => {
+  const cat = currentProduct && currentProduct.category;
+  if (cat) afterOverlaysClosed(() => goToCategory(cat));
 });
 
 document.getElementById("fav-nav-btn").addEventListener("click", () => {
@@ -1776,6 +1807,8 @@ function openSheet(p, openedFrom) {
   updateSheetFavButton();
   showPhotos(p);
   document.getElementById("sheet-name").textContent = p.name;
+  document.getElementById("sheet-crumb-cat").textContent = p.category;
+  document.getElementById("sheet-crumb-name").textContent = shortName(p);
   document.getElementById("sheet-price").textContent = [p.unit, p.price].filter(Boolean).join(" · ");
   document.getElementById("sheet-gost").textContent = p.gost || "";
 

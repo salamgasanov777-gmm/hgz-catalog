@@ -51,7 +51,7 @@
 <link rel="icon" href="icon-192-v2.png">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=69">
+<link rel="stylesheet" href="style.css?v=71">
 </head>
 <body>
   <div class="topbar">
@@ -205,6 +205,11 @@
       <button id="sheet-fav" class="fav-toggle" aria-label="Избранное">☆</button>
       <button id="sheet-close" class="close" aria-label="Закрыть">✕</button>
     </div>
+    <nav id="sheet-crumbs" class="crumbs" aria-label="Раздел товара">
+      <button id="sheet-crumb-home" type="button">Каталог</button><span aria-hidden="true">/</span>
+      <button id="sheet-crumb-cat" type="button"></button><span aria-hidden="true">/</span>
+      <span id="sheet-crumb-name" class="crumb-here"></span>
+    </nav>
     <div id="sheet-photo" class="photo-big"></div>
     <div id="sheet-dots" class="photo-dots"></div>
     <h2 id="sheet-name"></h2>
@@ -220,7 +225,7 @@
     <div id="sheet-body"></div>
   </div>
 
-  <script src="qr.js?v=69"></script>
-  <script src="app.js?v=69"></script>
+  <script src="qr.js?v=71"></script>
+  <script src="app.js?v=71"></script>
 </body>
 </html>

@@ -14,6 +14,10 @@
   --on-accent: #ffffff;
   --gold: #b9722a;
   --on-gold: #ffffff;
+  --gold-soft: #fbf1e4;
+  --ink-2: #46545f;
+  --line-strong: #cdc6ba;
+  --photo-bg: #ffffff;
   /* Предел ширины контента на большом экране: дальше карточки не растягиваются,
      а добавляются колонки. */
   --content-max: 1080px;
@@ -31,6 +35,10 @@
     --on-accent: #08131e;
     --gold: #e0954a;
     --on-gold: #1d1408;
+    --gold-soft: #241a10;
+    --ink-2: #a7b6c3;
+    --line-strong: #33404b;
+    --photo-bg: #edeae4;
   }
 }
 
@@ -51,6 +59,10 @@
   --on-accent: #08131e;
   --gold: #e0954a;
   --on-gold: #1d1408;
+  --gold-soft: #241a10;
+  --ink-2: #a7b6c3;
+  --line-strong: #33404b;
+  --photo-bg: #edeae4;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -843,6 +855,9 @@ html.locked { overscroll-behavior: none; }
    на широком экране окно ещё и центрируется по горизонтали, и перезапись
    transform из скрипта сбивала бы центровку. */
 .sheet.open { transform: translateY(var(--drag, 0px)); }
+/* Карточка товара — в цветах приложения №2: тёплый фон, на нём белые блоки
+   с тонкой рамкой, калькулятор в охре, текст графитовый. */
+#sheet { background: var(--bg); }
 
 /* Полоска сверху подсказывает, что окно можно потянуть вниз. */
 .sheet::before {
@@ -861,7 +876,8 @@ html.locked { overscroll-behavior: none; }
   border-radius: 14px;
   position: relative;
   overflow: hidden;
-  background: var(--accent-soft) center/contain no-repeat;
+  background: var(--photo-bg) center/contain no-repeat;
+  border: 1px solid var(--border);
   margin-bottom: 14px;
 }
 
@@ -879,7 +895,7 @@ html.locked { overscroll-behavior: none; }
 .photo-slide {
   flex: 0 0 100%;
   scroll-snap-align: center;
-  background: var(--accent-soft) center/contain no-repeat;
+  background: var(--photo-bg) center/contain no-repeat;
 }
 
 .photo-dots {
@@ -901,8 +917,44 @@ html.locked { overscroll-behavior: none; }
   transform: scale(1.25);
 }
 
+/* Крошки «Каталог / Раздел / Имя» — в одну строку слева от звезды и крестика
+   (им оставлено место справа); длинное обрезается многоточием. */
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  margin: 0 0 10px;
+  padding-right: 84px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.crumbs > * { flex: 0 0 auto; }
+/* Не влезает строка — сжимается в первую очередь название раздела
+   («Цементные и цемент…»), имя товара остаётся видным. */
+.crumbs button {
+  flex: 0 100 auto;
+  min-width: 2.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 8px 0;
+  margin: -8px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.crumbs button:first-child { flex: none; }
+/* Звезда и крестик карточки — в строку с крошками, как крестик в других окнах. */
+#sheet .sheet-tools { top: -4px; }
+.crumbs button:active { color: var(--accent); }
+.crumb-here { flex: 0 0 auto; max-width: 50%; overflow: hidden; text-overflow: ellipsis; }
+
 .sheet h2 { margin: 0 0 4px; font-size: 20px; line-height: 1.25; }
-.sheet .price { color: var(--accent); font-weight: 700; font-size: 16px; margin: 0 0 2px; }
+.sheet .price { color: var(--ink); font-weight: 700; font-size: 16px; margin: 0 0 2px; }
 .sheet .gost { color: var(--muted); font-size: 12px; margin: 0 0 14px; letter-spacing: 0.2px; }
 /* Кнопки «закрыть» и «в избранное» едут вместе с прокруткой: карточка
    товара — это пять-шесть экранов, и без этого, долистав до характеристик,
@@ -938,17 +990,17 @@ html.locked { overscroll-behavior: none; }
 }
 .qr-sheet h2 { justify-content: center; padding-left: 44px; }
 .sheet .close {
-  background: var(--accent-soft);
-  border: none; border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--border); border-radius: 50%;
   width: 30px; height: 30px;
-  font-size: 16px; color: var(--accent);
+  font-size: 16px; color: var(--ink-2);
   box-shadow: 0 1px 4px rgba(16, 32, 52, 0.14);
   flex: 0 0 auto;
 }
 
 .fav-toggle {
-  background: var(--accent-soft);
-  border: none; border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--border); border-radius: 50%;
   width: 30px; height: 30px;
   font-size: 16px; color: var(--muted);
   box-shadow: 0 1px 4px rgba(16, 32, 52, 0.14);
@@ -1112,7 +1164,8 @@ html.locked { overscroll-behavior: none; }
   margin-bottom: 16px;
 }
 .badge {
-  background: var(--accent-soft);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 6px;
   text-align: center;
@@ -1120,7 +1173,7 @@ html.locked { overscroll-behavior: none; }
   flex-direction: column;
   gap: 2px;
 }
-.badge-value { font-size: 13px; font-weight: 700; color: var(--accent); }
+.badge-value { font-size: 13px; font-weight: 700; color: var(--ink); }
 .badge-label { font-size: 10px; color: var(--muted); line-height: 1.2; }
 /* Самые узкие телефоны (320 px): четыре значка в ряд не помещаются, и
    последний («+5°…+30°») вылезал за край окна. Здесь — по два в ряд. */
@@ -1176,9 +1229,9 @@ html.locked { overscroll-behavior: none; }
   width: 100%;
   padding: 11px 14px;
   border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--ink);
   font-size: 14.5px;
   font-weight: 700;
 }
@@ -1219,13 +1272,14 @@ html.locked { overscroll-behavior: none; }
 
 .summary {
   font-size: 15px;
-  color: var(--ink);
+  color: var(--ink-2);
   line-height: 1.5;
   margin: 0 0 16px;
 }
 
 .calc-box {
-  background: var(--accent-soft);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
   border-radius: 14px;
   padding: 14px 16px 16px;
   margin: 0 0 18px;
@@ -1233,7 +1287,7 @@ html.locked { overscroll-behavior: none; }
 .calc-box h3 {
   font-size: 13px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--ink);
   margin: 0 0 10px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -1251,7 +1305,7 @@ html.locked { overscroll-behavior: none; }
   color: var(--muted);
 }
 .calc-field input {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
   background: var(--card);
   padding: 9px 10px;
@@ -1281,7 +1335,7 @@ html.locked { overscroll-behavior: none; }
   font-size: 14.5px;
   color: var(--ink);
 }
-.calc-result b { color: var(--accent); }
+.calc-result b { color: var(--ink); }
 
 .calc-note {
   margin: 10px 0 0;
@@ -1294,14 +1348,14 @@ html.locked { overscroll-behavior: none; }
 .doc-section h3 {
   font-size: 14px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--ink);
   margin: 0 0 6px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 .doc-section p {
   font-size: 14.5px;
-  color: var(--ink);
+  color: var(--ink-2);
   line-height: 1.55;
   margin: 0;
 }
@@ -1312,7 +1366,7 @@ html.locked { overscroll-behavior: none; }
   border-bottom: 1px solid var(--border);
 }
 .spec-row:last-child { border-bottom: none; }
-.spec-label { font-size: 13px; color: var(--muted); margin-bottom: 3px; line-height: 1.4; }
+.spec-label { font-size: 13px; color: var(--ink-2); margin-bottom: 3px; line-height: 1.4; }
 .spec-value { font-size: 14.5px; color: var(--ink); font-weight: 600; line-height: 1.4; overflow-wrap: break-word; }
 
 /* На телефоне две колонки во всю ширину. От планшета колонки добавляются сами
