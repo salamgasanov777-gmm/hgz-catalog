@@ -1588,8 +1588,10 @@ html.locked { overscroll-behavior: none; }
   .grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
-    padding: 18px 24px calc(env(safe-area-inset-bottom, 0px) + 32px);
-    max-width: calc(var(--content-max) + 48px);
+    /* Поле 16 px — как у поиска и блоков над сеткой: на планшете края
+       карточек стоят в той же колонке. На широком экране всё по центру. */
+    padding: 18px 16px calc(env(safe-area-inset-bottom, 0px) + 32px);
+    max-width: calc(var(--content-max) + 32px);
     margin-left: auto;
     margin-right: auto;
   }
@@ -1634,7 +1636,37 @@ html.locked { overscroll-behavior: none; }
 
   /* Таблице сравнения нужно больше ширины, чем карточке товара. */
   .compare-sheet { width: min(900px, calc(100% - 48px)); }
+
+  /* Блок о заводе, «Разделы», строка «N товаров в разделе» и широкая кнопка
+     («Сравнить», «Оформить заявку») стоят в той же колонке, что поиск. Раньше
+     у них было «по центру» без боковых полей: на планшете и узком ноутбуке
+     (700–1110 px) они упирались в края экрана, а поиск и карточки — нет.
+     Поле не меньше 16 px, на широком экране — поровну по бокам. */
+  .home-intro,
+  .home-rail,
+  .section-bar,
+  .compare-btn {
+    max-width: none;
+    margin-left: max(16px, calc((100% - var(--content-max)) / 2));
+    margin-right: max(16px, calc((100% - var(--content-max)) / 2));
+  }
+  /* Кнопке ширину задаём явно: «auto» у кнопки — это «по тексту», а не «во
+     всю колонку». */
+  .compare-btn { width: calc(100% - 2 * max(16px, calc((100% - var(--content-max)) / 2))); }
+  .section-bar { padding-left: 0; padding-right: 0; }
+
+  /* Кнопки «Где купить», «Связаться», «О заводе», «Видео»: на планшете колонка
+     текста узкая, и по четыре в ряд надписи рвались на две строки. Здесь —
+     две в ряд, на широком экране (ниже) — четыре. */
+  .home-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+@media (min-width: 1100px) {
+  .home-links { grid-template-columns: repeat(4, auto); }
+}
+
+/* Надпись на кнопке не рвётся на две строки ни на какой ширине. */
+.home-links button { white-space: nowrap; }
 
 /* От ноутбука помещается четвёртая колонка. Дальше карточки не растут: ширину
    держит --content-max, лишнее место уходит в поля по краям. */
