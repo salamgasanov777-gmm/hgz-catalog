@@ -339,6 +339,12 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   text-align: left;
 }
 
+/* Запасной экран при сбое запуска (guard.js): заголовок, пояснение, «Обновить»
+   и, если клиент записал менеджера, ссылка ему в WhatsApp. */
+.boot-title { display: block; color: var(--ink); font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.boot-text { margin: 0 auto; max-width: 320px; line-height: 1.45; }
+.boot-manager { display: inline-block; margin-top: 14px; color: var(--accent); font-weight: 600; font-size: 14px; }
+
 .empty-retry {
   display: block;
   margin: 14px auto 0;

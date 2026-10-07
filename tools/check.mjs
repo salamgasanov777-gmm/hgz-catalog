@@ -36,15 +36,15 @@ function checkVersions() {
   const html = read("index.html");
   const sw = read("sw.js");
 
-  const htmlV = [...html.matchAll(/(?:style\.css|app\.js|qr\.js)\?v=(\d+)/g)].map((m) => m[1]);
-  const swV = [...sw.matchAll(/(?:style\.css|app\.js|qr\.js)\?v=(\d+)/g)].map((m) => m[1]);
+  const htmlV = [...html.matchAll(/(?:style\.css|app\.js|qr\.js|guard\.js)\?v=(\d+)/g)].map((m) => m[1]);
+  const swV = [...sw.matchAll(/(?:style\.css|app\.js|qr\.js|guard\.js)\?v=(\d+)/g)].map((m) => m[1]);
   const cacheV = (sw.match(/const CACHE = "hgz-cache-v(\d+)"/) || [])[1];
 
-  if (htmlV.length !== 3) {
-    fail("index.html", "не найдены метки версии", `ожидалось 3 (style.css, app.js, qr.js), найдено ${htmlV.length}`);
+  if (htmlV.length !== 4) {
+    fail("index.html", "не найдены метки версии", `ожидалось 4 (style.css, app.js, qr.js, guard.js), найдено ${htmlV.length}`);
   }
-  if (swV.length !== 3) {
-    fail("sw.js", "не найдены метки версии в списке CORE", `ожидалось 3, найдено ${swV.length}`);
+  if (swV.length !== 4) {
+    fail("sw.js", "не найдены метки версии в списке CORE", `ожидалось 4, найдено ${swV.length}`);
   }
   if (!cacheV) {
     fail("sw.js", "не найдена версия кеша", 'ожидалась строка вида const CACHE = "hgz-cache-v36"');
@@ -93,7 +93,7 @@ function checkAgainstPublished(v) {
     return;
   }
 
-  const changed = ["style.css", "app.js", "qr.js"].filter((f) => {
+  const changed = ["style.css", "app.js", "qr.js", "guard.js"].filter((f) => {
     try {
       return git("show", `origin/main:${f}`) !== read(f);
     } catch {
@@ -122,7 +122,7 @@ function checkAgainstPublished(v) {
 // QR перестала открываться. Обе ошибки ловятся здесь, ничего не запуская.
 function checkCode() {
   const before = errors.length;
-  for (const f of ["app.js", "qr.js", "sw.js"]) {
+  for (const f of ["app.js", "qr.js", "guard.js", "sw.js"]) {
     try {
       new vm.Script(read(f), { filename: f });
     } catch (e) {
