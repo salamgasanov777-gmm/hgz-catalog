@@ -18,6 +18,12 @@
   --ink-2: #46545f;
   --line-strong: #cdc6ba;
   --photo-bg: #ffffff;
+  /* Зелёный WhatsApp — плашка «Отправить в WhatsApp» и «Скопировано» в окне QR.
+     Текст темнее фирменного зелёного: на светлой плашке #128c3e давал
+     контраст 4,0 при норме 4,5, #0e7a35 — 5,0. */
+  --wa-bg: #e9faf0;
+  --wa-border: #25d366;
+  --wa-ink: #0e7a35;
   /* Предел ширины контента на большом экране: дальше карточки не растягиваются,
      а добавляются колонки. */
   --content-max: 1080px;
@@ -39,6 +45,9 @@
     --ink-2: #a7b6c3;
     --line-strong: #33404b;
     --photo-bg: #edeae4;
+    --wa-bg: #12261a;
+    --wa-border: #25d366;
+    --wa-ink: #4ade80;
   }
 }
 
@@ -63,6 +72,11 @@
   --ink-2: #a7b6c3;
   --line-strong: #33404b;
   --photo-bg: #edeae4;
+  /* В тёмной теме светлая зелёная плашка «выпадала» из экрана — теперь тёмная
+     с ярким зелёным текстом (контраст 9,1). */
+  --wa-bg: #12261a;
+  --wa-border: #25d366;
+  --wa-ink: #4ade80;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -815,7 +829,9 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
   display: block;
   margin: 16px auto 0;
   background: var(--accent);
-  color: #fff;
+  /* Как у остальных кнопок на синем: в тёмной теме синий светлеет, и белый по
+     нему давал контраст 2,96 — текст берётся из темы. */
+  color: var(--on-accent);
   border: none;
   border-radius: 12px;
   padding: 11px 18px;
@@ -1088,9 +1104,9 @@ html.locked { overscroll-behavior: none; }
   font-weight: 700;
 }
 .qr-copy.done {
-  border-color: #25d366;
-  background: #e9faf0;
-  color: #128c3e;
+  border-color: var(--wa-border);
+  background: var(--wa-bg);
+  color: var(--wa-ink);
 }
 
 .install-bar {
@@ -1203,9 +1219,9 @@ html.locked { overscroll-behavior: none; }
   margin: 0 0 16px;
   padding: 11px 14px;
   border-radius: 12px;
-  border: 1px solid #25d366;
-  background: #e9faf0;
-  color: #128c3e;
+  border: 1px solid var(--wa-border);
+  background: var(--wa-bg);
+  color: var(--wa-ink);
   font-size: 14.5px;
   font-weight: 700;
 }
