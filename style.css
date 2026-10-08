@@ -6,14 +6,17 @@
   --card: #ffffff;
   --ink: #16202b;
   --muted: #5f6b76;
-  --accent: #1f3b57;
+  /* Цвета (решение владельца 08.10.2026, вариант А1): синий — середина эмблемы
+     «Habez Gips», оранжевый — как полоска прогресса у владельца. На светлом
+     оранжевом белые буквы не читаются (2,3), поэтому буквы тёмные (7,8). */
+  --accent: #356497;
   --accent-soft: #eaf0f6;
   --border: #e2ddd4;
   /* Цвет текста поверх акцентной заливки: в тёмной теме акцент светлеет,
      поэтому белым по нему уже не прочитать. */
   --on-accent: #ffffff;
-  --gold: #b9722a;
-  --on-gold: #ffffff;
+  --gold: #ff8a50;
+  --on-gold: #1d1408;
   --gold-soft: #fbf1e4;
   --ink-2: #46545f;
   --line-strong: #cdc6ba;
@@ -39,7 +42,7 @@
     --accent-soft: #18232f;
     --border: #263039;
     --on-accent: #08131e;
-    --gold: #e0954a;
+    --gold: #ff8a50;
     --on-gold: #1d1408;
     --gold-soft: #241a10;
     --ink-2: #a7b6c3;
@@ -66,7 +69,7 @@
   --accent-soft: #18232f;
   --border: #263039;
   --on-accent: #08131e;
-  --gold: #e0954a;
+  --gold: #ff8a50;
   --on-gold: #1d1408;
   --gold-soft: #241a10;
   --ink-2: #a7b6c3;
