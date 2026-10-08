@@ -68,8 +68,10 @@ function checkVersions() {
 
 // Сравнение с опубликованным (ветка origin/main). Стили, код и фото телефон
 // берёт из запаса, не спрашивая сайт: адрес с ?v= не меняется — значит, и
-// файл не менялся. Поэтому правка app.js, style.css, qr.js или замена фото под
-// тем же именем без подъёма версии до телефонов не дойдёт. Здесь это и ловим.
+// файл не менялся. Поэтому правка app.js, style.css, qr.js без подъёма версии
+// до телефонов не дойдёт. Фото живут в отдельном постоянном ящике (PHOTOS в
+// sw.js, с v100): замена фото под тем же именем требует подъёма его номера —
+// это ловит checkPhotos ниже.
 const git = (...args) =>
   execFileSync("git", ["-C", ROOT, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
 
@@ -100,19 +102,43 @@ function checkAgainstPublished(v) {
       return false;
     }
   });
+  if (changed.length) {
+    fail(changed.join(", "), "код изменён, а версия не поднята", `на сайте и в папке v=${v} — телефоны возьмут старый файл из запаса; поднимите ?v= в index.html и sw.js и hgz-cache-v`);
+  } else {
+    console.log(`  версия как на сайте (v=${v}): код не менялся, подъём не нужен`);
+  }
+}
+
+// Фото. Телефон берёт их из постоянного ящика hgz-photos-N, не спрашивая сайт.
+// Заменили файл под тем же именем — поднимите N в sw.js (const PHOTOS), либо
+// дайте файлу новое имя. Не зависит от подъёма версии кода.
+function checkPhotos() {
+  let pubSw;
+  try {
+    pubSw = git("show", "origin/main:sw.js");
+  } catch {
+    return;
+  }
+  const pubN = Number((pubSw.match(/const PHOTOS = "hgz-photos-(\d+)"/) || [])[1] || 0);
+  const nowN = Number((read("sw.js").match(/const PHOTOS = "hgz-photos-(\d+)"/) || [])[1] || 0);
+  if (!nowN) {
+    fail("sw.js", "не найден ящик фото", 'ожидалась строка вида const PHOTOS = "hgz-photos-1"');
+    return;
+  }
+  if (nowN < pubN) {
+    fail("sw.js", "номер ящика фото ниже опубликованного", `в папке hgz-photos-${nowN}, на сайте hgz-photos-${pubN}`);
+    return;
+  }
   let photos = [];
   try {
     photos = git("diff", "--name-only", "--diff-filter=M", "origin/main", "--", "products/").split("\n").filter(Boolean);
   } catch {}
-
-  if (changed.length) {
-    fail(changed.join(", "), "код изменён, а версия не поднята", `на сайте и в папке v=${v} — телефоны возьмут старый файл из запаса; поднимите ?v= в index.html и sw.js и hgz-cache-v`);
-  }
-  if (photos.length) {
-    fail(photos.join(", "), "фото заменено под тем же именем, а версия не поднята", "телефоны покажут старое фото — поднимите версию или дайте файлу новое имя");
-  }
-  if (!changed.length && !photos.length) {
-    console.log(`  версия как на сайте (v=${v}): код и фото не менялись, подъём не нужен`);
+  if (photos.length && nowN === pubN) {
+    fail(photos.join(", "), "фото заменено под тем же именем, а номер ящика фото не поднят", `телефоны покажут старое фото — поднимите const PHOTOS в sw.js (сейчас hgz-photos-${nowN}) или дайте файлу новое имя`);
+  } else if (nowN > pubN) {
+    console.log(`  ящик фото поднят: на сайте ${pubN ? "hgz-photos-" + pubN : "его ещё не было"}, в папке hgz-photos-${nowN}`);
+  } else {
+    console.log(`  ящик фото hgz-photos-${nowN}: фото под старыми именами не менялись`);
   }
 }
 
@@ -462,6 +488,7 @@ function checkSearch() {
 // ------------------------------------------------- Запуск
 console.log("Проверка версий");
 checkAgainstPublished(checkVersions());
+checkPhotos();
 console.log("\nПроверка кода");
 checkCode();
 console.log("\nПроверка данных");

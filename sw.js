@@ -1,4 +1,11 @@
-const CACHE = "hgz-cache-v99";
+const CACHE = "hgz-cache-v100";
+
+// Фотографии лежат в отдельном ящике, который переживает обновления версии:
+// раньше они жили в CACHE и при каждом выпуске стирались вместе с ним —
+// около 1,3 МБ заново у каждого клиента. Заменили фото под тем же именем —
+// поднимите это число (при этом версию кода поднимать не нужно): старый ящик
+// удалится, фото скачаются заново. Проверяет tools/check.mjs.
+const PHOTOS = "hgz-photos-1";
 
 // Адреса с ?v= должны совпадать с index.html: иначе браузер сохранит одно,
 // а страница попросит другое. Версия поднимается при правках style.css,
@@ -7,7 +14,7 @@ const CACHE = "hgz-cache-v99";
 // Согласованность версий проверяет tools/check.mjs.
 
 // Без этих файлов каталог не откроется вовсе — они обязательны.
-const CORE = ["./", "./index.html", "./style.css?v=99", "./app.js?v=99", "./qr.js?v=99", "./guard.js?v=99"];
+const CORE = ["./", "./index.html", "./style.css?v=100", "./app.js?v=100", "./qr.js?v=100", "./guard.js?v=100"];
 
 // А эти каталог переживёт: товары и страницы завода и так берутся «сначала
 // сеть», значок с манифестом нужны только при установке на телефон. Класть их
@@ -76,13 +83,19 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("hgz-cache-") && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => (k.startsWith("hgz-cache-") && k !== CACHE) || (k.startsWith("hgz-photos-") && k !== PHOTOS))
+            .map((k) => caches.delete(k))
+        )
+      )
   );
   self.clients.claim();
 });
 
 // Фотографии товаров не меняются: если фото заменили, у него будет другое имя
-// файла, а если переснимут все — поднимем версию кеша выше. Поэтому картинки
+// файла, а если переснимут все — поднимем число PHOTOS выше. Поэтому картинки
 // отдаём сразу из кеша, не спрашивая сеть. Раньше телефон на каждом открытии
 // каталога запрашивал полсотни фотографий заново и, если связь подвисала,
 // рисовал их наполовину.
@@ -90,13 +103,13 @@ function isPhoto(pathname) {
   return /\/products\/[^/]+\.(jpe?g|webp|png)$/i.test(pathname);
 }
 
-async function cacheFirst(req) {
+async function cacheFirst(req, cacheName) {
   const hit = await caches.match(req);
   if (hit) return hit;
   const res = await fetch(req);
   if (res && res.status === 200) {
     const copy = res.clone();
-    caches.open(CACHE).then((c) => c.put(req, copy));
+    caches.open(cacheName).then((c) => c.put(req, copy));
   }
   return res;
 }
@@ -252,7 +265,7 @@ self.addEventListener("fetch", (e) => {
   const versioned = e.request.mode !== "navigate" && /\.(css|js)$/i.test(url.pathname) && /[?&]v=\d+/.test(url.search);
 
   if (isPhoto(url.pathname) || versioned) {
-    e.respondWith(cacheFirst(e.request));
+    e.respondWith(cacheFirst(e.request, isPhoto(url.pathname) ? PHOTOS : CACHE));
     return;
   }
   // Страница и данные завода — копия сразу; всё прочее (манифест, значки,
