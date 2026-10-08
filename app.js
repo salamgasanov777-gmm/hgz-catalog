@@ -1619,6 +1619,7 @@ function searchMatch(p, queryTokens, latinVariants) {
 
 function render() {
   updateFavNav();
+  updateCartNav();
   renderTasks();
   const q = document.getElementById("search").value.trim();
   const queryTokens = tokenize(q);
@@ -1678,11 +1679,11 @@ function render() {
   compareBtn.style.display = compareConfig ? "block" : "none";
   if (compareConfig) compareBtn.textContent = compareConfig.buttonLabel;
 
-  // «Оформить заявку» — только в «Избранном» и только когда там есть товары.
+  // В «Избранном» — «Всё избранное — в заявку», пока там есть товары не из заявки.
   const orderBtn = document.getElementById("order-btn");
-  const orderCount = activeCategory === "__fav__" ? orderItems().length : 0;
-  orderBtn.style.display = orderCount ? "block" : "none";
-  if (orderCount) orderBtn.textContent = `Оформить заявку · ${orderCount} ${plural(orderCount, ["товар", "товара", "товаров"])}`;
+  const notInCart = activeCategory === "__fav__" ? products.filter((p) => isFavorite(p.id) && !cart.has(p.id)).length : 0;
+  orderBtn.style.display = notInCart ? "block" : "none";
+  if (notInCart) orderBtn.textContent = `Всё избранное — в заявку · ${notInCart} ${plural(notInCart, ["товар", "товара", "товаров"])}`;
 
   if (filtered.length === 0) {
     let msg;
@@ -2024,6 +2025,8 @@ document.getElementById("sheet-fav").addEventListener("click", () => {
 function openSheet(p, openedFrom) {
   currentProduct = p;
   updateSheetFavButton();
+  updateSheetCart();
+  hideCartToast();
   showPhotos(p);
   document.getElementById("sheet-name").textContent = p.name;
   document.getElementById("sheet-crumb-cat").textContent = p.category;
@@ -2227,11 +2230,14 @@ document.getElementById("sheet-ask").addEventListener("click", (e) => {
 });
 
 // ---------------------------------------------------------------- Заявка
-// Заявка списком из «Избранного» (решение владельца 05.10.2026): клиент
-// отмечает товары звёздочкой, в окне заявки ставит количество и фасовку и
-// одной кнопкой отправляет список в WhatsApp — менеджеру из QR или в чат,
-// который выберет сам. Сервера нет: каталог ничего не отправляет сам, на
-// телефоне помнит только количество и фасовку по каждому товару.
+// Заявка — отдельный список, «корзина» (решение владельца 08.10.2026, как в
+// приложении №2). Звёздочка — «отложить, посмотреть позже» и сравнение;
+// корзина — «что заказываю». Товар попадает в заявку кнопкой «В заявку» в окне
+// товара (количество — из калькулятора, если считали), в окне заявки ставят
+// количество и фасовку и одной кнопкой отправляют список в WhatsApp —
+// менеджеру из QR или в чат, который выберут сами. Сервера нет: каталог
+// ничего не отправляет сам, на телефоне помнит состав заявки (hgz-cart),
+// количество и фасовку по каждому товару (hgz-order).
 const ORDER_KEY = "hgz-order";
 
 function loadOrder() {
@@ -2300,10 +2306,132 @@ function rememberCalc(p, qty, packValue) {
   const i = packValue == null ? -1 : options.findIndex((o) => parseFloat(o.replace(",", ".")) === packValue);
   order[p.id] = { qty, opt: i >= 0 ? i : orderEntry(p).opt, calc: true };
   saveOrder();
+  if (currentProduct === p) updateSheetCart();
+}
+
+const CART_KEY = "hgz-cart";
+
+function loadCart() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    return new Set(Array.isArray(saved) ? saved.filter(Number.isInteger) : []);
+  } catch {
+    return new Set();
+  }
+}
+let cart = loadCart();
+
+function saveCart() {
+  try {
+    localStorage.setItem(CART_KEY, JSON.stringify([...cart]));
+  } catch {}
 }
 
 function orderItems() {
-  return products.filter((p) => favorites.has(p.id));
+  return products.filter((p) => cart.has(p.id));
+}
+
+// Число на значке корзины в шапке.
+function updateCartNav() {
+  const n = orderItems().length;
+  const badge = document.getElementById("cart-count");
+  badge.textContent = n;
+  badge.style.display = n > 0 ? "flex" : "none";
+  document.getElementById("cart-nav-btn").setAttribute("aria-label", n ? `Заявка, товаров: ${n}` : "Заявка");
+}
+
+function addToCart(p) {
+  cart.add(p.id);
+  saveCart();
+  updateCartNav();
+}
+
+function removeFromCart(id) {
+  cart.delete(id);
+  saveCart();
+  updateCartNav();
+}
+
+// Кнопка в окне товара: «В заявку», а когда товар уже в заявке — счётчик
+// «− 5 мешков +». Минус на единице убирает товар из заявки.
+const CART_ICON =
+  '<svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.6l2.4 11.2a1.6 1.6 0 0 0 1.6 1.3h8.6a1.6 1.6 0 0 0 1.6-1.2l1.6-7.3H6.2"/></svg>';
+
+function updateSheetCart() {
+  const slot = document.getElementById("sheet-cart");
+  const p = currentProduct;
+  if (!p) return;
+  if (!cart.has(p.id)) {
+    slot.innerHTML = `<button type="button" class="cart-add" data-cart="add">${CART_ICON}<span>В заявку</span></button>`;
+    return;
+  }
+  const { qty } = orderEntry(p);
+  const word = plural(qty, packOptions(p).forms);
+  slot.innerHTML =
+    `<div class="cart-stepper">` +
+    `<button type="button" class="cart-step" data-cart="minus" aria-label="${qty > 1 ? "Меньше" : "Убрать из заявки"}">−</button>` +
+    `<span class="cart-qty"><b>${qty} ${esc(word)}</b><small>в заявке</small></span>` +
+    `<button type="button" class="cart-step" data-cart="plus" aria-label="Больше">+</button></div>`;
+}
+
+let cartToastTimer = 0;
+function showCartToast() {
+  const toast = document.getElementById("cart-toast");
+  toast.hidden = false;
+  clearTimeout(cartToastTimer);
+  cartToastTimer = setTimeout(() => (toast.hidden = true), 3000);
+}
+function hideCartToast() {
+  clearTimeout(cartToastTimer);
+  document.getElementById("cart-toast").hidden = true;
+}
+
+document.getElementById("sheet-cart").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-cart]");
+  const p = currentProduct;
+  if (!btn || !p) return;
+  const what = btn.dataset.cart;
+  if (what === "add") {
+    addToCart(p);
+    showCartToast();
+  } else {
+    const e2 = orderEntry(p);
+    const qty = e2.qty + (what === "plus" ? 1 : -1);
+    if (qty < 1) {
+      removeFromCart(p.id);
+      hideCartToast();
+    } else {
+      order[p.id] = { qty: Math.min(9999, qty), opt: e2.opt, calc: false };
+      saveOrder();
+    }
+  }
+  updateSheetCart();
+  // Фокус остаётся на счётчике, а не теряется вместе с заменённой кнопкой.
+  document.querySelector(`#sheet-cart [data-cart="${what === "add" ? "plus" : what}"]`)?.focus({ preventScroll: true });
+});
+
+document.getElementById("cart-toast-open").addEventListener("click", () => {
+  hideCartToast();
+  openOrder(document.getElementById("sheet-cart"));
+});
+
+document.getElementById("cart-nav-btn").addEventListener("click", (e) => {
+  // Как у звезды: при открытом меню «⋯» первое касание только закрывает его.
+  if (moreMenuOpen()) {
+    closeMoreMenu(false);
+    return;
+  }
+  openOrder(e.currentTarget);
+});
+
+// «Избранное»: всё отложенное — в заявку одной кнопкой. Так у тех, кто раньше
+// собирал заявку звёздочками, список не теряется.
+function addFavoritesToCart() {
+  products.filter((p) => isFavorite(p.id)).forEach((p) => cart.add(p.id));
+  saveCart();
+  updateCartNav();
+  render();
+  openOrder(document.getElementById("cart-nav-btn"));
 }
 
 function orderText() {
@@ -2331,7 +2459,8 @@ function renderOrderRow(p) {
       : `<span class="order-pack-one">${esc(options[0])}</span>`;
   return (
     `<div class="order-row" data-id="${p.id}">` +
-    `<div class="order-name">${esc(p.name)}</div>` +
+    `<div class="order-name"><span>${esc(p.name)}</span>` +
+    `<button type="button" class="order-remove" aria-label="Убрать из заявки: ${esc(p.name)}">Убрать</button></div>` +
     `<div class="order-ctrl">${pack}` +
     `<div class="order-qty"><button type="button" class="order-minus" aria-label="Меньше">−</button>` +
     `<input class="order-num" type="text" inputmode="numeric" autocomplete="off" value="${e.qty}" aria-label="Количество">` +
@@ -2342,10 +2471,13 @@ function renderOrderRow(p) {
   );
 }
 
-function openOrder() {
+const ORDER_EMPTY = `<p class="order-empty">В заявке пока пусто.<br>Откройте товар и нажмите «В заявку».</p>`;
+
+function openOrder(opener) {
   const items = orderItems();
-  if (!items.length) return;
-  document.getElementById("order-list").innerHTML = items.map(renderOrderRow).join("");
+  const sheet = document.getElementById("order-sheet");
+  sheet.classList.toggle("is-empty", !items.length);
+  document.getElementById("order-list").innerHTML = items.length ? items.map(renderOrderRow).join("") : ORDER_EMPTY;
   document.getElementById("order-send-label").textContent =
     manager && !manager.own ? "Отправить заявку менеджеру" : "Отправить заявку в WhatsApp";
   document.getElementById("order-copy-label").textContent = "Скопировать текст";
@@ -2353,14 +2485,15 @@ function openOrder() {
   document.getElementById("order-backdrop").classList.add("open");
   document.getElementById("order-sheet").classList.add("open");
   document.getElementById("order-sheet").scrollTop = 0;
-  openOverlay(closeOrder, document.getElementById("order-sheet"), document.getElementById("order-btn"), () => {
-    if (activeCategory === "__fav__") openOrder();
-  });
+  openOverlay(closeOrder, sheet, opener instanceof HTMLElement ? opener : document.getElementById("cart-nav-btn"), () => openOrder(opener));
 }
 
 function closeOrder() {
   document.getElementById("order-backdrop").classList.remove("open");
   document.getElementById("order-sheet").classList.remove("open");
+  // Под заявкой могло остаться окно товара — его счётчик показывает свежее число.
+  updateSheetCart();
+  updateCartNav();
 }
 
 // Количество и фасовку человек правит сам — запоминаем, и подсказка «по
@@ -2379,6 +2512,17 @@ function setOrderQty(row, qty, opt) {
 
 const orderList = document.getElementById("order-list");
 orderList.addEventListener("click", (e) => {
+  const rm = e.target.closest(".order-remove");
+  if (rm) {
+    const row = rm.closest(".order-row");
+    removeFromCart(Number(row.dataset.id));
+    row.remove();
+    if (!orderList.querySelector(".order-row")) {
+      document.getElementById("order-sheet").classList.add("is-empty");
+      orderList.innerHTML = ORDER_EMPTY;
+    }
+    return;
+  }
   const btn = e.target.closest(".order-minus, .order-plus");
   if (!btn) return;
   const row = btn.closest(".order-row");
@@ -2403,7 +2547,7 @@ orderList.addEventListener("change", (e) => {
   if (e.target.classList.contains("order-pack")) setOrderQty(e.target.closest(".order-row"), null, Number(e.target.value));
 });
 
-document.getElementById("order-btn").addEventListener("click", openOrder);
+document.getElementById("order-btn").addEventListener("click", addFavoritesToCart);
 document.getElementById("order-backdrop").addEventListener("click", dismissOverlay);
 document.getElementById("order-close").addEventListener("click", dismissOverlay);
 
@@ -2639,6 +2783,7 @@ function wireCalc(calc, p) {
 function closeSheet() {
   document.getElementById("backdrop").classList.remove("open");
   document.getElementById("sheet").classList.remove("open");
+  hideCartToast();
   currentProduct = null;
   // Перерисовывать список не нужно: звезду, снятую в самой карточке, сетка
   // уже получила через syncCardFav.

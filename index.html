@@ -51,7 +51,7 @@
 <link rel="icon" href="icon-192-v2.png">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=83">
+<link rel="stylesheet" href="style.css?v=84">
 </head>
 <body>
   <div class="topbar">
@@ -66,6 +66,10 @@
       <button id="fav-nav-btn" class="fav-nav-btn" aria-label="Избранное">
         <span class="fav-nav-star">☆</span>
         <span id="fav-count" class="fav-count"></span>
+      </button>
+      <button id="cart-nav-btn" class="fav-nav-btn cart-nav-btn" type="button" aria-label="Заявка">
+        <svg class="cart-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.6l2.4 11.2a1.6 1.6 0 0 0 1.6 1.3h8.6a1.6 1.6 0 0 0 1.6-1.2l1.6-7.3H6.2"/></svg>
+        <span id="cart-count" class="fav-count"></span>
       </button>
       <button id="more-btn" class="icon-btn" type="button" aria-label="Ещё" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
@@ -222,12 +226,17 @@
       <p id="sheet-cert-note" class="cert-note"></p>
     </div>
     <div id="sheet-body"></div>
-    <!-- «Узнать цену» — в конце окна и прилипает к его низу (style.css, #sheet-ask) -->
-    <a id="sheet-ask" class="ask-btn" target="_blank" rel="noopener"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg><span>Узнать цену и наличие</span></a>
+    <!-- Нижняя полоса окна товара: «В заявку» и «Узнать цену». Прилипает к низу
+         окна (style.css, .sheet-actions); содержимое #sheet-cart рисует app.js. -->
+    <div id="sheet-actions" class="sheet-actions">
+      <div id="cart-toast" class="cart-toast" role="status" hidden><span>✓ Добавлено в заявку</span><button id="cart-toast-open" type="button">Открыть ›</button></div>
+      <div id="sheet-cart" class="cart-slot"></div>
+      <a id="sheet-ask" class="ask-btn" aria-label="Узнать цену и наличие" target="_blank" rel="noopener"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg><span>Узнать цену</span></a>
+    </div>
   </div>
 
-  <script src="guard.js?v=83"></script>
-  <script src="qr.js?v=83"></script>
-  <script src="app.js?v=83"></script>
+  <script src="guard.js?v=84"></script>
+  <script src="qr.js?v=84"></script>
+  <script src="app.js?v=84"></script>
 </body>
 </html>

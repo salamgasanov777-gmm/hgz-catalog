@@ -508,7 +508,19 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 .order-sheet h2 { margin: 0 0 6px; font-size: 19px; }
 .order-lead { margin: 0 0 6px; font-size: 13.5px; line-height: 1.4; color: var(--muted); }
 .order-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
-.order-name { margin-bottom: 8px; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.order-name { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+/* «Убрать» — тихая текстовая кнопка справа от названия товара в заявке. */
+.order-remove {
+  flex: none; margin: -6px -6px 0 0; padding: 6px; border: 0; background: none;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+/* Пустая заявка: остаётся пояснение, поля и кнопки отправки не нужны. */
+.order-empty { margin: 18px 0 8px; text-align: center; font-size: 15px; line-height: 1.5; color: var(--muted); }
+.order-sheet.is-empty .order-lead,
+.order-sheet.is-empty .order-field,
+.order-sheet.is-empty #order-send,
+.order-sheet.is-empty #order-copy,
+.order-sheet.is-empty .order-note { display: none; }
 .order-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .order-pack {
   font: inherit;
@@ -1279,18 +1291,54 @@ html.locked { overscroll-behavior: none; }
 /* «Узнать цену и наличие» — главное действие покупателя, поэтому залита
    цветом каталога и стоит первой. «Отправить в WhatsApp» под ней — для
    пересылки товара мастеру, она остаётся зелёной рамкой. */
-/* «Узнать цену и наличие» в окне товара всегда на виду: стоит в конце окна и
+/* Нижняя полоса окна товара: «В заявку» и «Узнать цену». Стоит в конце окна и
    прилипает к его низу, пока человек листает описание, калькулятор и
-   характеристики, — спросить цену можно с любого места (решение владельца
-   08.10.2026, как в приложении №2). Кольцо и растушёвка цветом фона окна
-   отделяют кнопку от текста, который проезжает под ней. */
-#sheet-ask {
+   характеристики (решения владельца 08.10.2026, как в приложении №2). Кольцо и
+   растушёвка цветом фона окна отделяют кнопки от текста под ними. */
+.sheet-actions {
   position: sticky;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
   z-index: 4;
+  display: flex;
+  gap: 8px;
   margin: 14px 0 0;
+  border-radius: 12px;
+  background: var(--bg);
   box-shadow: 0 0 0 8px var(--bg), 0 -14px 24px 6px var(--bg);
 }
+.sheet-actions #sheet-ask { flex: 1 1 0; min-width: 0; margin: 0; justify-content: center; padding: 11px 10px; }
+.cart-slot { flex: 1 1 0; min-width: 0; display: flex; }
+.cart-add {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 10px; border: 0; border-radius: 12px;
+  background: var(--accent); color: var(--on-accent);
+  font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer;
+}
+.cart-stepper {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  padding: 5px 4px; border-radius: 12px;
+  border: 1px solid var(--accent); background: var(--accent-soft); color: var(--ink);
+}
+.cart-step {
+  flex: none; width: 30px; height: 32px; display: grid; place-items: center;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--card);
+  color: var(--accent); font: inherit; font-size: 18px; font-weight: 700; cursor: pointer;
+}
+.cart-qty { min-width: 0; text-align: center; line-height: 1.15; white-space: nowrap; }
+.cart-qty b { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+.cart-qty small { display: block; font-size: 11px; color: var(--muted); }
+/* «✓ Добавлено в заявку · Открыть» — над полосой на три секунды. Цвета свои,
+   одинаковые в обеих темах: тёмная плашка читается и на светлом, и на тёмном. */
+.cart-toast {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 12px);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; border-radius: 12px;
+  background: #16202b; color: #ffffff; font-size: 14px; font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.cart-toast[hidden] { display: none; }
+.cart-toast button { padding: 4px 0; border: 0; background: none; font: inherit; font-weight: 700; color: #f0b46b; cursor: pointer; }
+.cart-nav-btn .cart-ico { width: 19px; height: 19px; display: block; }
 
 .ask-btn {
   display: flex;
