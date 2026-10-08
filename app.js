@@ -243,7 +243,7 @@ function renderHome() {
       <p class="home-lead">Добыча гипсового камня и производство в Карачаево-Черкесии. ${n} ${plural(n, ["товар", "товара", "товаров"])} с характеристиками, ГОСТами и расчётом расхода.</p>
       <div class="home-links">
         <button type="button" data-page="stores">Где купить</button>
-        <button type="button" data-page="contact">Связаться</button>
+        <button type="button" data-page="docs">Документы</button>
         <button type="button" data-page="about">О заводе</button>
         <button type="button" data-page="videos">Видео</button>
       </div>
@@ -284,6 +284,7 @@ function renderHome() {
         </div>
         <div class="site-foot-links">
           <button type="button" data-page="stores">Где купить</button>
+          <button type="button" data-page="docs">Документы</button>
           <button type="button" data-page="contact">Связаться</button>
           <button type="button" data-page="about">О заводе</button>
           <button type="button" data-page="videos">Видео</button>
@@ -544,6 +545,28 @@ function factoryContactHtml(c) {
     `<div class="store-actions"><a href="tel:${esc(String(a.phone).replace(/[^+\d]/g, ""))}">Позвонить</a>${wa}</div></div>`;
 }
 
+// Сертификаты для страницы «Документы»: разделы и короткие названия товаров
+// (то, что в «кавычках», иначе название целиком), в порядке разделов каталога.
+function certList(c) {
+  const certs = (c && c.certificates) || {};
+  const short = (name) => (/«([^»]+)»/.exec(name) || [, name])[1];
+  return Object.keys(certs)
+    .map((key) => {
+      const items = products.filter((p) => p.cert === key);
+      const cats = CATEGORY_ORDER.filter((cat) => items.some((p) => p.category === cat));
+      return {
+        key,
+        cert: certs[key],
+        cats: cats.join(", "),
+        items: [...new Set(items.map((p) => short(p.name)))].join(", "),
+        order: cats.length ? CATEGORY_ORDER.indexOf(cats[0]) : 999,
+        expired: certExpired(certs[key].until),
+      };
+    })
+    .filter((r) => r.items)
+    .sort((a, b) => a.order - b.order);
+}
+
 const PAGES = [
   {
     key: "contact",
@@ -637,6 +660,38 @@ const PAGES = [
           redraw();
         });
       });
+    },
+  },
+  {
+    // Все сертификаты одним списком — прораб или технадзор просит документы на
+    // всё сразу (решение владельца 08.10.2026; на главной вместо «Связаться»,
+    // она есть в меню «⋯» и в подвале). Заголовки не придуманы: каталог
+    // собирает их из разделов и товаров, к которым привязан сертификат.
+    key: "docs",
+    label: "Документы",
+    render: (c) => {
+      const rows = certList(c);
+      if (!rows.length) return `<p class="page-empty">Сертификаты появятся здесь.</p>`;
+      return (
+        `<p class="page-sub">Сертификаты соответствия на продукцию завода. Нажмите, чтобы посмотреть и отправить PDF.</p>` +
+        rows
+          .map((r) =>
+            r.expired
+              ? `<div class="store-card doc-card"><p class="doc-cats">${esc(r.cats)}</p><p class="name">${esc(r.items)}</p>` +
+                `<p class="line">Сертификат обновляется — актуальный уточните у менеджера.</p></div>`
+              : `<button type="button" class="store-card doc-card" data-cert="${esc(r.key)}"><p class="doc-cats">${esc(r.cats)}</p>` +
+                `<p class="name">${esc(r.items)}</p><p class="line">Действует до ${esc(r.cert.until)}</p><span class="doc-open">Открыть ›</span></button>`
+          )
+          .join("")
+      );
+    },
+    after: () => {
+      document.querySelectorAll("#page-body [data-cert]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const r = certList(content).find((x) => x.key === btn.dataset.cert);
+          if (r) openCert(r.cert, `Сертификат соответствия — ${r.cats}`);
+        })
+      );
     },
   },
   {
@@ -2149,7 +2204,8 @@ function certExpired(until) {
 // есть крестик, а у PDF на iPhone кнопки «назад» нет. В реестре лежит PDF, а
 // показывается картинка рядом с ним (тем же именем, .jpg). PDF остаётся как
 // исходник — для отправки клиенту.
-function openCert(cert) {
+function openCert(cert, shareTitle) {
+  certShareTitle = shareTitle || "";
   const img = document.getElementById("cert-img");
   const note = document.getElementById("cert-note");
   const view = document.getElementById("cert-view");
@@ -2191,6 +2247,7 @@ function closeCert() {
 // лишние мегабайты ни к чему.
 let certFile = null;
 let certFileFor = "";
+let certShareTitle = "";
 
 function prepareCertFile(cert) {
   certFile = null;
@@ -2209,7 +2266,7 @@ function prepareCertFile(cert) {
 document.getElementById("cert-send").addEventListener("click", () => {
   if (!certFileFor) return;
   const url = new URL(certFileFor, location.href).href;
-  const title = currentProduct ? `Сертификат соответствия — ${currentProduct.name}` : "Сертификат соответствия";
+  const title = certShareTitle || (currentProduct ? `Сертификат соответствия — ${currentProduct.name}` : "Сертификат соответствия");
   if (certFile) {
     navigator.share({ files: [certFile], title }).catch(() => {});
     return;

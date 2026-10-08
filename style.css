@@ -402,6 +402,12 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   margin-bottom: 12px;
 }
 .store-card .name { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+/* Строка сертификата на странице «Документы»: вся карточка — кнопка. */
+.doc-card { display: block; width: 100%; text-align: left; background: var(--card); color: var(--ink); font: inherit; cursor: pointer; }
+.doc-card .name { font-size: 14.5px; line-height: 1.35; }
+.doc-cats { margin: 0 0 4px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: var(--accent); }
+.doc-open { display: inline-block; margin-top: 8px; font-size: 13.5px; font-weight: 700; color: var(--accent); }
+button.doc-card:active { scale: 0.98; }
 .store-card .line { margin: 0 0 3px; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
 .store-actions { display: flex; gap: 8px; margin-top: 12px; }
 .store-actions a {
