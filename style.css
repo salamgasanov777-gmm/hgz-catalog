@@ -486,6 +486,10 @@ button.doc-card:active { scale: 0.98; }
   font-weight: 600;
   white-space: nowrap;
 }
+/* Значок слева от надписи метки; на нажатой метке — цвета её текста. */
+.task-chip { display: inline-flex; align-items: center; gap: 6px; }
+.task-ico { width: 16px; height: 16px; flex: 0 0 16px; color: var(--accent); }
+.task-chip.active .task-ico { color: inherit; }
 .task-chip.active {
   background: var(--accent);
   border-color: var(--accent);
@@ -1611,6 +1615,12 @@ html.locked { overscroll-behavior: none; }
   font-size: 13.5px;
   font-weight: 600;
 }
+/* Значок слева от подписи (решение владельца 08.10.2026, вариант А): кнопки
+   узнаются с одного взгляда, а высота прежняя — «Разделы» остаются на первом
+   экране. Значки синие, на синей «Где купить» — цвета её текста. */
+.home-links button { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.home-ico { width: 20px; height: 20px; flex: 0 0 20px; color: var(--accent); }
+.home-links button:first-child .home-ico { color: inherit; }
 .home-links button:first-child { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 .home-rail { display: block; margin: 18px 0 0; }
@@ -1635,6 +1645,13 @@ html.locked { overscroll-behavior: none; }
   scrollbar-width: none;
 }
 .home-rail-list::-webkit-scrollbar { display: none; }
+/* Копия плиток для бегущей ленты (app.js, startRailMarquee) — только там,
+   где лента едет: телефон и не включено «Уменьшить движение». */
+.home-cat[data-clone] { display: none; }
+@media (max-width: 699px) and (prefers-reduced-motion: no-preference) {
+  .home-cat[data-clone] { display: grid; }
+}
+.home-rail-list.rail-run { scroll-snap-type: none; }
 .home-cat {
   flex: 0 0 auto;
   scroll-snap-align: start;

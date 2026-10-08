@@ -39,18 +39,37 @@ let currentProduct = null;
 // каждом регионе свой, а каталог один на всех.
 const TAGS = { new: "Новинка" };
 
+// ico — линейный значок метки (решение владельца 08.10.2026: значок слева от
+// надписи, у «Ванной» — ванна). Первые пять меток читаются из таблицы завода
+// «Область применения» (needles) или поля tasks у товара. Последние три — списком
+// id (ids), каждая по словам завода: «Бассейн» — «для чаши бассейнов, фонтанов —
+// ДА»; «Утеплитель» — армирование и приклеивание утеплителя; «Перегородки» —
+// гипсокартон, ПГП, «МЕЛИССА», «ШОВ», профили и подвес. Новый товар под такую
+// метку — вписать его id сюда.
 const TASKS = [
-  { key: "wet", label: "Ванная", needles: ["повышенным уровнем влажности"] },
-  { key: "dry", label: "Комната", needles: ["нормальным уровнем влажности"] },
-  { key: "facade", label: "Фасад", needles: ["асад"] },
-  { key: "floor-heat", label: "Тёплый пол", needles: ["теплых полов"] },
-  { key: "plinth", label: "Цоколь", needles: ["Сложные поверхности", "Цоколь"] },
+  { key: "wet", label: "Ванная", needles: ["повышенным уровнем влажности"],
+    ico: '<path d="M3 11.5h18v2.5a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z"/><path d="M6 11.5V6.2a2.2 2.2 0 0 1 4-1.2"/><path d="M7 19l-1 2M17 19l1 2"/>' },
+  { key: "dry", label: "Комната", needles: ["нормальным уровнем влажности"],
+    ico: '<path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/>' },
+  { key: "facade", label: "Фасад", needles: ["асад"],
+    ico: '<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7.5h2M13 7.5h2M9 11.5h2M13 11.5h2M9 15.5h2M13 15.5h2"/>' },
+  { key: "floor-heat", label: "Тёплый пол", needles: ["теплых полов"],
+    ico: '<path d="M3.5 20h17"/><path d="M7.5 16c-1.4-1.4 1.4-2.8 0-4.3s0-4.2 0-4.2M12 16c-1.4-1.4 1.4-2.8 0-4.3s0-4.2 0-4.2M16.5 16c-1.4-1.4 1.4-2.8 0-4.3s0-4.2 0-4.2"/>' },
+  { key: "plinth", label: "Цоколь", needles: ["Сложные поверхности", "Цоколь"],
+    ico: '<path d="M3 20h18"/><path d="M3.5 20v-4h5v-4h5V8h5V4h2"/>' },
+  { key: "pool", label: "Бассейн", ids: [24, 25],
+    ico: '<path d="M2.5 17c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3"/><path d="M2.5 20.5c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3"/><path d="M8.5 14V5.5a2 2 0 0 1 4 0M15.5 14V5.5"/><path d="M8.5 8.5h7M8.5 11.5h7"/>' },
+  { key: "insul", label: "Утеплитель", ids: [8, 9, 22, 28, 29],
+    ico: '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M5 12l2-4.5 2 9 2-9 2 9 2-9 2 9 2-4.5"/>' },
+  { key: "walls", label: "Перегородки", ids: [20, 10, 44, 45, 48, 49, 46, 47, 52, 53, 54, 55, 56],
+    ico: '<rect x="4" y="3.5" width="16" height="17" rx="1"/><path d="M12 3.5v17M4 12h16"/>' },
 ];
 
 function matchesTask(p, taskKey) {
+  const task = TASKS.find((t) => t.key === taskKey);
+  if (task && task.ids) return task.ids.includes(p.id);
   if (Array.isArray(p.tasks)) return p.tasks.includes(taskKey);
 
-  const task = TASKS.find((t) => t.key === taskKey);
   const table = (p.tables || []).find((t) => t.title === "Область применения");
   if (!task || !table) return false;
 
@@ -233,6 +252,100 @@ function developerHtml(d) {
         </div>`;
 }
 
+// Бегущая лента разделов (решение владельца 08.10.2026, вариант А): на
+// телефоне «Разделы» сами медленно едут влево по кругу — видно, что лента
+// листается и разделов больше, чем влезло. Касание останавливает её сразу,
+// дальше человек листает сам; через RAIL_RESUME_MS без касаний она едет снова.
+// Едет, только пока её видно и вкладка открыта. На компьютере (лента там —
+// плитки в несколько строк) и при «Уменьшить движение» лента стоит.
+const RAIL_SPEED = 28; // точек в секунду — примерно раздел за 5–6 секунд
+const RAIL_RESUME_MS = 4500;
+const railMotion = matchMedia("(max-width: 699px) and (prefers-reduced-motion: no-preference)");
+let railStop = null;
+
+function startRailMarquee(list) {
+  if (railStop) railStop();
+  railStop = null;
+  if (!list) return;
+  const first = list.querySelector(".home-cat");
+  const firstClone = list.querySelector(".home-cat[data-clone]");
+  if (!first || !firstClone) return;
+
+  let running = false;
+  let visible = false;
+  let raf = 0;
+  let last = 0;
+  let pos = 0;
+  let timer = 0;
+
+  const tick = (t) => {
+    // Ширина одного круга — от первой плитки до её копии.
+    const period = firstClone.offsetLeft - first.offsetLeft;
+    const dt = last ? Math.min(t - last, 100) / 1000 : 0;
+    last = t;
+    pos += RAIL_SPEED * dt;
+    if (period > 0 && pos >= period) pos -= period;
+    list.scrollLeft = pos;
+    raf = requestAnimationFrame(tick);
+  };
+  const stop = () => {
+    running = false;
+    cancelAnimationFrame(raf);
+    list.classList.remove("rail-run");
+  };
+  const go = () => {
+    if (running || timer || !visible || document.hidden || !railMotion.matches) return;
+    running = true;
+    pos = list.scrollLeft;
+    last = 0;
+    // Пока лента едет, «примагничивание» плиток выключено: иначе браузер
+    // дёргал бы её назад к ближайшей плитке на каждом шаге.
+    list.classList.add("rail-run");
+    raf = requestAnimationFrame(tick);
+  };
+  // Человек тронул ленту — стоп и отсчёт заново; прокрутка по инерции после
+  // отпускания пальца тоже считается касанием.
+  const hold = () => {
+    stop();
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = 0;
+      go();
+    }, RAIL_RESUME_MS);
+  };
+  const onScroll = () => {
+    if (!running) hold();
+  };
+  const onVisibility = () => (document.hidden ? stop() : go());
+  const onMotion = () => (railMotion.matches ? go() : stop());
+
+  ["touchstart", "pointerdown", "wheel", "focusin"].forEach((e) => list.addEventListener(e, hold, { passive: true }));
+  list.addEventListener("scroll", onScroll, { passive: true });
+  document.addEventListener("visibilitychange", onVisibility);
+  railMotion.addEventListener?.("change", onMotion);
+  const seen = "IntersectionObserver" in window
+    ? new IntersectionObserver(([e]) => {
+        visible = e.isIntersecting;
+        visible ? go() : stop();
+      })
+    : null;
+  if (seen) seen.observe(list);
+  else {
+    visible = true;
+    go();
+  }
+
+  railStop = () => {
+    stop();
+    clearTimeout(timer);
+    ["touchstart", "pointerdown", "wheel", "focusin"].forEach((e) => list.removeEventListener(e, hold));
+    list.removeEventListener("scroll", onScroll);
+    document.removeEventListener("visibilitychange", onVisibility);
+    railMotion.removeEventListener?.("change", onMotion);
+    if (seen) seen.disconnect();
+  };
+}
+
 function renderHome() {
   const intro = document.getElementById("home-intro");
   const rail = document.getElementById("home-rail");
@@ -249,25 +362,30 @@ function renderHome() {
       <h2 class="home-title">Сухие смеси, гипс и&nbsp;гипсокартон</h2>
       <p class="home-lead">Добыча гипсового камня и производство в Карачаево-Черкесии. ${n} ${plural(n, ["товар", "товара", "товаров"])} с характеристиками, ГОСТами и расчётом расхода.</p>
       <div class="home-links">
-        <button type="button" data-page="stores">Где купить</button>
-        <button type="button" data-page="docs">Документы</button>
-        <button type="button" data-page="about">О заводе</button>
-        <button type="button" data-page="videos">Видео</button>
+        <button type="button" data-page="stores"><svg class="home-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>Где купить</span></button>
+        <button type="button" data-page="docs"><svg class="home-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><span>Документы</span></button>
+        <button type="button" data-page="about"><svg class="home-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 20.5h19"/><path d="M4 20.5v-8l4.5-3v3l4.5-3v3l4.5-3v11"/><path d="M17.5 9V3.5h2.5v17"/><path d="M7 16.5h1.5M11 16.5h1.5"/></svg><span>О заводе</span></button>
+        <button type="button" data-page="videos"><svg class="home-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10.2 8.6v6.8l5.6-3.4z"/></svg><span>Видео</span></button>
       </div>
     </div>`;
 
   const cats = CATEGORY_ORDER.map((cat) => ({ cat, items: products.filter((p) => p.category === cat) })).filter((c) => c.items.length);
-  rail.innerHTML = `
-    <div class="home-rail-head">Разделы <span>${cats.length}</span></div>
-    <div class="home-rail-list">${cats
+  // Вторая копия плиток (data-clone) нужна бегущей ленте, чтобы после
+  // последнего раздела без рывка шёл первый; где лента стоит, копия скрыта
+  // (style.css) и программам чтения не видна.
+  const tiles = (clone) =>
+    cats
       .map(
-        (c) => `<button type="button" class="home-cat" data-cat="${esc(c.cat)}">
+        (c) => `<button type="button" class="home-cat" data-cat="${esc(c.cat)}"${clone ? ' data-clone aria-hidden="true" tabindex="-1"' : ""}>
           <span class="home-cat-img" data-src="${photoUrl(c.items[0])}" aria-hidden="true"></span>
           <span class="home-cat-name">${esc(c.cat)}</span>
           <span class="home-cat-n">${c.items.length}</span>
         </button>`
       )
-      .join("")}</div>`;
+      .join("");
+  rail.innerHTML = `
+    <div class="home-rail-head">Разделы <span>${cats.length}</span></div>
+    <div class="home-rail-list">${tiles(false)}${tiles(true)}</div>`;
   // Значки разделов грузятся, когда лента до них доезжает: на телефоне
   // видны два-три, остальные уехали вправо и первому экрану не нужны.
   rail.querySelectorAll(".home-cat-img").forEach(lazyPhoto);
@@ -277,6 +395,7 @@ function renderHome() {
       scrollTo({ top: 0 });
     })
   );
+  startRailMarquee(rail.querySelector(".home-rail-list"));
 
   // Без content.json подвалу нечего показать — он остаётся скрытым.
   const a = content && content.about;
@@ -1302,7 +1421,7 @@ document.getElementById("fav-nav-btn").addEventListener("click", () => {
 function renderTasks() {
   const wrap = document.getElementById("task-row");
   wrap.innerHTML = TASKS.map(
-    (t) => `<button class="task-chip ${t.key === activeTask ? "active" : ""}" data-task="${t.key}">${esc(t.label)}</button>`
+    (t) => `<button class="task-chip ${t.key === activeTask ? "active" : ""}" data-task="${t.key}"><svg class="task-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${t.ico}</svg><span>${esc(t.label)}</span></button>`
   ).join("");
   wrap.querySelectorAll(".task-chip").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1398,6 +1517,9 @@ const TASK_STEMS = [
   ["dry", ["комнат", "спальн"]],
   ["facade", ["фасад", "улиц", "снаружи", "наружн"]],
   ["plinth", ["цокол"]],
+  ["pool", ["бассейн", "фонтан"]],
+  ["insul", ["утеплит", "утеплен"]],
+  ["walls", ["перегород"]],
 ];
 function taskOfWord(token) {
   for (const [key, stems] of TASK_STEMS) {
