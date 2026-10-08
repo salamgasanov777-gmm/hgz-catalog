@@ -17,7 +17,6 @@ const CATEGORY_ORDER = [
   "Гидроизоляция",
   "Грунтовки",
   "Краски",
-  "Затирки",
   "Гипсокартон",
   "Пазогребневые плиты",
   "Профили и подвесы",
@@ -61,7 +60,7 @@ const TASKS = [
     ico: '<path d="M2.5 17c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3"/><path d="M2.5 20.5c1.6 0 1.6-1.3 3.2-1.3s1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3 1.6 1.3 3.2 1.3 1.6-1.3 3.2-1.3"/><path d="M8.5 14V5.5a2 2 0 0 1 4 0M15.5 14V5.5"/><path d="M8.5 8.5h7M8.5 11.5h7"/>' },
   { key: "insul", label: "Утеплитель", ids: [8, 9, 22, 28, 29],
     ico: '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M5 12l2-4.5 2 9 2-9 2 9 2-9 2 9 2-4.5"/>' },
-  { key: "walls", label: "Перегородки", ids: [20, 10, 44, 45, 48, 49, 46, 47, 52, 53, 54, 55, 56],
+  { key: "walls", label: "Перегородки", ids: [20, 10, 44, 45, 48, 49, 46, 47, 54, 55, 56],
     ico: '<rect x="4" y="3.5" width="16" height="17" rx="1"/><path d="M12 3.5v17M4 12h16"/>' },
 ];
 
@@ -190,6 +189,7 @@ async function load() {
     products = JSON.parse(dataText.products);
     // Сортировка устойчивая: внутри раздела товары идут как в products.json.
     products.sort((x, y) => categoryRank(x.category) - categoryRank(y.category));
+    forgetRemovedProducts();
   } catch (e) {
     // Первый заход на плохой связи: сохранённой копии ещё нет, а без товаров
     // показывать нечего. Молчать нельзя — человек увидит пустой белый экран и
@@ -222,6 +222,29 @@ async function load() {
   setTimeout(() => {
     if (document.visibilityState === "visible") checkDataUpdate();
   }, 3000);
+}
+
+// Товар сняли с каталога (08.10.2026: затирка и ПГП 150 мм — завод их не
+// выпускает), а он остался у человека в избранном или в заявке. Убираем: иначе
+// на звезде горело бы число, а список был бы пуст.
+function forgetRemovedProducts() {
+  const known = new Set(products.map((p) => p.id));
+  const favGone = [...favorites].filter((id) => !known.has(id));
+  if (favGone.length) {
+    favGone.forEach((id) => favorites.delete(id));
+    try {
+      localStorage.setItem("hgz-favorites", JSON.stringify([...favorites]));
+    } catch {}
+  }
+  const cartGone = [...cart].filter((id) => !known.has(id));
+  if (cartGone.length) {
+    cartGone.forEach((id) => {
+      cart.delete(id);
+      delete order[id];
+    });
+    saveCart();
+    saveOrder();
+  }
 }
 
 // Фото завода в первом экране. Лежит в products/, поэтому service worker
