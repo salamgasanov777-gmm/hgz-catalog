@@ -115,6 +115,23 @@ html {
   border-bottom: 1px solid var(--border);
 }
 
+/* Шапка складывается при листании вниз (телефон): вся шапка уезжает вверх на
+   --fold, а строка «Habez Gips» с кнопками — на столько же вниз, то есть
+   остаётся на месте. Поиск и метки уходят под неё и гаснут. Место под
+   товарами шапка не занимает: она «прилипшая», её место в потоке выше экрана,
+   так что страница не прыгает. Листнули вверх — шапка раскрывается. */
+.topbar, .topbar-row { transition: transform 0.22s ease; }
+.topbar > .search, .topbar > .task-row { transition: opacity 0.16s ease; }
+/* Сплошной фон строки с кнопками (и на 10 px вокруг, и до верха шапки):
+   пока шапка едет, поиск и метки уходят под строку, а не просвечивают сквозь. */
+.topbar-row { z-index: 2; background: var(--bg); box-shadow: 0 0 0 10px var(--bg), 0 -40px 0 10px var(--bg); }
+.topbar.folded { transform: translateY(calc(-1 * var(--fold, 0px))); }
+.topbar.folded .topbar-row { transform: translateY(var(--fold, 0px)); }
+.topbar.folded > .search, .topbar.folded > .task-row { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .topbar, .topbar-row, .topbar > .search, .topbar > .task-row { transition: none; }
+}
+
 .topbar h1 {
   margin: 0;
   font-size: 14px;

@@ -346,6 +346,54 @@ function startRailMarquee(list) {
   };
 }
 
+// Складывание шапки (решение владельца 08.10.2026, вариант А): на телефоне при
+// листании вниз остаётся одна строка — «Habez Gips», избранное, заявка, «⋯»;
+// чуть листнули вверх — поиск и метки возвращаются. Запас против дёрганья:
+// складываем после HEAD_FOLD_DOWN точек вниз, раскрываем после HEAD_FOLD_UP вверх.
+const HEAD_FOLD_DOWN = 36;
+const HEAD_FOLD_UP = 12;
+const headFoldMedia = matchMedia("(max-width: 699px)");
+(function headFold() {
+  const bar = document.querySelector(".topbar");
+  const row = bar && bar.querySelector(".topbar-row");
+  if (!bar || !row) return;
+  const measure = () => {
+    // Сколько спрятать: всё ниже строки с кнопками (поиск, метки, отступы).
+    const keep = row.offsetTop + row.offsetHeight + 10;
+    bar.style.setProperty("--fold", `${Math.max(0, bar.offsetHeight - keep)}px`);
+  };
+  let lastY = scrollY;
+  let run = 0;
+  const set = (on) => {
+    if (bar.classList.contains("folded") === on) return;
+    if (on) measure();
+    bar.classList.toggle("folded", on);
+  };
+  addEventListener(
+    "scroll",
+    () => {
+      const y = scrollY;
+      const dy = y - lastY;
+      lastY = y;
+      // Окно поверх страницы, открытое меню «⋯», телефон повернули в широкий
+      // экран, поиск в фокусе или верх страницы — шапка целиком.
+      if (!headFoldMedia.matches || document.documentElement.classList.contains("locked") ||
+          !document.getElementById("more-menu").hidden || document.activeElement === document.getElementById("search") ||
+          y < bar.offsetHeight) {
+        run = 0;
+        set(false);
+        return;
+      }
+      run = Math.sign(dy) === Math.sign(run) ? run + dy : dy;
+      if (run > HEAD_FOLD_DOWN) set(true);
+      else if (run < -HEAD_FOLD_UP) set(false);
+    },
+    { passive: true }
+  );
+  document.getElementById("more-btn").addEventListener("click", () => set(false));
+  headFoldMedia.addEventListener?.("change", () => set(false));
+})();
+
 function renderHome() {
   const intro = document.getElementById("home-intro");
   const rail = document.getElementById("home-rail");
