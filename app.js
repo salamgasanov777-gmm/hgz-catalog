@@ -2095,12 +2095,21 @@ function openSheet(p, openedFrom) {
   // обслуживает много товаров, поэтому срок меняется в одном месте. Если
   // реестра нет (content.json не загрузился) или ключ не найден — кнопки нет.
   const cert = p.cert && content && content.certificates ? content.certificates[p.cert] : null;
-  currentCert = cert;
+  // Просроченный сертификат клиенту не показываем: check.mjs ловит срок только
+  // при выкладке, а без выкладки каталог писал бы «Действует до …» и после
+  // этой даты (решение владельца 08.10.2026, вариант А).
+  const expired = Boolean(cert) && certExpired(cert.until);
+  currentCert = expired ? null : cert;
   const certWrap = document.getElementById("sheet-cert-wrap");
   certWrap.hidden = !cert;
   if (cert) {
-    document.getElementById("sheet-cert").href = cert.file;
-    document.getElementById("sheet-cert-note").textContent = `Действует до ${cert.until}.`;
+    const btn = document.getElementById("sheet-cert");
+    btn.style.display = expired ? "none" : "";
+    if (expired) btn.removeAttribute("href");
+    else btn.href = cert.file;
+    document.getElementById("sheet-cert-note").textContent = expired
+      ? "Сертификат обновляется — актуальный уточните у менеджера."
+      : `Действует до ${cert.until}.`;
   }
 
   document.getElementById("backdrop").classList.add("open");
@@ -2111,6 +2120,14 @@ function openSheet(p, openedFrom) {
 
 // Сертификат открытой карточки — по нему кнопка открывает просмотр.
 let currentCert = null;
+
+// Срок в реестре — «ДД.ММ.ГГГГ», последний день срок ещё действует. Дату,
+// которую не удалось разобрать, считаем действующей: её поймает check.mjs.
+function certExpired(until) {
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(until || "").trim());
+  if (!m) return false;
+  return Date.now() >= new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]) + 1).getTime();
+}
 
 // Сертификат показываем в окне поверх карточки, а не ссылкой на PDF: в окне
 // есть крестик, а у PDF на iPhone кнопки «назад» нет. В реестре лежит PDF, а
