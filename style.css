@@ -1509,6 +1509,25 @@ html.locked { overscroll-behavior: none; }
 }
 
 .spec-table { width: 100%; }
+/* Абзац и таблица под одним заголовком («Область применения»). */
+.doc-section p + .spec-table { margin-top: 8px; }
+
+/* Свёрнутые пункты инструкции: строка с заголовком и стрелкой, нажатие раскрывает. */
+.doc-fold { margin-bottom: 0; border-top: 1px solid var(--border); }
+.doc-fold:last-of-type { border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.doc-fold > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 14px 2px; -webkit-tap-highlight-color: transparent;
+}
+.doc-fold > summary::-webkit-details-marker { display: none; }
+.doc-fold > summary h3 { margin: 0; }
+.doc-fold > summary::after {
+  content: ""; flex: 0 0 auto; width: 8px; height: 8px; margin-right: 4px;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg); transition: transform 0.2s;
+}
+.doc-fold[open] > summary::after { transform: rotate(-135deg); }
+.doc-fold > :not(summary) { padding: 0 2px 16px; }
 .spec-row {
   padding: 9px 0;
   border-bottom: 1px solid var(--border);

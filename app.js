@@ -2062,16 +2062,31 @@ function openSheet(p, openedFrom) {
     html += calcHtml(p.calc, p);
   }
 
-  (p.sections || []).forEach((s) => {
-    html += `<section class="doc-section"><h3>${esc(s.title)}</h3><p>${esc(s.text).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>")}</p></section>`;
-  });
-
-  (p.tables || []).forEach((t) => {
-    const rows = t.rows
+  // Порядок окна (решения владельца 08.10.2026, как у Волмы): сначала цифры —
+  // «Технические характеристики», затем «Область применения» (текст и таблица),
+  // потом остальная инструкция завода. Всё — свёрнутыми пунктами: заголовок,
+  // нажали — раскрылся; так окно короче и аккуратнее. Ни слова не убрано,
+  // меняются только порядок и сворачивание.
+  const sectionHtml = (s) => `<p>${esc(s.text).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>")}</p>`;
+  const tableHtml = (t) =>
+    `<div class="spec-table">${t.rows
       .map(([label, value]) => `<div class="spec-row"><div class="spec-label">${esc(label)}</div><div class="spec-value">${esc(value)}</div></div>`)
-      .join("");
-    html += `<section class="doc-section"><h3>${esc(t.title)}</h3><div class="spec-table">${rows}</div></section>`;
-  });
+      .join("")}</div>`;
+  const parts = [
+    ...(p.tables || []).map((t) => ({ title: t.title, html: tableHtml(t), table: true })),
+    ...(p.sections || []).map((s) => ({ title: s.title, html: sectionHtml(s) })),
+  ];
+  const isSpecs = (x) => x.table && /^Технические характеристики/.test(x.title);
+  const isUse = (x) => /^Область применения/.test(x.title);
+  const fold = (x) =>
+    `<details class="doc-section doc-fold"><summary><h3>${esc(x.title)}</h3></summary>${x.html}</details>`;
+  parts.filter(isSpecs).forEach((x) => (html += fold(x)));
+  // У 30 товаров завод дал «Область применения» дважды: абзацем и таблицей
+  // «да / нет». Рядом два одинаковых заголовка читались как повтор — теперь
+  // заголовок один, под ним абзац (он объясняет), затем таблица (уточняет).
+  const use = [...parts.filter((x) => isUse(x) && !x.table), ...parts.filter((x) => isUse(x) && x.table)];
+  if (use.length) html += fold({ title: use[0].title, html: use.map((x) => x.html).join("") });
+  parts.filter((x) => !isSpecs(x) && !isUse(x)).forEach((x) => (html += fold(x)));
 
   body.innerHTML = html;
 
