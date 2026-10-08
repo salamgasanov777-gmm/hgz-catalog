@@ -1318,7 +1318,11 @@ html.locked { overscroll-behavior: none; }
   z-index: 4;
   display: flex;
   gap: 8px;
-  margin: 14px 0 0;
+  /* Отступ сверху больше «дымки» (тень ниже уходит вверх примерно на 44 px):
+     иначе, когда окно долистано до конца, дымка ложилась на последнюю строку
+     («Хранение», «Меры предосторожности») и та была бледной и наполовину
+     закрытой (замечено владельцем на телефоне 08.10.2026, v92). */
+  margin: 52px 0 0;
   border-radius: 12px;
   background: var(--bg);
   box-shadow: 0 0 0 8px var(--bg), 0 -14px 24px 6px var(--bg);
@@ -1680,6 +1684,7 @@ html.locked { overscroll-behavior: none; }
 .site-foot-links { display: flex; gap: 4px 18px; flex-wrap: wrap; }
 /* Подпись разработчика: тише остального подвала, отделена чертой. */
 .site-foot-dev { padding-top: 14px; border-top: 1px solid var(--border); display: grid; gap: 2px; }
+.site-foot-dev > div:first-child { display: grid; gap: 2px; }
 .site-foot-dev-label { color: var(--muted); font-size: 12px; }
 .site-foot-dev-name { font-weight: 700; }
 .site-foot-dev-about { color: var(--muted); }
@@ -1704,6 +1709,16 @@ html.locked { overscroll-behavior: none; }
   font-weight: 700;
 }
 
+/* Телефон: ссылки завода и разработчика — каждая четвёрка в одну строку, без
+   переноса последней на вторую (просьба владельца 08.10.2026). Шрифт и
+   промежутки сжимаются вместе с шириной экрана; на 700 px и шире — как было. */
+@media (max-width: 699px) {
+  .site-foot-links,
+  .site-foot-dev-links { flex-wrap: nowrap; justify-content: space-between; gap: 8px; }
+  .site-foot-links button,
+  .site-foot-dev-links a { font-size: clamp(11.5px, 3.55vw, 14px); white-space: nowrap; }
+}
+
 @keyframes home-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
@@ -1725,6 +1740,9 @@ html.locked { overscroll-behavior: none; }
   .home-rail-list { flex-wrap: wrap; overflow: visible; padding: 0; }
   .site-foot-in { max-width: var(--content-max); margin: 0 auto; grid-template-columns: 1.4fr 1fr; align-items: start; }
   .site-foot-dev { grid-column: 1 / -1; }
+  /* Разработчик — как строка завода над ним: слева имя, справа ссылки. */
+  .site-foot-dev { grid-template-columns: 1.4fr 1fr; column-gap: 14px; align-items: start; }
+  .site-foot-dev-links { margin-top: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

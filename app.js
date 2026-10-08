@@ -214,9 +214,11 @@ function developerHtml(d) {
   const hello = encodeURIComponent("Здравствуйте! Увидел каталог завода, хочу узнать про ваши услуги.");
   return `
         <div class="site-foot-dev">
-          <div class="site-foot-dev-label">Разработчик приложения</div>
-          <div class="site-foot-dev-name">${esc(d.name)}${d.brand ? ` · ${esc(d.brand)}` : ""}</div>
-          ${d.about ? `<div class="site-foot-dev-about">${esc(d.about)}</div>` : ""}
+          <div>
+            <div class="site-foot-dev-label">Разработчик приложения</div>
+            <div class="site-foot-dev-name">${esc(d.name)}${d.brand ? ` · ${esc(d.brand)}` : ""}</div>
+            ${d.about ? `<div class="site-foot-dev-about">${esc(d.about)}</div>` : ""}
+          </div>
           <div class="site-foot-dev-links">
             ${d.site ? `<a href="${esc(d.site)}" target="_blank" rel="noopener">${esc(host)}</a>` : ""}
             ${tel ? `<a href="tel:${esc(tel)}">Позвонить</a>` : ""}
@@ -275,7 +277,8 @@ function renderHome() {
   const a = content && content.about;
   if (a) {
     // Телефон, сайт, ИНН и ОГРН в подвале убраны по решению владельца: всё это
-    // есть на странице «О заводе» и «Связаться».
+    // есть на странице «О заводе» и «Связаться». «Видео» из подвала убрано
+    // (решение владельца 08.10.2026) — оно есть кнопкой на главной.
     foot.innerHTML = `
       <div class="site-foot-in">
         <div>
@@ -287,7 +290,6 @@ function renderHome() {
           <button type="button" data-page="docs">Документы</button>
           <button type="button" data-page="contact">Связаться</button>
           <button type="button" data-page="about">О заводе</button>
-          <button type="button" data-page="videos">Видео</button>
         </div>
         ${developerHtml(content.developer)}
       </div>`;
