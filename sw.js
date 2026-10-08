@@ -1,4 +1,4 @@
-const CACHE = "hgz-cache-v97";
+const CACHE = "hgz-cache-v98";
 
 // Адреса с ?v= должны совпадать с index.html: иначе браузер сохранит одно,
 // а страница попросит другое. Версия поднимается при правках style.css,
@@ -7,7 +7,7 @@ const CACHE = "hgz-cache-v97";
 // Согласованность версий проверяет tools/check.mjs.
 
 // Без этих файлов каталог не откроется вовсе — они обязательны.
-const CORE = ["./", "./index.html", "./style.css?v=97", "./app.js?v=97", "./qr.js?v=97", "./guard.js?v=97"];
+const CORE = ["./", "./index.html", "./style.css?v=98", "./app.js?v=98", "./qr.js?v=98", "./guard.js?v=98"];
 
 // А эти каталог переживёт: товары и страницы завода и так берутся «сначала
 // сеть», значок с манифестом нужны только при установке на телефон. Класть их
@@ -176,6 +176,55 @@ async function networkFirst(req) {
   }
 }
 
+// «Сразу копию, свежее — фоном» (с v98). Раньше при зависшей связи (полоска
+// есть, данных нет — подвал, торговый зал) страница и данные ждали сеть до
+// 4 секунд каждая, подряд: до 8 секунд «Загружаем каталог…», хотя всё лежало
+// на телефоне. Теперь, если копия есть, отдаём её сразу, а свежую качаем
+// следом и кладём в запас — каталог в это время уже открыт. Новое каталог
+// замечает сам: через 3 секунды после запуска app.js сверяет данные с сайтом
+// запросом cache: "reload" (он идёт «сначала сеть») и показывает полосу
+// «Каталог обновился». Первый заход без копии — по-прежнему «сначала сеть».
+const VERSION = CACHE.replace("hgz-cache-v", "");
+
+async function refresh(url, data) {
+  try {
+    const res = await fetch(url, { cache: "no-cache" });
+    if (!res || res.status !== 200) return;
+    const path = new URL(url).pathname;
+    if (data) {
+      if (!(await isGoodData(res, path))) return;
+    } else {
+      // Свежая главная кладётся только если она просит те же файлы, что лежат
+      // в запасе: иначе офлайн она запросила бы код, которого нет. Новый код
+      // приходит обычным путём — полосой «Вышла новая версия».
+      if (!(await res.clone().text()).includes(`app.js?v=${VERSION}`)) return;
+    }
+    const cache = await caches.open(CACHE);
+    await cache.put(url, res);
+  } catch {
+    // Нет связи — копия остаётся прежней.
+  }
+}
+
+async function showCachedThenRefresh(e) {
+  const req = e.request;
+  const url = new URL(req.url);
+  const page = req.mode === "navigate";
+  const search = page && url.search !== "";
+  const cached =
+    (await caches.match(req)) ||
+    (search ? (await caches.match(req, { ignoreSearch: true })) || (await caches.match("./index.html")) : undefined);
+  if (!cached) return networkFirst(req);
+  if (!search) e.waitUntil(refresh(req.url, !page));
+  return cached;
+}
+
+// Кому нужна свежая версия сразу, а не копия: проверка обновления в app.js
+// (cache: "reload") и обновление страницы пальцем или кнопкой.
+function wantsNetwork(req) {
+  return req.cache === "reload" || (req.mode === "navigate" && req.cache === "no-cache");
+}
+
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
 
@@ -202,5 +251,12 @@ self.addEventListener("fetch", (e) => {
   // правке; забытый подъём ловит tools/check.mjs (сравнивает с опубликованным).
   const versioned = e.request.mode !== "navigate" && /\.(css|js)$/i.test(url.pathname) && /[?&]v=\d+/.test(url.search);
 
-  e.respondWith(isPhoto(url.pathname) || versioned ? cacheFirst(e.request) : networkFirst(e.request));
+  if (isPhoto(url.pathname) || versioned) {
+    e.respondWith(cacheFirst(e.request));
+    return;
+  }
+  // Страница и данные завода — копия сразу; всё прочее (манифест, значки,
+  // сертификаты-картинки) — сначала сеть с ограничением.
+  const showable = e.request.mode === "navigate" || isData(url.pathname);
+  e.respondWith(showable && !wantsNetwork(e.request) ? showCachedThenRefresh(e) : networkFirst(e.request));
 });

@@ -217,6 +217,11 @@ async function load() {
   render();
   openFromHash();
   warmPhotoCache();
+  // Первая сверка с сайтом — через 3 секунды после отрисовки: показали
+  // сохранённое сразу, теперь смотрим, не вышло ли новое (см. sw.js).
+  setTimeout(() => {
+    if (document.visibilityState === "visible") checkDataUpdate();
+  }, 3000);
 }
 
 // Фото завода в первом экране. Лежит в products/, поэтому service worker
@@ -3722,14 +3727,17 @@ if ("serviceWorker" in navigator) {
 // страницу. Сами посреди работы не перерисовываем — человек мог листать.
 const DATA_CHECK_EVERY = 30 * 60 * 1000;
 
-document.addEventListener("visibilitychange", async () => {
-  if (document.visibilityState !== "visible" || !dataText.products) return;
-  if (Date.now() - dataCheckedAt < DATA_CHECK_EVERY) return;
+// С v98 каталог при открытии показывает сохранённые данные сразу (sw.js), а
+// свежие подтягивает фоном. Поэтому сверку делаем и вскоре после запуска, не
+// дожидаясь возвращения в каталог. cache: "reload" — сигнал для sw.js: этот
+// запрос идёт в сеть, а не за копией.
+async function checkDataUpdate() {
+  if (!dataText.products) return;
   dataCheckedAt = Date.now();
   try {
     const [p, c] = await Promise.all([
-      fetch("./products.json", { cache: "no-cache" }),
-      fetch("./content.json", { cache: "no-cache" }),
+      fetch("./products.json", { cache: "reload" }),
+      fetch("./content.json", { cache: "reload" }),
     ]);
     if (!p.ok) return;
     const productsNow = await p.text();
@@ -3742,6 +3750,12 @@ document.addEventListener("visibilitychange", async () => {
   } catch {
     // Нет сети — сверим в следующий раз.
   }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  if (Date.now() - dataCheckedAt < DATA_CHECK_EVERY) return;
+  checkDataUpdate();
 });
 
 // Кнопку «Обновить» обслуживает блок service worker выше; где его нет,
