@@ -172,7 +172,7 @@ function checkCode() {
 const REQUIRED =["id", "name", "category", "unit", "photo"];
 const KNOWN = [
   "id", "name", "category", "unit", "price", "gost", "photo", "photos",
-  "summary", "badges", "sections", "tables", "calc", "tasks", "cert",
+  "summary", "purpose", "badges", "sections", "tables", "calc", "tasks", "cert",
 ];
 
 function parseJson(file) {

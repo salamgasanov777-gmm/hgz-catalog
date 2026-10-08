@@ -1815,6 +1815,7 @@ function cardNode(p) {
       <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="В избранное: ${esc(p.name)}" aria-pressed="${isFavorite(p.id)}">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
         <p class="name">${esc(p.name)}</p>
+        ${p.purpose ? `<p class="purpose">${esc(p.purpose)}</p>` : ""}
         <p class="meta">${esc(p.unit || "")}${p.price ? " · " + esc(p.price) : ""}</p>
       </div>`;
 
