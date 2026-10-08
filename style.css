@@ -372,7 +372,9 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 }
 
 .store-search { margin-bottom: 4px; }
-.store-cities { margin-bottom: 14px; }
+/* Вес выше, чем у .task-row: его margin-bottom: -6px ниже в файле перебивал
+   отступ, и подпись «9 точек продаж» прилипала к полосе городов. */
+.task-row.store-cities { margin-bottom: 14px; }
 .store-count { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
 .store-city {
   display: flex;
@@ -555,7 +557,9 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   font: inherit;
   font-size: 16px;
 }
-.order-send { margin-top: 18px; }
+/* Вес выше, чем у .ask-btn: его margin ниже в файле перебивал отступ, и
+   кнопка прилипала к полю «Когда нужно». */
+.ask-btn.order-send { margin-top: 18px; }
 .order-copy { cursor: pointer; font-family: inherit; text-align: left; }
 .order-note { margin: 10px 2px 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
 .compare-sheet h2 { margin: 0 0 14px; font-size: 19px; }
@@ -590,7 +594,8 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   width: 72px;
   height: 60px;
   margin: 0 auto 6px;
-  background: var(--accent-soft) center/contain no-repeat;
+  /* Подложка как у фото в карточке: голубая давала полосы вокруг снимка. */
+  background: var(--photo-bg) center/contain no-repeat;
   border-radius: 6px;
 }
 .cmp-name {
@@ -928,7 +933,9 @@ html.locked { overscroll-behavior: none; }
 
 .sheet .photo-big {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  /* Формат самих снимков (1000×520), как у фото в карточке списка. При 16:9
+     сверху и снизу фото оставались полосы подложки. */
+  aspect-ratio: 1.92 / 1;
   border-radius: 14px;
   position: relative;
   overflow: hidden;
@@ -1176,6 +1183,19 @@ html.locked { overscroll-behavior: none; }
    Правило обязано идти после .install-bar и .update-bar — вес селекторов
    одинаковый, и побеждает тот, что ниже в файле. */
 .manager-bar { z-index: 17; }
+
+/* На компьютере полосы «Записать менеджера», «Вышла новая версия» и
+   «Установить» не растягиваются на весь экран: вопрос и кнопка «Записать»
+   разъезжались на тысячу точек. Ширина ограничена, полоса по центру. */
+@media (min-width: 700px) {
+  .install-bar,
+  .update-bar {
+    left: 50%;
+    right: auto;
+    width: min(560px, calc(100% - 24px));
+    translate: -50% 0;
+  }
+}
 
 .install-text {
   flex: 1 1 auto;
@@ -1499,6 +1519,9 @@ html.locked { overscroll-behavior: none; }
   overflow-x: auto;
   padding: 0 16px 4px;
   scroll-snap-type: x proximity;
+  /* Лента «примагничивает» плитку к началу. Без поля примагничивания первая
+     плитка вставала вплотную к краю экрана и теряла отступ 16 px. */
+  scroll-padding-inline: 16px;
   scrollbar-width: none;
 }
 .home-rail-list::-webkit-scrollbar { display: none; }
