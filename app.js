@@ -726,7 +726,11 @@ function selectCategory(cat) {
   else history.pushState({ hgzCat: cat }, "");
 }
 
-document.getElementById("section-all").addEventListener("click", () => selectCategory("Все"));
+// На главной это «Сбросить» (поиск и фильтр задачи), в разделе — «Все разделы».
+document.getElementById("section-all").addEventListener("click", () => {
+  if (activeCategory === "Все") goToCategory("Все");
+  else selectCategory("Все");
+});
 
 // Оверлеи (карточка товара, сравнение, QR, страницы завода) складываются в стек:
 // каждый добавляет запись в историю, поэтому кнопка «Назад» на телефоне
@@ -1665,8 +1669,15 @@ function render() {
   // строку не помещается — даём ему две строки шрифтом поменьше.
   title.classList.toggle("long", title.textContent.length > 22);
   const bar = document.getElementById("section-bar");
-  bar.hidden = activeCategory === "Все";
-  if (!bar.hidden) {
+  // На главной полоса появляется только при поиске или фильтре задачи:
+  // «Найдено N · Сбросить» — сколько нашлось и как вернуть всё одним нажатием.
+  const filtering = activeCategory === "Все" && (q || activeTask);
+  bar.hidden = activeCategory === "Все" && !(filtering && filtered.length);
+  document.getElementById("section-all").textContent = filtering ? "Сбросить" : "Все разделы";
+  if (filtering && filtered.length) {
+    const n = filtered.length;
+    document.getElementById("section-count").textContent = `Найдено ${n} ${plural(n, ["товар", "товара", "товаров"])}`;
+  } else if (!bar.hidden) {
     const n = filtered.length;
     const what = activeCategory === "__fav__" ? "в избранном" : "в разделе";
     document.getElementById("section-count").textContent = n
