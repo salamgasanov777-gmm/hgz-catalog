@@ -34,6 +34,11 @@ let currentProduct = null;
 // Подбор по задаче: у большинства товаров ответ уже есть в таблице «Область
 // применения», у грунтовок и красок такой таблицы нет — им задачи проставлены
 // полем "tasks" в products.json.
+// Ярлык на карточке и в окне товара — поле tag в products.json. Только
+// «Новинка»: «Хит продаж» владелец отклонил 08.10.2026 — ходовой товар в
+// каждом регионе свой, а каталог один на всех.
+const TAGS = { new: "Новинка" };
+
 const TASKS = [
   { key: "wet", label: "Ванная", needles: ["повышенным уровнем влажности"] },
   { key: "dry", label: "Комната", needles: ["нормальным уровнем влажности"] },
@@ -1868,6 +1873,7 @@ function cardNode(p) {
   card.className = "card";
   card.dataset.id = p.id ?? key;
   card.innerHTML = `
+      ${TAGS[p.tag] ? `<span class="tag tag-${esc(p.tag)}">${TAGS[p.tag]}</span>` : ""}
       <div class="photo${p.photo ? " loading" : ""}"${p.photo ? ` data-src="${photoUrl(p)}"` : ""}>${p.photo ? "" : '<span class="photo-soon">Фото скоро</span>'}</div>
       <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="В избранное: ${esc(p.name)}" aria-pressed="${isFavorite(p.id)}">${isFavorite(p.id) ? "★" : "☆"}</button>
       <div class="info">
@@ -2098,6 +2104,10 @@ function openSheet(p, openedFrom) {
   hideCartToast();
   showPhotos(p);
   document.getElementById("sheet-name").textContent = p.name;
+  const sheetTag = document.getElementById("sheet-tag");
+  sheetTag.hidden = !TAGS[p.tag];
+  sheetTag.className = `tag tag-inline tag-${p.tag || ""}`;
+  sheetTag.textContent = TAGS[p.tag] || "";
   document.getElementById("sheet-crumb-cat").textContent = p.category;
   document.getElementById("sheet-crumb-name").textContent = shortName(p);
   document.getElementById("sheet-price").textContent = [p.unit, p.price].filter(Boolean).join(" · ");

@@ -172,7 +172,7 @@ function checkCode() {
 const REQUIRED =["id", "name", "category", "unit", "photo"];
 const KNOWN = [
   "id", "name", "category", "unit", "price", "gost", "photo", "photos",
-  "summary", "purpose", "badges", "sections", "tables", "calc", "tasks", "cert",
+  "summary", "purpose", "tag", "badges", "sections", "tables", "calc", "tasks", "cert",
 ];
 
 function parseJson(file) {
@@ -229,6 +229,8 @@ function checkProducts() {
     for (const f of Object.keys(p)) {
       if (!KNOWN.includes(f)) fail(where, "неизвестное поле", `${f} — код его не показывает`);
     }
+    // Ярлык: код знает только «new» (Новинка); другое слово карточка молча не покажет.
+    if ("tag" in p && p.tag !== "new") fail(where, "неизвестный ярлык tag", `${p.tag} — код знает только "new"`);
 
     if (typeof p.id !== "number" || !Number.isInteger(p.id)) {
       fail(where, "id не целое число", String(p.id));
