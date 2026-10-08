@@ -3354,6 +3354,16 @@ document.getElementById("compare-close").addEventListener("click", dismissOverla
 // не знать об этом. Поэтому: новая версия ставится рядом и ждёт, каталог
 // показывает полосу «Вышла новая версия», и только по кнопке она заступает
 // на место старой, после чего страница перезагружается.
+// ✕ прячет полосу до следующего открытия каталога: в магазине на медленной
+// связи обновляться некогда, а полоса закрывала низ списка (решение владельца
+// 08.10.2026). Новая версия никуда не девается — при следующем запуске
+// полоса появится снова.
+let updateBarHidden = false;
+document.getElementById("update-no").addEventListener("click", () => {
+  updateBarHidden = true;
+  document.getElementById("update-bar").classList.remove("open");
+});
+
 if ("serviceWorker" in navigator) {
   // Было ли приложение уже под управлением своей копии. Если нет — это первая
   // установка, и смена управляющего не повод перезагружаться.
@@ -3362,6 +3372,7 @@ if ("serviceWorker" in navigator) {
 
   const showUpdateBar = (worker) => {
     waitingWorker = worker;
+    if (updateBarHidden) return;
     document.getElementById("install-bar").classList.remove("open");
     document.getElementById("update-bar").classList.add("open");
   };
@@ -3430,6 +3441,7 @@ document.addEventListener("visibilitychange", async () => {
     const productsNow = await p.text();
     const contentNow = c.ok ? await c.text() : dataText.content;
     if (productsNow === dataText.products && contentNow === dataText.content) return;
+    if (updateBarHidden) return;
     document.getElementById("update-text").textContent = "Каталог обновился";
     document.getElementById("install-bar").classList.remove("open");
     document.getElementById("update-bar").classList.add("open");
