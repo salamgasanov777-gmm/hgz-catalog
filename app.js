@@ -835,6 +835,10 @@ document.addEventListener(
   () => document.documentElement.classList.add("touch-nav"),
   { capture: true, passive: true }
 );
+// Safari на iPhone показывает состояние «нажато» (:active в style.css) только
+// если странице сообщили, что она слушает касания. Пустой слушатель — это и
+// есть такое сообщение; без него кнопки под пальцем не «вдавливались».
+document.addEventListener("touchstart", () => {}, { passive: true });
 document.addEventListener(
   "keydown",
   (e) => {
