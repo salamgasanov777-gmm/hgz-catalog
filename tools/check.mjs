@@ -492,6 +492,112 @@ function checkSearch() {
   console.log(`  поиск: ${cases.length} эталонных запросов${bad ? `, не прошли: ${bad}` : ", все прошли"}`);
 }
 
+// ------------------------------------------------- 5. Калькулятор и заявка
+// Как и поиск: настоящий код из app.js (вырезается по меткам) на настоящих
+// товарах из products.json. Поля ввода подставные — тест вписывает площадь и
+// толщину, как человек, и читает ответ калькулятора и строку заявки.
+// Эталоны — tools/calc-cases.json (с 09.10.2026). Меняете расход в данных или
+// код калькулятора — ответ должен совпасть с ручным расчётом по данным завода.
+function loadCalcEngine(products) {
+  const src = read("app.js");
+  const cut = (from, to) => {
+    const a = src.indexOf(from);
+    const b = a < 0 ? -1 : src.indexOf(to, a);
+    if (a < 0 || b < 0) throw new Error(`не найдены метки «${from}» / «${to}» в app.js`);
+    return src.slice(a, b);
+  };
+  const code = [
+    "let order = {};",
+    cut("const PACK_NOUNS", "const CART_KEY"),
+    cut("function orderText()", "function renderOrderRow"),
+    cut("function plural(n, forms)", "function closeSheet()"),
+    "globalThis.__api = { wireCalc, orderLine, orderText, setOrder: (o) => { order = o; }, getOrder: () => order };",
+  ].join("\n");
+  return () => {
+    const els = {};
+    const el = (id) =>
+      (els[id] ||= { id, value: "", checked: false, textContent: "", innerHTML: "", handlers: {}, addEventListener(t, f) { this.handlers[t] = f; } });
+    const ctx = {
+      document: { getElementById: el },
+      esc: (s) => String(s),
+      saveOrder() {},
+      updateSheetCart() {},
+      currentProduct: null,
+      cart: new Set(),
+      products,
+    };
+    ctx.orderItems = () => products.filter((p) => ctx.cart.has(p.id));
+    ctx.globalThis = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(code, ctx);
+    return { ctx, el, api: ctx.__api };
+  };
+}
+
+function checkCalc() {
+  let cases;
+  try {
+    cases = JSON.parse(read("tools/calc-cases.json"));
+  } catch (e) {
+    fail("tools/calc-cases.json", "не читается", e.message);
+    return;
+  }
+  const products = JSON.parse(read("products.json"));
+  const byId = Object.fromEntries(products.map((p) => [p.id, p]));
+  let engine;
+  try {
+    engine = loadCalcEngine(products);
+    engine();
+  } catch (e) {
+    fail("app.js", "не удалось запустить калькулятор для проверки", e.message);
+    return;
+  }
+  // Числа калькулятор пишет с неразрывным пробелом (11 970) — сравниваем как обычный.
+  const strip = (h) => String(h).replace(/<[^>]+>/g, "").replace(/[\u00a0\u202f]/g, " ");
+  let bad = 0;
+  for (const k of cases.calc || []) {
+    const p = byId[k.id];
+    const where = `калькулятор: ${p ? p.name : "id " + k.id} — ${k.area} м²${k.mm != null ? ", " + k.mm + " мм" : ""}${k.waste ? ", с запасом" : ""}`;
+    if (!p || !p.calc) {
+      bad++;
+      fail(where, "у товара нет калькулятора", "проверьте id в tools/calc-cases.json");
+      continue;
+    }
+    const { el, api } = engine();
+    api.wireCalc(p.calc, p);
+    if (k.waste) el("calc-waste").checked = true;
+    el("calc-area").value = k.area;
+    if (k.mm != null) el("calc-mm").value = k.mm;
+    el("calc-area").handlers.input();
+    const got = strip(el("calc-result").innerHTML || el("calc-result").textContent);
+    const remembered = api.getOrder()[k.id];
+    const line = remembered ? api.orderLine(p) : null;
+    const why = k.why ? ` (${k.why})` : "";
+    if (got !== k.result) {
+      bad++;
+      fail(where, "расчёт не совпал с эталоном", `ждали «${k.result}», получилось «${got}»${why}`);
+    }
+    if ((k.order ?? null) !== line) {
+      bad++;
+      fail(where, "в заявку попадёт не то количество", `ждали «${k.order}», получилось «${line}»${why}`);
+    }
+  }
+  if (cases.order) {
+    const o = cases.order;
+    const { ctx, el, api } = engine();
+    ctx.cart = new Set(o.cart);
+    api.setOrder(JSON.parse(JSON.stringify(o.entries)));
+    el("order-object").value = o.object || "";
+    el("order-when").value = o.when || "";
+    const text = api.orderText();
+    if (text !== o.text) {
+      bad++;
+      fail("заявка", "текст сообщения в WhatsApp не совпал с эталоном", `получилось:\n${text}`);
+    }
+  }
+  console.log(`  калькулятор: эталонов расчёта — ${(cases.calc || []).length}, плюс текст заявки${bad ? `, не прошли: ${bad}` : ", все прошли"}`);
+}
+
 // ------------------------------------------------- Запуск
 console.log("Проверка версий");
 checkAgainstPublished(checkVersions());
@@ -504,6 +610,8 @@ checkContent();
 checkCertificates();
 console.log("\nПроверка поиска");
 checkSearch();
+console.log("\nПроверка калькулятора и заявки");
+checkCalc();
 
 if (warnings.length) {
   console.log(`\nПредупреждения (${warnings.length}) — публиковать можно, но посмотрите:`);

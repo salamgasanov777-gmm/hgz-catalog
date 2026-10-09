@@ -3094,13 +3094,19 @@ function wireCalc(calc, p) {
       total = calc.ratePerM2 * area;
     }
 
+    // Сколько упаковок: хвост меньше 0,1% упаковки не считаем. У МЕЛИССЫ
+    // расход записан как 1,667 кг/м² (завод: мешок на 15 м²), и 15 м² давали
+    // 25,005 кг — калькулятор писал «25 кг», а мешков насчитывал два
+    // (найдено эталонами check.mjs 09.10.2026). Так же, как у плит выше.
+    const packsFor = (amount) => Math.ceil(amount / calc.pack - 0.001);
+
     if (calc.type === "liquid") {
       const bigUnit = calc.packUnit === "г" ? "кг" : "л";
-      const containers = Math.ceil(total / calc.pack);
+      const containers = packsFor(total);
       result.innerHTML = `Нужно: <b>${formatNum(total / 1000)} ${bigUnit}</b> (~${containers} уп. по ${formatNum(calc.pack / 1000)} ${bigUnit})`;
       rememberCalc(p, containers, calc.pack / 1000);
     } else {
-      const bags = Math.ceil(total / calc.pack);
+      const bags = packsFor(total);
       // Сухие смеси приходят в мешках, но не всё: жидкая гидроизоляция — в
       // ведре. Товар может назвать свою тару полем "packWord" в products.json.
       const packWord = calc.packWord || "меш.";
