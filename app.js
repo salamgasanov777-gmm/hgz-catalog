@@ -1233,16 +1233,24 @@ function openOverlay(onClose, node, opener, reopen) {
 
 // Закрытие идёт через историю, чтобы состояние стека и истории совпадали.
 // На iPhone записей нет — там окно закрывается напрямую.
+// Окно товара может лежать в стопке несколькими шагами (товар → грунтовка из
+// «Понадобится»): ✕, затемнение и смахивание закрывают окно целиком, все шаги;
+// кнопка «Назад» на Android по-прежнему — по одному.
 function dismissOverlay() {
   if (!overlayStack.length) return;
+  const node = topOverlay().node;
+  let steps = 1;
+  while (node && steps < overlayStack.length && overlayStack[overlayStack.length - 1 - steps].node === node) steps++;
   if (OVERLAY_HISTORY) {
-    history.back();
+    history.go(-steps);
     return;
   }
-  const entry = overlayStack.pop();
-  entry.onClose();
-  syncInert();
-  restoreFocus(entry.opener);
+  for (let i = 0; i < steps; i++) {
+    const entry = overlayStack.pop();
+    entry.onClose();
+    syncInert();
+    restoreFocus(entry.opener);
+  }
   unlockScrollSoon();
 }
 
@@ -2336,6 +2344,98 @@ document.getElementById("sheet-fav").addEventListener("click", () => {
 });
 
 function openSheet(p, openedFrom) {
+  renderSheet(p);
+  document.getElementById("backdrop").classList.add("open");
+  document.getElementById("sheet").classList.add("open");
+  document.getElementById("sheet").scrollTop = 0;
+  openOverlay(closeSheet, document.getElementById("sheet"), openedFrom, () => openSheet(p, openedFrom));
+}
+
+// «Понадобится» (с v113, решение владельца 10.10.2026, вариант А): под
+// калькулятором — что завод велит взять вместе с товаром. Только то, что завод
+// сам назвал в инструкции: к Победе 80 — грунтовку ЛЮКС или УНИВЕРСАЛЬНАЯ, к
+// ПГП — клей МЕЛИССА. Данные — поле needs в products.json.
+function needsHtml(p) {
+  const groups = (p.needs || [])
+    .map((g) => ({ note: g.note, items: (g.ids || []).map((id) => products.find((x) => x.id === id)).filter(Boolean) }))
+    .filter((g) => g.items.length);
+  if (!groups.length) return "";
+  return (
+    `<section class="needs"><h3>Понадобится</h3>` +
+    groups
+      .map(
+        (g) =>
+          `<p class="needs-note">${esc(g.note)}</p>` +
+          g.items
+            .map(
+              (q) =>
+                `<button type="button" class="need-row" data-need="${q.id}">` +
+                `<span class="need-photo"${q.photo ? ` style="background-image:url('${photoUrl(q)}')"` : ""}></span>` +
+                `<span class="need-name">${esc(q.name)}</span><span class="need-arrow" aria-hidden="true">›</span></button>`
+            )
+            .join("")
+      )
+      .join("") +
+    `</section>`
+  );
+}
+
+// Переход к товару из «Понадобится» — в том же окне, новым шагом: «Назад» на
+// Android возвращает к исходному товару, на iPhone — кнопка «← …» вверху.
+// ✕, затемнение и смахивание закрывают окно целиком (dismissOverlay).
+function openRelated(q, from) {
+  const sheet = document.getElementById("sheet");
+  const back = currentProduct;
+  const backScroll = sheet.scrollTop;
+  // Что клиент уже ввёл в калькулятор — вернём, когда он придёт обратно:
+  // посчитал мешки штукатурки, посмотрел грунтовку, вернулся — цифры на месте.
+  const CALC_FIELDS = ["calc-area", "calc-mm", "room-l", "room-w", "room-h", "room-open"];
+  const typed = CALC_FIELDS.map((id) => [id, document.getElementById(id)?.value || ""]).filter(([, v]) => v);
+  const waste = document.getElementById("calc-waste")?.checked;
+  const roomOpen = document.getElementById("calc-room") && !document.getElementById("calc-room").hidden;
+  renderSheet(q, back);
+  sheet.scrollTop = 0;
+  openOverlay(
+    () => {
+      renderSheet(back, sheetBackOf.get(back) || null);
+      if (roomOpen) document.getElementById("room-toggle")?.click();
+      const w = document.getElementById("calc-waste");
+      if (w && waste) w.checked = true;
+      typed.forEach(([id, v]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = v;
+      });
+      // Пересчёт тем же путём, что при вводе: площадь — последней.
+      ["room-l", "calc-mm", "calc-area"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && typed.some(([t]) => t === id)) el.dispatchEvent(new Event("input"));
+      });
+      sheet.scrollTop = backScroll;
+    },
+    sheet,
+    from,
+    () => openRelated(q, from)
+  );
+}
+// Откуда пришли к товару в окне (для кнопки «‹ …»), пока окно открыто.
+const sheetBackOf = new Map();
+document.getElementById("sheet-back").addEventListener("click", sheetStepBack);
+
+// Шаг назад внутри окна товара — к товару, из которого перешли.
+function sheetStepBack() {
+  if (OVERLAY_HISTORY) {
+    history.back();
+    return;
+  }
+  const entry = overlayStack.pop();
+  entry.onClose();
+  syncInert();
+  restoreFocus(entry.opener);
+}
+
+function renderSheet(p, backTo = null) {
+  if (backTo) sheetBackOf.set(p, backTo);
+  else sheetBackOf.delete(p);
   currentProduct = p;
   updateSheetFavButton();
   updateSheetCart();
@@ -2358,6 +2458,11 @@ function openSheet(p, openedFrom) {
 
   const body = document.getElementById("sheet-body");
   let html = "";
+  // Пришли из «Понадобится» — вверху вместо крошек кнопка возврата.
+  const sheetBack = document.getElementById("sheet-back");
+  sheetBack.hidden = !backTo;
+  sheetBack.textContent = backTo ? `‹ ${favShortName(backTo.name)}` : "";
+  document.getElementById("sheet-crumbs").hidden = Boolean(backTo);
 
   if (p.summary) {
     html += `<p class="summary">${esc(p.summary)}</p>`;
@@ -2366,6 +2471,7 @@ function openSheet(p, openedFrom) {
   if (p.calc) {
     html += calcHtml(p.calc, p);
   }
+  html += needsHtml(p);
 
   // Порядок окна (решения владельца 08.10.2026, как у Волмы): сначала цифры —
   // «Технические характеристики», затем «Область применения» (текст и таблица),
@@ -2398,6 +2504,12 @@ function openSheet(p, openedFrom) {
   if (p.calc) {
     wireCalc(p.calc, p);
   }
+  body.querySelectorAll(".need-row").forEach((b) =>
+    b.addEventListener("click", () => {
+      const q = products.find((x) => x.id === Number(b.dataset.need));
+      if (q) openRelated(q, b);
+    })
+  );
 
   // Клиенту, пришедшему по QR-коду менеджера, кнопка пишет сразу этому
   // менеджеру. У самого менеджера (own) она остаётся обычной: он рассылает
@@ -2432,11 +2544,6 @@ function openSheet(p, openedFrom) {
       ? "Сертификат обновляется — актуальный уточните у менеджера."
       : `Действует до ${cert.until}.`;
   }
-
-  document.getElementById("backdrop").classList.add("open");
-  document.getElementById("sheet").classList.add("open");
-  document.getElementById("sheet").scrollTop = 0;
-  openOverlay(closeSheet, document.getElementById("sheet"), openedFrom, () => openSheet(p, openedFrom));
 }
 
 // Сертификат открытой карточки — по нему кнопка открывает просмотр.

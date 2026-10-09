@@ -205,7 +205,7 @@ function checkCode() {
 const REQUIRED =["id", "name", "category", "unit", "photo"];
 const KNOWN = [
   "id", "name", "category", "unit", "price", "gost", "photo", "photos",
-  "summary", "purpose", "tag", "badges", "sections", "tables", "calc", "tasks", "cert",
+  "summary", "purpose", "tag", "badges", "sections", "tables", "calc", "tasks", "cert", "needs",
 ];
 
 function parseJson(file) {
@@ -248,6 +248,7 @@ function checkProducts() {
 
   const seen = new Map();
   const ids = [];
+  const rawIds = new Set(products.map((x) => x.id));
 
   for (const p of products) {
     const where = `товар ${p.id ?? "без id"} «${String(p.name ?? "").slice(0, 40)}»`;
@@ -283,6 +284,17 @@ function checkProducts() {
 
     if (p.photo) checkPhoto(where, p.photo);
     for (const src of p.photos || []) checkPhoto(where, src);
+    // «Понадобится» (с v113): ссылки на существующие товары, не на себя.
+    for (const g of p.needs || []) {
+      if (!g || typeof g.note !== "string" || !Array.isArray(g.ids) || !g.ids.length) {
+        fail(where, "needs: неверная запись", "ожидалось { note: \"…\", ids: [id, …] }");
+        continue;
+      }
+      for (const id of g.ids) {
+        if (id === p.id) fail(where, "needs: товар ссылается сам на себя", String(id));
+        else if (!rawIds.has(id)) fail(where, "needs: такого товара нет", `id ${id} — снят с каталога или опечатка`);
+      }
+    }
     if (Array.isArray(p.photos) && p.photos.length && p.photo && p.photos[0] !== p.photo) {
       warn(where, "photo и первый снимок в photos различаются", `${p.photo} ≠ ${p.photos[0]}`);
     }

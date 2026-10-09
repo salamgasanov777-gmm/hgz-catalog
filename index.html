@@ -55,7 +55,7 @@
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
 <link rel="preload" as="image" href="products/factory-2.webp" type="image/webp" fetchpriority="high">
-<link rel="stylesheet" href="style.css?v=112">
+<link rel="stylesheet" href="style.css?v=113">
 </head>
 <body>
   <div class="topbar">
@@ -214,6 +214,9 @@
       <button id="sheet-fav" class="fav-toggle" aria-label="Избранное"><svg class="fav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.6h10.8v16.8L12 16.5l-5.4 3.9z"/></svg></button>
       <button id="sheet-close" class="close" aria-label="Закрыть">✕</button>
     </div>
+    <!-- Товар открыт из «Понадобится» другого товара — вместо крошек кнопка
+         возврата к нему (app.js, renderSheet). -->
+    <button id="sheet-back" class="need-back" type="button" hidden></button>
     <nav id="sheet-crumbs" class="crumbs" aria-label="Раздел товара">
       <button id="sheet-crumb-home" type="button">Каталог</button><span aria-hidden="true">/</span>
       <button id="sheet-crumb-cat" type="button"></button><span aria-hidden="true">/</span>
@@ -241,8 +244,8 @@
     </div>
   </div>
 
-  <script src="guard.js?v=112"></script>
-  <script src="qr.js?v=112"></script>
-  <script src="app.js?v=112"></script>
+  <script src="guard.js?v=113"></script>
+  <script src="qr.js?v=113"></script>
+  <script src="app.js?v=113"></script>
 </body>
 </html>

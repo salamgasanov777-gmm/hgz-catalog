@@ -1590,6 +1590,50 @@ html.locked, html.locked body { overflow: hidden; }
 .calc-room-opt[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .calc-room-formula { margin: 10px 0 0; font-size: 13px; line-height: 1.4; color: var(--ink-2); }
 .calc-room-formula:empty { display: none; }
+
+/* «Понадобится» (с v113): строки с фото, как в заявке — что завод велит взять
+   вместе с товаром. Нажатие открывает этот товар в том же окне. */
+.needs { margin: 0 0 18px; }
+.needs h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--ink); }
+.needs-note { margin: 10px 0 6px; font-size: 12.5px; color: var(--muted); }
+.needs-note:first-of-type { margin-top: 0; }
+.need-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.need-photo {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-sm);
+  background: var(--photo-bg) center / contain no-repeat;
+}
+.need-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 700; line-height: 1.3; }
+.need-arrow { flex: none; font-size: 22px; line-height: 1; color: var(--muted); }
+.crumbs[hidden], .need-back[hidden] { display: none; }
+.need-back {
+  margin: 0 0 12px;
+  padding: 6px 12px 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--card);
+  color: var(--accent);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
 .calc-check {
   display: flex;
   align-items: center;
