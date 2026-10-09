@@ -1972,7 +1972,7 @@ function render() {
   }
 
   const compareBtn = document.getElementById("compare-btn");
-  const compareConfig = COMPARE_CONFIG[activeCategory];
+  const compareConfig = compareConfigFor(activeCategory);
   compareBtn.style.display = compareConfig ? "block" : "none";
   if (compareConfig) compareBtn.textContent = compareConfig.buttonLabel;
 
@@ -3517,10 +3517,10 @@ const COMPARE_CONFIG = {
 };
 
 function openCompare() {
-  const config = COMPARE_CONFIG[activeCategory];
+  const config = compareConfigFor(activeCategory);
   if (!config) return;
 
-  const items = products.filter((p) => p.category === activeCategory);
+  const items = compareItemsFor(activeCategory);
   const rows = config.rows(items);
   const wrap = document.getElementById("compare-table-wrap");
 
@@ -3552,7 +3552,7 @@ function openCompare() {
 
   let html = '<table class="cmp-table"><thead><tr><th class="cmp-corner"></th>';
   items.forEach((p) => {
-    html += `<th><div class="cmp-photo" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}"></div><div class="cmp-name">${esc(shortName(p.name))}</div></th>`;
+    html += `<th><div class="cmp-photo" style="${p.photo ? `background-image:url('${photoUrl(p)}')` : ""}"></div><div class="cmp-name">${esc((config.shortName || shortName)(p.name))}</div></th>`;
   });
   html += "</tr></thead><tbody>";
 
@@ -3585,6 +3585,151 @@ function openCompare() {
     if (activeCategory === cat) openCompare();
   });
 }
+// Сравнение отложенного (с v112, решение владельца 09.10.2026): в «Избранном»
+// сравниваются отмеченные закладкой товары, в том числе из разных разделов —
+// клиент выбирает, например, между гипсовой и цементной штукатуркой для
+// ванной. Всё отложенное из одного раздела — таблица этого раздела. Из разных —
+// общие строки; строку, где данные есть меньше чем у двух товаров, не
+// показываем. Если общего набирается меньше трёх строк (клей, грунтовка и
+// гипсокартон), кнопки нет: сравнивать не по чему.
+function compareItemsFor(cat) {
+  return cat === "__fav__" ? products.filter((p) => isFavorite(p.id)) : products.filter((p) => p.category === cat);
+}
+
+// Завод одно и то же называет в разных товарах по-разному: у Синдики и Старта
+// «Фасад» и «Цоколь», у остальных — длинные формулировки. В общей таблице это
+// одна строка (решение владельца 09.10.2026: «Цоколь» входит в «Цоколи,
+// балконы, лестницы»), иначе у ЖАНЕ рядом с Синдикой стояло «нет данных», хотя
+// завод ответил «ДА». В таблицах разделов строки остаются как у завода.
+const AREA_SAME = { "Фасад": "Фасады", "Цоколь": "Цоколи, балконы, лестницы" };
+
+function areaRowsMerged(items, skip = []) {
+  const name = (label) => AREA_SAME[label] || AREA_SHORT[label] || label;
+  const rowsOf = (p) => ((p.tables || []).find((t) => t.title === "Область применения")?.rows || []).filter(([l]) => !skip.includes(l));
+  const labels = [];
+  items.forEach((p) => rowsOf(p).forEach(([l]) => labels.includes(name(l)) || labels.push(name(l))));
+  return labels.map((label) => ({
+    label,
+    type: "bool",
+    get: (p) => {
+      const rows = rowsOf(p).filter(([l]) => name(l) === label);
+      return rows.length ? rows.some(([, v]) => v === "ДА") : null;
+    },
+  }));
+}
+
+// Значение из «Технических характеристик» по первой подходящей подписи завода.
+// «Не менее» / «не ранее» из подписи переносим к числу: «Прочность на отрыв
+// не менее» + «0,5 МПа» → «не менее 0,5 МПа».
+function factValue(p, patterns, badges = []) {
+  const qual = (label, value) => {
+    const m = String(label).match(/не (менее|ранее|более)/);
+    return m && !/^не /.test(String(value)) ? `${m[0]} ${value}` : value;
+  };
+  const rows = (p.tables || []).filter((t) => t.title === "Технические характеристики").flatMap((t) => t.rows);
+  for (const re of patterns) {
+    const row = rows.find(([l]) => re.test(l));
+    if (row && row[1]) return qual(row[0], row[1]);
+  }
+  for (const re of badges) {
+    const b = (p.badges || []).find((x) => re.test(x.label));
+    if (b && b.value) return qual(b.label, b.value);
+  }
+  return null;
+}
+
+// Расход словами завода. У смесей «по толщине» — на 1 мм слоя (из калькулятора,
+// это заводской расход, делённый на толщину); у остальных — строка завода с
+// её условием: «3–5 кг на 1 м² в зависимости от размера плитки», «4,8 кг/м²
+// при приклеивании плит». Раньше здесь стояло среднее калькулятора (у ПРЕМИУМ
+// «4 кг/м²» — такого числа у завода нет).
+function consumptionFact(p) {
+  const c = p.calc;
+  if (c && c.type === "thickness") return `${c.ratePerM2.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} кг/м² на 1 мм слоя`;
+  const rows = (p.tables || []).filter((t) => t.title === "Технические характеристики").flatMap((t) => t.rows);
+  const row = rows.find(([l]) => /расход/i.test(l) && !/вод/i.test(l));
+  if (!row) return null;
+  const [label, value] = row;
+  if (/^Расход 1 мешка/i.test(label)) return `1 мешок — ${value}`;
+  const cond = label.replace(/^(Ориентировочный\s+)?расход\s*/i, "").trim();
+  if (!cond) return value;
+  return /^(на|при)\s/.test(cond) ? `${value} ${cond}` : `${value} (${cond})`;
+}
+
+// Короткая подпись колонки: «ФИНИШ (серая)», «АКВАЛАЙТ», «ПОБЕДА 80». Без
+// кавычек — заглавные слова в конце названия, кроме марки ХАБЕЗ и «ПГП»; если
+// таких нет (гипсокартон, плиты, профили) — название целиком.
+function favShortName(name) {
+  const q = name.match(/«([^»]+)»(\s*\([^)]*\))?/);
+  if (q) return q[1] + (q[2] || "");
+  const words = name.split(/\s+/);
+  const tail = [];
+  for (let i = words.length - 1; i >= 0; i--) {
+    const w = words[i];
+    if (/^(ХАБЕЗ|HABEZ|ПГП)$/i.test(w)) {
+      if (tail.length) break;
+      continue;
+    }
+    if (/^[0-9A-ZА-ЯЁ][0-9A-ZА-ЯЁ.,×-]*$/.test(w)) tail.unshift(w);
+    else break;
+  }
+  return tail.some((w) => /[A-ZА-ЯЁ]/.test(w)) ? tail.join(" ") : name;
+}
+
+function compareConfigFor(cat) {
+  if (cat !== "__fav__") return COMPARE_CONFIG[cat];
+  const items = compareItemsFor(cat);
+  if (items.length < 2) return null;
+  const cats = [...new Set(items.map((p) => p.category))];
+  if (cats.length === 1 && COMPARE_CONFIG[cats[0]]) {
+    return { ...COMPARE_CONFIG[cats[0]], buttonLabel: "⇄ Сравнить отложенное" };
+  }
+  // Строка остаётся, если данные в ней есть хотя бы у двух товаров: иначе
+  // сравнивать в ней нечего.
+  const filled = (rows) => rows.filter((r) => items.filter((p) => r.get(p) != null).length >= 2);
+  const rows = filled([
+    ...areaRowsMerged(items, ["Тип плитки"]),
+    ROW.tech("Толщина слоя", "олщина слоя"),
+    { label: "Расход", type: "text", get: consumptionFact },
+    {
+      label: "Время жизни раствора",
+      type: "text",
+      get: (p) =>
+        factValue(p, [/^Жизнеспособность/, /^Время работы с раствором/, /^Начало схватывания/], [/^Время жизни/, /^Начало схватывания/, /^Время схватывания/]),
+    },
+    {
+      label: "Прочность на отрыв",
+      type: "text",
+      // Сначала значок завода («Прочность на отрыв не менее 1,1 МПа»), потом
+      // строки таблицы: у ТЕПЛОКОМа в таблице то же число, но без «не менее».
+      get: (p) =>
+        factValue(p, [], [/^Прочность на отрыв/]) ??
+        factValue(p, [/^Адгезия \(прочность на отрыв\)/, /^Прочность на отрыв/, /^Прочность сцепления/, /^Адгезия( к основанию)?$/]),
+    },
+    {
+      label: "Температура применения",
+      type: "text",
+      get: (p) => factValue(p, [/^Температура основания/, /^Температура применения/, /^Рабочая температура/], [/^Температура основания/]),
+    },
+  ]);
+  if (rows.length < 3) return null;
+  return {
+    buttonLabel: "⇄ Сравнить отложенное",
+    title: "Сравнение отложенного",
+    shortName: favShortName,
+    // Длинное имя раздела в узкой колонке растягивало строку на шесть строк.
+    rows: () => [
+      {
+        label: "Раздел",
+        type: "text",
+        get: (p) => (p.category === "Цементные и цементно-известковые штукатурки" ? "Цем. и цем.-известк. штукатурка" : p.category),
+      },
+      ROW.unit("Фасовка"),
+      ...rows,
+    ],
+  };
+}
+
 function closeCompare() {
   document.getElementById("compare-backdrop").classList.remove("open");
   document.getElementById("compare-sheet").classList.remove("open");
