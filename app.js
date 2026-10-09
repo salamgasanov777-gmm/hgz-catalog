@@ -212,6 +212,7 @@ async function load() {
     content = null;
   }
   dataCheckedAt = Date.now();
+  await webpChecked;
 
   renderHome();
   render();
@@ -2136,15 +2137,21 @@ function setCardHint(card, hint) {
 }
 
 // Фон в CSS браузер сам по формату не выбирает, поэтому один раз проверяем
-// поддержку WebP и подставляем нужное расширение. Фотографии в нём весят втрое
-// меньше; старым iPhone (iOS 13 и раньше) достаётся исходный JPEG.
-const WEBP_OK = (() => {
-  try {
-    return document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp");
-  } catch {
-    return false;
-  }
-})();
+// поддержку WebP и подставляем нужное расширение. Фотографии в нём весят в
+// 2,5 раза меньше; старым iPhone (iOS 13 и раньше) достаётся исходный JPEG.
+// Проверяем, умеет ли браузер ПОКАЗАТЬ WebP, — по крошечной картинке. Раньше
+// спрашивали, умеет ли он СОЗДАТЬ WebP на холсте: Safari не умеет, хотя
+// показывает, и все iPhone получали тяжёлые JPEG (проверено в Safari 26.3
+// 09.10.2026). load() дожидается ответа перед первой отрисовкой — это
+// миллисекунды, картинка зашита прямо в адрес и сеть не трогает.
+let WEBP_OK = false;
+const webpChecked = new Promise((resolve) => {
+  const img = new Image();
+  img.onload = () => resolve((WEBP_OK = img.width > 0));
+  img.onerror = () => resolve(false);
+  img.src = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
+  setTimeout(() => resolve(false), 500);
+});
 
 // Фотография едет фоном, а у фона нет события загрузки. Поэтому просим
 // браузер загрузить тот же адрес отдельной картинкой: он берёт её из того же
