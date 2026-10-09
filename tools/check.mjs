@@ -511,12 +511,17 @@ function loadCalcEngine(products) {
     cut("const PACK_NOUNS", "const CART_KEY"),
     cut("function orderText()", "function renderOrderRow"),
     cut("function plural(n, forms)", "function closeSheet()"),
-    "globalThis.__api = { wireCalc, orderLine, orderText, setOrder: (o) => { order = o; }, getOrder: () => order };",
+    "globalThis.__api = { wireCalc, orderLine, orderText, roomArea, setOrder: (o) => { order = o; }, getOrder: () => order };",
   ].join("\n");
   return () => {
     const els = {};
     const el = (id) =>
-      (els[id] ||= { id, value: "", checked: false, textContent: "", innerHTML: "", handlers: {}, addEventListener(t, f) { this.handlers[t] = f; } });
+      (els[id] ||= {
+        id, value: "", checked: false, hidden: false, textContent: "", innerHTML: "", handlers: {}, attrs: {},
+        addEventListener(t, f) { this.handlers[t] = f; },
+        setAttribute(k, v) { this.attrs[k] = String(v); },
+        getAttribute(k) { return this.attrs[k] ?? null; },
+      });
     const ctx = {
       document: { getElementById: el },
       esc: (s) => String(s),
@@ -582,6 +587,33 @@ function checkCalc() {
       fail(where, "в заявку попадёт не то количество", `ждали «${k.order}», получилось «${line}»${why}`);
     }
   }
+  // Помощник «комната» (с v111): формула площади и путь «размеры → площадь →
+  // мешки» настоящим кодом калькулятора.
+  for (const k of cases.room || []) {
+    const { api } = engine();
+    const r = api.roomArea(k.what, k.l, k.w || 0, k.h || 0, k.open || 0);
+    const text = String(r.text).replace(/[\u00a0\u202f]/g, " ");
+    if (r.area !== k.area || text !== k.text) {
+      bad++;
+      fail(`комната: ${k.text}`, "площадь не совпала с эталоном", `получилось «${text}»`);
+    }
+  }
+  for (const k of cases.roomCalc || []) {
+    const p = byId[k.id];
+    const where = `комната → калькулятор: ${p ? p.name : "id " + k.id}`;
+    const { el, api } = engine();
+    api.wireCalc(p.calc, p);
+    if (k.mm != null) el("calc-mm").value = k.mm;
+    if (k.what && el(`room-what-${k.what}`).handlers.click) el(`room-what-${k.what}`).handlers.click();
+    for (const [id, v] of Object.entries(k.room)) el(id).value = v;
+    el("room-l").handlers.input();
+    const got = strip(el("calc-result").innerHTML || el("calc-result").textContent);
+    const line = api.getOrder()[k.id] ? api.orderLine(p) : null;
+    if (el("calc-area").value !== k.area || got !== k.result || line !== k.order) {
+      bad++;
+      fail(where, "расчёт по размерам комнаты не совпал с эталоном", `площадь «${el("calc-area").value}» (ждали «${k.area}»), расчёт «${got}» (ждали «${k.result}»), в заявку «${line}» (ждали «${k.order}»)`);
+    }
+  }
   if (cases.order) {
     const o = cases.order;
     const { ctx, el, api } = engine();
@@ -595,7 +627,7 @@ function checkCalc() {
       fail("заявка", "текст сообщения в WhatsApp не совпал с эталоном", `получилось:\n${text}`);
     }
   }
-  console.log(`  калькулятор: эталонов расчёта — ${(cases.calc || []).length}, плюс текст заявки${bad ? `, не прошли: ${bad}` : ", все прошли"}`);
+  console.log(`  калькулятор: эталонов расчёта — ${(cases.calc || []).length}, комната — ${(cases.room || []).length + (cases.roomCalc || []).length}, плюс текст заявки${bad ? `, не прошли: ${bad}` : ", все прошли"}`);
 }
 
 // ------------------------------------------------- 6. Кому пишут в WhatsApp

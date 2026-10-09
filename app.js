@@ -2993,9 +2993,68 @@ function thicknessHint(p) {
   return "";
 }
 
+// Помощник «комната» (с v111, решение владельца 09.10.2026, вариант А):
+// клиент обычно знает размеры комнаты, а не площадь. По длине, ширине и
+// высоте считаем площадь стен, пола или потолка и подставляем её в поле
+// «Площадь», дальше — обычный расчёт. Это только геометрия, данных завода
+// здесь нет. Что выбрано сразу — по разделу товара.
+const ROOM_WHAT = { walls: "Стены", floor: "Пол", ceiling: "Потолок", both: "Стены и потолок", partition: "Перегородка" };
+
+function roomModes(p) {
+  if (p.category === "Полы") return ["floor"];
+  if (p.category === "Пазогребневые плиты") return ["partition"];
+  if (p.category === "Клеи") return ["floor", "walls"];
+  return ["walls", "floor", "ceiling", "both"];
+}
+
+// Площадь и строка с формулой: «Стены: 2 × (4 + 3) × 2,7 − 3 = 34,8 м²».
+// Окна и двери вычитаются только там, где есть стены.
+function roomArea(what, l, w, h, open) {
+  const n = (x) => x.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  const minus = open ? ` − ${n(open)}` : "";
+  let area;
+  let expr;
+  if (what === "floor" || what === "ceiling") {
+    area = l * w;
+    expr = `${n(l)} × ${n(w)}`;
+  } else if (what === "partition") {
+    area = l * h - open;
+    expr = `${n(l)} × ${n(h)}${minus}`;
+  } else if (what === "walls") {
+    area = 2 * (l + w) * h - open;
+    expr = `2 × (${n(l)} + ${n(w)}) × ${n(h)}${minus}`;
+  } else {
+    area = 2 * (l + w) * h + l * w - open;
+    expr = `2 × (${n(l)} + ${n(w)}) × ${n(h)} + ${n(l)} × ${n(w)}${minus}`;
+  }
+  area = Math.round(area * 10) / 10;
+  return { area, text: `${ROOM_WHAT[what]}: ${expr} = ${n(area)} м²` };
+}
+
 // Поля ввода — текстовые с цифровой клавиатурой (inputmode="decimal"), а не
 // type="number": часть браузеров в числовом поле не принимает запятую, а на
 // русской клавиатуре дробь пишут именно через неё. Запятую разбирает wireCalc.
+function roomHtml(p) {
+  const modes = roomModes(p);
+  const num = (id, label, hint) =>
+    `<label class="calc-field" id="${id}-wrap"><span>${label}</span>` +
+    `<input id="${id}" type="text" inputmode="decimal" autocomplete="off" placeholder="${hint}"></label>`;
+  const opts =
+    modes.length > 1
+      ? `<div class="calc-room-what" role="group" aria-label="Что обрабатываем">${modes
+          .map((m, i) => `<button type="button" id="room-what-${m}" class="calc-room-opt" aria-pressed="${i === 0}">${ROOM_WHAT[m]}</button>`)
+          .join("")}</div>`
+      : "";
+  return `
+      <button type="button" id="room-toggle" class="calc-room-toggle" aria-expanded="false" aria-controls="calc-room">Посчитать по размерам комнаты</button>
+      <div id="calc-room" class="calc-room" hidden>
+        ${opts}
+        <div class="calc-row">${num("room-l", "Длина, м", "напр. 4")}${num("room-w", "Ширина, м", "напр. 3")}${num("room-h", "Высота, м", "напр. 2,7")}</div>
+        <div class="calc-row calc-room-open">${num("room-open", "Окна и двери, м² — вычесть", "необязательно")}</div>
+        <p id="room-formula" class="calc-room-formula" aria-live="polite"></p>
+      </div>`;
+}
+
 function calcHtml(calc, p) {
   const hint = calc.type === "thickness" ? thicknessHint(p) : "";
   const thicknessRow =
@@ -3027,6 +3086,7 @@ function calcHtml(calc, p) {
         </label>
         ${thicknessRow}
       </div>
+      ${roomHtml(p)}
       ${wasteRow}
       <div id="calc-result" class="calc-result">Введите площадь</div>
       ${calc.note ? `<p class="calc-note">${esc(calc.note)}</p>` : ""}
@@ -3142,6 +3202,69 @@ function wireCalc(calc, p) {
 
   areaInput.addEventListener("input", update);
   if (mmInput) mmInput.addEventListener("input", update);
+
+  // Помощник «комната»: считает площадь и вписывает её в поле «Площадь».
+  const roomToggle = document.getElementById("room-toggle");
+  if (roomToggle) {
+    const field = (id) => document.getElementById(id);
+    const box = field("calc-room");
+    const formula = field("room-formula");
+    const modes = roomModes(p);
+    let what = modes[0];
+    const layout = () => {
+      field("room-w-wrap").hidden = what === "partition";
+      field("room-h-wrap").hidden = what === "floor" || what === "ceiling";
+      field("room-open-wrap").hidden = what === "floor" || what === "ceiling";
+      modes.forEach((m) => {
+        const b = field(`room-what-${m}`);
+        if (b) b.setAttribute("aria-pressed", String(m === what));
+      });
+    };
+    const recalc = () => {
+      const l = parseCalcNum(field("room-l").value);
+      const w = parseCalcNum(field("room-w").value);
+      const h = parseCalcNum(field("room-h").value);
+      const open = parseCalcNum(field("room-open").value);
+      const need = [
+        [l, true],
+        [w, what !== "partition"],
+        [h, what !== "floor" && what !== "ceiling"],
+      ];
+      if (need.some(([v, on]) => on && Number.isNaN(v)) || Number.isNaN(open)) {
+        formula.textContent = "Размеры — только цифрами, например 2,7";
+        return;
+      }
+      if (need.some(([v, on]) => on && !(v > 0))) {
+        formula.textContent = "Введите размеры комнаты";
+        return;
+      }
+      const usesOpen = what !== "floor" && what !== "ceiling";
+      const r = roomArea(what, l, w || 0, h || 0, usesOpen ? open || 0 : 0);
+      if (!(r.area > 0)) {
+        formula.textContent = "Окна и двери больше площади — проверьте числа";
+        return;
+      }
+      formula.textContent = r.text;
+      areaInput.value = String(r.area).replace(".", ",");
+      update();
+    };
+    roomToggle.addEventListener("click", () => {
+      const open = box.hidden;
+      box.hidden = !open;
+      roomToggle.setAttribute("aria-expanded", String(open));
+    });
+    modes.forEach((m) => {
+      const b = field(`room-what-${m}`);
+      if (b)
+        b.addEventListener("click", () => {
+          what = m;
+          layout();
+          recalc();
+        });
+    });
+    ["room-l", "room-w", "room-h", "room-open"].forEach((id) => field(id).addEventListener("input", recalc));
+    layout();
+  }
   if (wasteInput) wasteInput.addEventListener("change", update);
 }
 
