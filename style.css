@@ -27,9 +27,22 @@
   --wa-bg: #e9faf0;
   --wa-border: #25d366;
   --wa-ink: #0e7a35;
+  /* Текст ошибки и галочка «да» в сравнении (с v107). Раньше стояли прямо в
+     правилах (#d64545 и #2f8f4e) и не дотягивали до нормы читаемости 4,5 ни в
+     одной теме: 4,4 и 4,1 в светлой, 3,9 и 4,2 в тёмной. */
+  --danger: #c62f2f;
+  --ok: #2a7f45;
   /* Предел ширины контента на большом экране: дальше карточки не растягиваются,
      а добавляются колонки. */
   --content-max: 1080px;
+  /* Линейка скруглений (с v107): было 13 разных значений, стало 5 ступеней.
+     Новые элементы берут отсюда, а не своё число. 50% — круглые кнопки,
+     2px — тонкие полоски (ручка окна, метка группы). */
+  --r-sm: 10px;    /* мелкие кнопки, поля, значки */
+  --r-md: 12px;    /* крупные кнопки, поиск */
+  --r-lg: 16px;    /* карточки и блоки */
+  --r-xl: 20px;    /* окна-шторки */
+  --r-pill: 999px; /* метки-капсулы, ярлыки, счётчики */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,6 +64,8 @@
     --wa-bg: #12261a;
     --wa-border: #25d366;
     --wa-ink: #4ade80;
+    --danger: #ff8a8a;
+    --ok: #4ade80;
   }
 }
 
@@ -80,6 +95,8 @@
   --wa-bg: #12261a;
   --wa-border: #25d366;
   --wa-ink: #4ade80;
+  --danger: #ff8a8a;
+  --ok: #4ade80;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -167,11 +184,11 @@ html {
 .brand { cursor: pointer; }
 .brand-home {
   flex: none; padding: 0; border: 0; background: none;
-  border-radius: 10px; cursor: pointer; display: block;
+  border-radius: var(--r-sm); cursor: pointer; display: block;
 }
 .brand-home:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .brand-mark {
-  width: 36px; height: 36px; border-radius: 10px; flex: none;
+  width: 36px; height: 36px; border-radius: var(--r-sm); flex: none;
   object-fit: cover; box-shadow: 0 1px 3px rgba(22, 32, 43, .18);
 }
 .brand-text { min-width: 0; flex: 1 1 auto; }
@@ -184,7 +201,7 @@ html {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.topbar h1.home { font-size: 11.5px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.topbar h1.home { font-size: 11.5px; font-weight: 600; letter-spacing: 0; color: var(--muted); }
 
 /* Меню «⋯»: тема, QR, «Поделиться» и «Связаться» убраны с глаз в одну кнопку,
    на виду осталось только избранное. Меню лежит внутри шапки, а «завеса» под
@@ -201,7 +218,7 @@ html {
   max-width: calc(100vw - 32px);
   padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--card);
   box-shadow: 0 12px 32px -12px rgba(16, 32, 52, 0.35);
 }
@@ -217,7 +234,7 @@ html {
   min-height: 46px;
   padding: 0 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: none;
   color: var(--ink);
   font-family: inherit;
@@ -235,7 +252,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   position: relative;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--card);
   font-size: 18px;
@@ -250,7 +267,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 .icon-btn {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--ink);
@@ -273,7 +290,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   min-width: 17px;
   height: 17px;
   padding: 0 4px;
-  border-radius: 9px;
+  border-radius: var(--r-pill);
   background: var(--gold);
   color: var(--on-gold);
   font-size: 10.5px;
@@ -298,7 +315,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 }
 .about-photos div {
   aspect-ratio: 4 / 3;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--accent-soft) center/cover no-repeat;
 }
 
@@ -312,13 +329,13 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 .qr-manager-line b { color: var(--ink); }
 .mgr-input { margin-bottom: 8px; }
 .mgr-note { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
-.mgr-error { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: #d64545; }
+.mgr-error { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: var(--danger); }
 .mgr-error:empty { display: none; }
 .mgr-actions { display: flex; gap: 8px; }
 .mgr-actions button {
   flex: 1 1 0;
   padding: 9px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   font-size: 13.5px;
   font-weight: 700;
   border: 1px solid var(--accent);
@@ -383,7 +400,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   display: block;
   margin: 14px auto 0;
   padding: 9px 18px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
@@ -409,7 +426,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 .store-city span {
   padding: 1px 8px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
@@ -417,7 +434,7 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 
 .store-card {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   padding: 14px 16px;
   margin-bottom: 12px;
 }
@@ -435,7 +452,7 @@ button.doc-card:active { scale: 0.98; }
   text-decoration: none;
   text-align: center;
   padding: 9px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   font-size: 13.5px;
   font-weight: 700;
   border: 1px solid var(--accent);
@@ -446,7 +463,7 @@ button.doc-card:active { scale: 0.98; }
 .video-item {
   display: block;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   margin-bottom: 12px;
 }
@@ -462,13 +479,13 @@ button.doc-card:active { scale: 0.98; }
   display: block;
   width: 100%;
   max-height: 62vh;
-  background: #000;
+  background: #000; /* поля у ролика — чёрные в обеих темах, как в любом плеере */
 }
 
 .search {
   width: 100%;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--card);
   font-size: 16px;
@@ -495,7 +512,7 @@ button.doc-card:active { scale: 0.98; }
 .task-chip {
   flex: 0 0 auto;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--ink);
@@ -517,7 +534,7 @@ button.doc-card:active { scale: 0.98; }
   display: block;
   margin: 12px 16px 0;
   padding: 11px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: none;
   background: var(--accent);
   color: var(--on-accent);
@@ -556,13 +573,13 @@ button.doc-card:active { scale: 0.98; }
   font: inherit;
   font-size: 14px;
   padding: 9px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--ink);
 }
 .order-pack-one { font-size: 13.5px; color: var(--muted); }
-.order-qty { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.order-qty { display: flex; align-items: center; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
 .order-qty button {
   width: 44px;
   height: 42px;
@@ -592,7 +609,7 @@ button.doc-card:active { scale: 0.98; }
   width: 100%;
   box-sizing: border-box;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--ink);
@@ -639,7 +656,7 @@ button.doc-card:active { scale: 0.98; }
   margin: 0 auto 6px;
   /* Подложка как у фото в карточке: голубая давала полосы вокруг снимка. */
   background: var(--photo-bg) center/contain no-repeat;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
 }
 .cmp-name {
   font-size: 11px;
@@ -674,7 +691,7 @@ button.doc-card:active { scale: 0.98; }
   hyphens: auto;
 }
 .cmp-check {
-  color: #2f8f4e;
+  color: var(--ok);
   font-weight: 800;
   font-size: 15px;
 }
@@ -688,7 +705,7 @@ button.doc-card:active { scale: 0.98; }
 
 .card {
   background: var(--card);
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   border: 1px solid var(--border);
   display: flex;
@@ -791,7 +808,7 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
 /* Ярлык «Новинка»: в углу фото на карточке и над названием в окне товара. */
 .tag {
   position: absolute; top: 8px; left: 8px; z-index: 1;
-  padding: 3px 8px; border-radius: 999px;
+  padding: 3px 8px; border-radius: var(--r-pill);
   font-size: 11px; font-weight: 800; letter-spacing: 0.2px; line-height: 1.3;
 }
 .tag-new { background: var(--accent); color: var(--on-accent); }
@@ -885,7 +902,7 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
 .section-all {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 6px 12px;
   font-size: 13px;
   font-weight: 600;
@@ -931,7 +948,7 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
      нему давал контраст 2,96 — текст берётся из темы. */
   color: var(--on-accent);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   padding: 11px 18px;
   font-size: 15px;
   font-weight: 700;
@@ -961,7 +978,7 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
   position: fixed;
   left: 0; right: 0; bottom: 0;
   background: var(--card);
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
   padding: 16px 18px calc(env(safe-area-inset-bottom, 0px) + 20px);
   transform: translateY(100%);
   /* Выезжает быстро, а тормозит мягко — так движение читается как вещь
@@ -1002,7 +1019,7 @@ html.locked { overscroll-behavior: none; }
   /* Формат самих снимков (1000×520), как у фото в карточке списка. При 16:9
      сверху и снизу фото оставались полосы подложки. */
   aspect-ratio: 1.92 / 1;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   position: relative;
   overflow: hidden;
   background: var(--photo-bg) center/contain no-repeat;
@@ -1187,8 +1204,8 @@ html.locked { overscroll-behavior: none; }
   max-width: 280px;
   height: auto;
   margin: 0 auto;
-  background: #fff;
-  border-radius: 12px;
+  background: #fff; /* QR-код только на белом: на тёмном его хуже читают камеры */
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
 }
 .qr-copy {
@@ -1196,7 +1213,7 @@ html.locked { overscroll-behavior: none; }
   width: 100%;
   margin: 16px 0 0;
   padding: 11px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
@@ -1219,7 +1236,7 @@ html.locked { overscroll-behavior: none; }
   align-items: center;
   gap: 10px;
   padding: 12px 12px 12px 16px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--accent);
   color: var(--on-accent);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
@@ -1238,7 +1255,7 @@ html.locked { overscroll-behavior: none; }
   align-items: center;
   gap: 10px;
   padding: 12px 12px 12px 16px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--accent);
   color: var(--on-accent);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
@@ -1272,7 +1289,7 @@ html.locked { overscroll-behavior: none; }
 .install-yes {
   flex: 0 0 auto;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: var(--card);
   color: var(--accent);
   font-size: 13.5px;
@@ -1308,7 +1325,7 @@ html.locked { overscroll-behavior: none; }
 .badge {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   padding: 8px 6px;
   text-align: center;
   display: flex;
@@ -1334,7 +1351,7 @@ html.locked { overscroll-behavior: none; }
   width: 100%;
   margin: 0 0 16px;
   padding: 11px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--wa-border);
   background: var(--wa-bg);
   color: var(--wa-ink);
@@ -1360,7 +1377,7 @@ html.locked { overscroll-behavior: none; }
      («Хранение», «Меры предосторожности») и та была бледной и наполовину
      закрытой (замечено владельцем на телефоне 08.10.2026, v92). */
   margin: 52px 0 0;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--bg);
   box-shadow: 0 0 0 8px var(--bg), 0 -14px 24px 6px var(--bg);
 }
@@ -1368,18 +1385,18 @@ html.locked { overscroll-behavior: none; }
 .cart-slot { flex: 1 1 0; min-width: 0; display: flex; }
 .cart-add {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 11px 10px; border: 0; border-radius: 12px;
+  padding: 11px 10px; border: 0; border-radius: var(--r-md);
   background: var(--accent); color: var(--on-accent);
   font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer;
 }
 .cart-stepper {
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 4px;
-  padding: 5px 4px; border-radius: 12px;
+  padding: 5px 4px; border-radius: var(--r-md);
   border: 1px solid var(--accent); background: var(--accent-soft); color: var(--ink);
 }
 .cart-step {
   flex: none; width: 30px; height: 32px; display: grid; place-items: center;
-  border-radius: 8px; border: 1px solid var(--border); background: var(--card);
+  border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--card);
   color: var(--accent); font: inherit; font-size: 18px; font-weight: 700; cursor: pointer;
 }
 .cart-qty { min-width: 0; text-align: center; line-height: 1.15; white-space: nowrap; }
@@ -1390,7 +1407,7 @@ html.locked { overscroll-behavior: none; }
 .cart-toast {
   position: absolute; left: 0; right: 0; bottom: calc(100% + 12px);
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 14px; border-radius: 12px;
+  padding: 10px 14px; border-radius: var(--r-md);
   background: #16202b; color: #ffffff; font-size: 14px; font-weight: 600;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
@@ -1406,7 +1423,7 @@ html.locked { overscroll-behavior: none; }
   width: 100%;
   margin: 0 0 10px;
   padding: 11px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--gold);
   background: var(--gold);
   color: var(--on-gold);
@@ -1426,7 +1443,7 @@ html.locked { overscroll-behavior: none; }
   text-decoration: none;
   width: 100%;
   padding: 11px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line-strong);
   background: var(--card);
   color: var(--ink);
@@ -1453,8 +1470,8 @@ html.locked { overscroll-behavior: none; }
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #fff;
+  border-radius: var(--r-md);
+  background: #fff; /* скан сертификата — белый лист в обеих темах */
 }
 /* Сначала виден весь сертификат целиком, по нажатию он увеличивается вдвое, и
    его двигают пальцем. Обычный щипок в каталоге выключен, поэтому увеличение
@@ -1478,7 +1495,7 @@ html.locked { overscroll-behavior: none; }
 .calc-box {
   background: var(--gold-soft);
   border: 1px solid var(--gold);
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   padding: 14px 16px 16px;
   margin: 0 0 18px;
 }
@@ -1504,7 +1521,7 @@ html.locked { overscroll-behavior: none; }
 }
 .calc-field input {
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: var(--card);
   padding: 9px 10px;
   font-size: 15px;
@@ -1601,7 +1618,7 @@ html.locked { overscroll-behavior: none; }
   margin: 14px 16px 0;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   animation: home-in 0.4s ease both;
 }
@@ -1631,7 +1648,7 @@ html.locked { overscroll-behavior: none; }
 .home-links button {
   min-height: 40px;
   padding: 0 14px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--ink);
@@ -1687,7 +1704,7 @@ html.locked { overscroll-behavior: none; }
   max-width: 230px;
   min-height: 56px;
   padding: 7px 14px 7px 7px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--ink);
@@ -1698,7 +1715,7 @@ html.locked { overscroll-behavior: none; }
   grid-row: span 2;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: var(--accent-soft) center / 150% no-repeat;
 }
 .home-cat-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1846,7 +1863,7 @@ html.locked { overscroll-behavior: none; }
        закрытые окна выглядывали снизу полоской. Уводим с запасом. */
     transform: translate(-50%, calc(100% + 40px));
     width: min(620px, calc(100% - 48px));
-    border-radius: 20px;
+    border-radius: var(--r-xl);
     bottom: 24px;
     max-height: min(84vh, 860px);
   }
