@@ -988,7 +988,11 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
   left: 0; right: 0; bottom: 0;
   background: var(--card);
   border-radius: var(--r-xl) var(--r-xl) 0 0;
-  padding: 16px 18px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  /* Нижнего отступа у самого окна нет — он ниже, в .sheet::after (с v109). На
+     iPhone Safari не рисовал содержимое в нижнем отступе прокручиваемого окна:
+     у края экрана стояла пустая полоса в палец высотой, а описание и
+     калькулятор обрывались над ней (видео владельца 09.10.2026). */
+  padding: 16px 18px 0;
   transform: translateY(100%);
   /* Выезжает быстро, а тормозит мягко — так движение читается как вещь
      с весом, а не как переключение картинки. */
@@ -1008,6 +1012,10 @@ html.locked { overscroll-behavior: none; }
    на широком экране окно ещё и центрируется по горизонтали, и перезапись
    transform из скрипта сбивала бы центровку. */
 .sheet.open { transform: translateY(var(--drag, 0px)); }
+/* Запас под полоской «домой» — в конце содержимого: долистали до конца —
+   последняя строка и кнопки стоят над полоской, а пока листаете, текст идёт
+   до самого края экрана. */
+.sheet::after { content: ""; display: block; height: calc(env(safe-area-inset-bottom, 0px) + 20px); }
 /* Карточка товара — в цветах приложения №2: тёплый фон, на нём белые блоки
    с тонкой рамкой, калькулятор в охре, текст графитовый. */
 #sheet { background: var(--bg); }
