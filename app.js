@@ -266,7 +266,9 @@ const HOME_PHOTO = "products/factory-2.jpg";
 function developerHtml(d) {
   if (!d || !d.name) return "";
   const tel = String(d.phone || "").replace(/[^\d+]/g, "");
-  const wa = tel.replace(/\D/g, "");
+  // Через phoneDigits, как у менеджера: «8 938 …» становится 7938… — с 8 в
+  // начале wa.me открывал бы чужой номер. Не российский номер — как записан.
+  const wa = phoneDigits(d.phone) || tel.replace(/\D/g, "");
   const host = d.site ? d.site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : "";
   const hello = encodeURIComponent("Здравствуйте! Увидел каталог завода, хочу узнать про ваши услуги.");
   return `
@@ -673,6 +675,16 @@ function phonePretty(raw) {
   const d = phoneDigits(raw);
   if (!d) return String(raw || "");
   return `+7 (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`;
+}
+
+// Кому пишут «Отправить в WhatsApp», «Узнать цену» и «Отправить заявку»:
+// менеджеру из QR-кода, но не своему контакту (own) — менеджер сам рассылает
+// товары клиентам и выбирает чат. На этом правиле держится защита от
+// перехвата заявок (правило 4 в CLAUDE.md), поэтому оно в одном месте, а
+// check.mjs проверяет его перед каждой выкладкой. Пустая строка — адресата
+// нет, WhatsApp предложит выбрать чат (решение владельца 02.10.2026).
+function recipientPhone() {
+  return manager && !manager.own ? manager.phone : "";
 }
 
 function managerName() {
@@ -2381,7 +2393,7 @@ function openSheet(p, openedFrom) {
   // Клиенту, пришедшему по QR-коду менеджера, кнопка пишет сразу этому
   // менеджеру. У самого менеджера (own) она остаётся обычной: он рассылает
   // товары клиентам и выбирает чат сам.
-  const shareTo = manager && !manager.own ? manager.phone : "";
+  const shareTo = recipientPhone();
   const shareBtn = document.getElementById("sheet-share");
   shareBtn.href = `https://wa.me/${shareTo}?text=${encodeURIComponent(shareText(p))}`;
   document.getElementById("sheet-share-label").textContent = shareTo ? "Отправить менеджеру в WhatsApp" : "Отправить в WhatsApp";
@@ -2563,7 +2575,7 @@ function askText(p) {
 
 document.getElementById("sheet-ask").addEventListener("click", (e) => {
   if (!currentProduct) return;
-  const to = manager && !manager.own ? manager.phone : "";
+  const to = recipientPhone();
   e.currentTarget.href = `https://wa.me/${to}?text=${encodeURIComponent(askText(currentProduct))}`;
 });
 
@@ -2817,7 +2829,7 @@ function openOrder(opener) {
   sheet.classList.toggle("is-empty", !items.length);
   document.getElementById("order-list").innerHTML = items.length ? items.map(renderOrderRow).join("") : ORDER_EMPTY;
   document.getElementById("order-send-label").textContent =
-    manager && !manager.own ? "Отправить заявку менеджеру" : "Отправить заявку в WhatsApp";
+    recipientPhone() ? "Отправить заявку менеджеру" : "Отправить заявку в WhatsApp";
   document.getElementById("order-copy-label").textContent = "Скопировать текст";
   updateOrderLink();
   document.getElementById("order-backdrop").classList.add("open");
@@ -2896,7 +2908,7 @@ document.getElementById("order-close").addEventListener("click", dismissOverlay)
 // окна и при любой правке — количества, фасовки, «Объекта», «Когда нужно».
 const orderSend = document.getElementById("order-send");
 function updateOrderLink() {
-  const to = manager && !manager.own ? manager.phone : "";
+  const to = recipientPhone();
   orderSend.href = `https://wa.me/${to}?text=${encodeURIComponent(orderText())}`;
 }
 document.getElementById("order-sheet").addEventListener("input", updateOrderLink);

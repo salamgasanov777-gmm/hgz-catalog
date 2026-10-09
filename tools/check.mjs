@@ -598,6 +598,58 @@ function checkCalc() {
   console.log(`  калькулятор: эталонов расчёта — ${(cases.calc || []).length}, плюс текст заявки${bad ? `, не прошли: ${bad}` : ", все прошли"}`);
 }
 
+// ------------------------------------------------- 6. Кому пишут в WhatsApp
+// Защита от перехвата заявок (правило 4 в CLAUDE.md): кнопки «Отправить в
+// WhatsApp», «Узнать цену», «Отправить заявку» пишут менеджеру из QR, но не
+// своему контакту. Правило — одна функция recipientPhone() в app.js (с
+// 09.10.2026); здесь проверяем, что она одна, её используют, и что она решает
+// правильно. Заодно — что номер разработчика с «8» даёт верную ссылку wa.me.
+function checkRecipient() {
+  const src = read("app.js");
+  const cut = (from, to) => {
+    const a = src.indexOf(from);
+    const b = a < 0 ? -1 : src.indexOf(to, a);
+    if (a < 0 || b < 0) throw new Error(`не найдены метки «${from}» / «${to}» в app.js`);
+    return src.slice(a, b);
+  };
+  const before = errors.length;
+  const rule = (src.match(/manager && !manager\.own/g) || []).length;
+  if (rule !== 1) fail("app.js", "правило «кому писать» записано не в одном месте", `найдено ${rule} — используйте recipientPhone()`);
+  const uses = (src.match(/recipientPhone\(\)/g) || []).length;
+  if (uses < 5) fail("app.js", "recipientPhone() используется не всеми кнопками", `вызовов ${uses - 1}, ждали 4 (товар, «Узнать цену» ×2, заявка, подпись заявки)`);
+  let api;
+  try {
+    const code = [
+      "let manager = null;",
+      cut("function phoneDigits(raw)", "function phonePretty"),
+      cut("function recipientPhone()", "function managerName()"),
+      cut("function developerHtml(d)", "// Бегущая лента разделов"),
+      "globalThis.__api = { recipientPhone, developerHtml, setManager: (m) => { manager = m; } };",
+    ].join("\n");
+    const ctx = { esc: (x) => String(x) };
+    ctx.globalThis = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(code, ctx);
+    api = ctx.__api;
+  } catch (e) {
+    fail("app.js", "не удалось запустить правило «кому писать» для проверки", e.message);
+    return;
+  }
+  const cases = [
+    [null, "", "менеджера нет — клиент выбирает чат сам"],
+    [{ name: "Свой", phone: "79381112233", own: true }, "", "свой контакт (own) — не адресат, иначе менеджер слал бы товары сам себе"],
+    [{ name: "Из QR", phone: "79284445566", own: false }, "79284445566", "менеджер из QR — адресат"],
+  ];
+  for (const [m, want, why] of cases) {
+    api.setManager(m);
+    const got = api.recipientPhone();
+    if (got !== want) fail("кому писать", "правило нарушено", `${why}: ждали «${want}», получилось «${got}»`);
+  }
+  const dev = api.developerHtml({ name: "Тест", phone: "8 938 777-74-40" });
+  if (!dev.includes("https://wa.me/79387777440?")) fail("подвал", "WhatsApp разработчика: номер с 8 не переведён в 7", "ждали wa.me/79387777440");
+  if (errors.length === before) console.log("  кому писать: правило в одном месте, 3 случая и ссылка разработчика — в порядке");
+}
+
 // ------------------------------------------------- Запуск
 console.log("Проверка версий");
 checkAgainstPublished(checkVersions());
@@ -612,6 +664,7 @@ console.log("\nПроверка поиска");
 checkSearch();
 console.log("\nПроверка калькулятора и заявки");
 checkCalc();
+checkRecipient();
 
 if (warnings.length) {
   console.log(`\nПредупреждения (${warnings.length}) — публиковать можно, но посмотрите:`);
