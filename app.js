@@ -147,7 +147,11 @@ function applyTheme() {
   else document.documentElement.removeAttribute("data-theme");
 
   const dark = (choice || (systemDark.matches ? "dark" : "light")) === "dark";
-  document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? THEME_COLOR.dark : THEME_COLOR.light);
+  // Тегов два (светлая и тёмная тема телефона) — ставим цвет в оба, иначе при
+  // ручном выборе, не совпадающем с телефоном, браузер взял бы второй.
+  document
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((m) => m.setAttribute("content", dark ? THEME_COLOR.dark : THEME_COLOR.light));
 
   const mode = choice || "auto";
   document.getElementById("theme-icon").innerHTML = THEME_ICON[mode];

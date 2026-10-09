@@ -3,6 +3,8 @@
   "name": "Habez Gips — каталог продукции",
   "short_name": "Habez Gips",
   "description": "Каталог продукции Хабезского гипсового завода",
+  "lang": "ru",
+  "dir": "ltr",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -32,6 +34,40 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "categories": [
+    "business",
+    "shopping"
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/phone-1-home.webp",
+      "sizes": "824x1830",
+      "type": "image/webp",
+      "form_factor": "narrow",
+      "label": "Главная: разделы, поиск и метки задач"
+    },
+    {
+      "src": "screenshots/phone-2-category.webp",
+      "sizes": "824x1830",
+      "type": "image/webp",
+      "form_factor": "narrow",
+      "label": "Раздел «Клеи» и сравнение"
+    },
+    {
+      "src": "screenshots/phone-3-product.webp",
+      "sizes": "824x1830",
+      "type": "image/webp",
+      "form_factor": "narrow",
+      "label": "Карточка товара: характеристики, сертификат, заявка"
+    },
+    {
+      "src": "screenshots/wide-1-home.webp",
+      "sizes": "1280x800",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "Каталог на компьютере"
     }
   ]
 }

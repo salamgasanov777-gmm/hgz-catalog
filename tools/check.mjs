@@ -190,7 +190,11 @@ function checkCode() {
   const manifest = parseJson("manifest.json");
   for (const icon of (manifest && manifest.icons) || []) {
     if (!exists(icon.src)) fail("manifest.json", "значок не найден", icon.src);
+  }  // Снимки для окна установки (с v104): без файла Chrome показывает простое окно.
+  for (const shot of (manifest && manifest.screenshots) || []) {
+    if (!exists(shot.src)) fail("manifest.json", "снимок для окна установки не найден", shot.src);
   }
+
 
   if (errors.length === before) {
     console.log(`  код разбирается; элементов, которые ищет app.js: ${wanted.size}, все на месте; файлов запаса: ${listed.length}`);
