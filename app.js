@@ -2257,7 +2257,11 @@ function warmPhotoCache() {
       // Все снимки: и главные, и листаемые (этикетки), и фото страницы «О
       // заводе» — иначе без сети они остаются пустыми, если их не открывали.
       const extra = [...products.flatMap((p) => p.photos || []), ...((content && content.about && content.about.photos) || [])];
-      const all = [photoUrl({ photo: HOME_PHOTO }), ...products.map(photoUrl), ...extra.map((photo) => photoUrl({ photo }))];
+      // Последними — сканы сертификатов (с v102): около 7 МБ, поэтому после фото.
+      const certs = Object.values((content && content.certificates) || {})
+        .map((c) => (c && c.file ? c.file.replace(/\.pdf$/i, ".jpg") : ""))
+        .filter(Boolean);
+      const all = [photoUrl({ photo: HOME_PHOTO }), ...products.map(photoUrl), ...extra.map((photo) => photoUrl({ photo })), ...certs];
       const urls = [...new Set(all.filter(Boolean))];
       let i = 0;
       const next = () => {

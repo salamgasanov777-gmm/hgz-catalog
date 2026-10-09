@@ -109,7 +109,8 @@ function checkAgainstPublished(v) {
   }
 }
 
-// Фото. Телефон берёт их из постоянного ящика hgz-photos-N, не спрашивая сайт.
+// Фото и сканы сертификатов (certs/*.jpg, с v102). Телефон берёт их из
+// постоянного ящика hgz-photos-N, не спрашивая сайт.
 // Заменили файл под тем же именем — поднимите N в sw.js (const PHOTOS), либо
 // дайте файлу новое имя. Не зависит от подъёма версии кода.
 function checkPhotos() {
@@ -131,7 +132,9 @@ function checkPhotos() {
   }
   let photos = [];
   try {
-    photos = git("diff", "--name-only", "--diff-filter=M", "origin/main", "--", "products/").split("\n").filter(Boolean);
+    photos = git("diff", "--name-only", "--diff-filter=M", "origin/main", "--", "products/", "certs/")
+      .split("\n")
+      .filter((f) => /\.(jpe?g|webp|png)$/i.test(f));
   } catch {}
   if (photos.length && nowN === pubN) {
     fail(photos.join(", "), "фото заменено под тем же именем, а номер ящика фото не поднят", `телефоны покажут старое фото — поднимите const PHOTOS в sw.js (сейчас hgz-photos-${nowN}) или дайте файлу новое имя`);
