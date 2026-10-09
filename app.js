@@ -1052,10 +1052,13 @@ function lockScroll() {
   unlockTimer = 0;
   if (document.documentElement.classList.contains("locked")) return;
   savedScrollY = window.scrollY;
-  document.body.style.position = "fixed";
+  // Страницу не закрепляем (body position: fixed), а просто запрещаем ей
+  // прокрутку — класс locked, overflow: hidden в style.css (с v110). При
+  // закреплении Safari на iPhone пересчитывал высоту экрана: окно и затемнение
+  // заканчивались примерно на 60 точек выше края, и внизу стояла пустая
+  // полоса (фото и видео владельца 09.10.2026). Место в списке при этом не
+  // теряется — страница никуда не сдвигается.
   document.documentElement.classList.add("locked");
-  document.body.style.top = `-${savedScrollY}px`;
-  document.body.style.width = "100%";
 }
 
 function unlockScroll() {
@@ -1065,11 +1068,10 @@ function unlockScroll() {
   // прыгал на старую позицию savedScrollY — наверх или туда, где когда-то
   // открывали карточку.
   if (!document.documentElement.classList.contains("locked")) return;
-  document.body.style.position = "";
   document.documentElement.classList.remove("locked");
-  document.body.style.top = "";
-  document.body.style.width = "";
-  window.scrollTo(0, savedScrollY);
+  // Страница не сдвигалась, но на всякий случай возвращаем то же место:
+  // старые iPhone (до iOS 16) запрет прокрутки соблюдают не всегда.
+  if (window.scrollY !== savedScrollY) window.scrollTo(0, savedScrollY);
 }
 
 // Окна, которые ведут себя как диалог, и участки страницы под ними. Пока
