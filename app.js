@@ -84,6 +84,13 @@ function loadFavorites() {
 }
 let favorites = loadFavorites();
 
+// Значок избранного — закладка (решение владельца 09.10.2026, вариант Д):
+// «отложить», в фирменном синем. Раньше была звезда текстовым символом ☆/★ —
+// толще соседних значков и на каждом телефоне своя. Отмеченная — залитая.
+function favIcon(on) {
+  return `<svg class="fav-ico" viewBox="0 0 24 24" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.6h10.8v16.8L12 16.5l-5.4 3.9z"/></svg>`;
+}
+
 function isFavorite(id) {
   return favorites.has(id);
 }
@@ -1447,7 +1454,7 @@ function updateFavNav() {
   const count = favorites.size;
   badge.textContent = count;
   badge.style.display = count > 0 ? "flex" : "none";
-  star.textContent = activeCategory === "__fav__" ? "★" : "☆";
+  star.innerHTML = favIcon(activeCategory === "__fav__");
   btn.classList.toggle("active", activeCategory === "__fav__");
 }
 
@@ -1539,7 +1546,7 @@ function syncCardFav(id) {
   }
   const on = isFavorite(id);
   btn.classList.toggle("active", on);
-  btn.textContent = on ? "★" : "☆";
+  btn.innerHTML = favIcon(on);
   btn.setAttribute("aria-pressed", String(on));
   // В разделе «Избранное» снятая звезда означает, что товару здесь больше не место.
   if (activeCategory === "__fav__" && !on) {
@@ -1989,7 +1996,7 @@ function render() {
         `По запросу «${esc(q)}» ${where} ничего нет,<br>но ${elsewhere === 1 ? "нашёлся" : "нашлось"} ${n} в других разделах.` +
         `<button class="empty-all" id="empty-all">Показать</button>`;
     } else if (activeCategory === "__fav__" && !q) {
-      msg = "В избранном пока пусто.<br>Нажмите ★ на карточке товара, чтобы добавить.";
+      msg = `В избранном пока пусто.<br>Нажмите <span class="fav-hint">${favIcon(false)}</span> на карточке товара, чтобы отложить.`;
     } else if (activeTask) {
       const label = TASKS.find((t) => t.key === activeTask)?.label;
       msg = q
@@ -2078,7 +2085,7 @@ function cardNode(p) {
     if (btn) {
       const on = isFavorite(p.id);
       btn.classList.toggle("active", on);
-      btn.textContent = on ? "★" : "☆";
+      btn.innerHTML = favIcon(on);
       btn.setAttribute("aria-pressed", String(on));
     }
     return kept;
@@ -2090,7 +2097,7 @@ function cardNode(p) {
   card.innerHTML = `
       ${TAGS[p.tag] ? `<span class="tag tag-${esc(p.tag)}">${TAGS[p.tag]}</span>` : ""}
       <div class="photo${p.photo ? " loading" : ""}"${p.photo ? ` data-src="${photoUrl(p)}"` : ""}>${p.photo ? "" : '<span class="photo-soon">Фото скоро</span>'}</div>
-      <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="В избранное: ${esc(p.name)}" aria-pressed="${isFavorite(p.id)}">${isFavorite(p.id) ? "★" : "☆"}</button>
+      <button class="fav-btn ${isFavorite(p.id) ? "active" : ""}" data-fav-id="${p.id ?? key}" aria-label="В избранное: ${esc(p.name)}" aria-pressed="${isFavorite(p.id)}">${favIcon(isFavorite(p.id))}</button>
       <div class="info">
         <p class="name">${esc(p.name)}</p>
         ${p.purpose ? `<p class="purpose">${esc(p.purpose)}</p>` : ""}
@@ -2313,7 +2320,7 @@ function esc(s) {
 function updateSheetFavButton() {
   const btn = document.getElementById("sheet-fav");
   const fav = currentProduct && isFavorite(currentProduct.id);
-  btn.textContent = fav ? "★" : "☆";
+  btn.innerHTML = favIcon(!!fav);
   btn.classList.toggle("active", !!fav);
   btn.setAttribute("aria-pressed", String(!!fav));
   updateFavNav();

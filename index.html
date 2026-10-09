@@ -55,7 +55,7 @@
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
 <link rel="preload" as="image" href="products/factory-2.webp" type="image/webp" fetchpriority="high">
-<link rel="stylesheet" href="style.css?v=107">
+<link rel="stylesheet" href="style.css?v=108">
 </head>
 <body>
   <div class="topbar">
@@ -68,7 +68,7 @@
         </div>
       </div>
       <button id="fav-nav-btn" class="fav-nav-btn" aria-label="Избранное">
-        <span class="fav-nav-star">☆</span>
+        <span class="fav-nav-star"><svg class="fav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.6h10.8v16.8L12 16.5l-5.4 3.9z"/></svg></span>
         <span id="fav-count" class="fav-count"></span>
       </button>
       <button id="cart-nav-btn" class="fav-nav-btn cart-nav-btn" type="button" aria-label="Заявка">
@@ -211,7 +211,7 @@
   <div id="backdrop" class="sheet-backdrop"></div>
   <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-name" tabindex="-1">
     <div class="sheet-tools">
-      <button id="sheet-fav" class="fav-toggle" aria-label="Избранное">☆</button>
+      <button id="sheet-fav" class="fav-toggle" aria-label="Избранное"><svg class="fav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.6h10.8v16.8L12 16.5l-5.4 3.9z"/></svg></button>
       <button id="sheet-close" class="close" aria-label="Закрыть">✕</button>
     </div>
     <nav id="sheet-crumbs" class="crumbs" aria-label="Раздел товара">
@@ -241,8 +241,8 @@
     </div>
   </div>
 
-  <script src="guard.js?v=107"></script>
-  <script src="qr.js?v=107"></script>
-  <script src="app.js?v=107"></script>
+  <script src="guard.js?v=108"></script>
+  <script src="qr.js?v=108"></script>
+  <script src="app.js?v=108"></script>
 </body>
 </html>

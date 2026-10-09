@@ -262,7 +262,16 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   align-items: center;
   justify-content: center;
 }
-.fav-nav-btn.active { color: var(--gold); border-color: var(--gold); }
+.fav-nav-btn.active { color: var(--accent); border-color: var(--accent); }
+/* Значок избранного — закладка-значок (с v108), размеры как у корзины рядом. */
+.fav-ico { display: block; flex: none; }
+.fav-btn, .fav-toggle { padding: 0; }
+.fav-nav-star { display: flex; }
+.fav-nav-star .fav-ico { width: 20px; height: 20px; }
+.fav-btn .fav-ico { width: 14px; height: 14px; }
+.fav-toggle { display: flex; align-items: center; justify-content: center; }
+.fav-toggle .fav-ico { width: 17px; height: 17px; }
+.fav-hint .fav-ico { display: inline-block; width: 1.1em; height: 1.1em; vertical-align: -0.2em; color: var(--accent); }
 
 .icon-btn {
   width: 34px;
@@ -840,7 +849,7 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
      вниз и влево — с запасом. В сумме 25 + 7 + 12 = 44 в обе стороны. */
   inset: -7px -7px -12px -12px;
 }
-.fav-btn.active { color: var(--gold); border-color: var(--gold); }
+.fav-btn.active { color: var(--accent); border-color: var(--accent); }
 
 /* Все фото товаров — 1000×520, поэтому блок под них той же пропорции:
    иначе сверху и снизу остаются пустые полосы в половину карточки. */
@@ -1152,7 +1161,7 @@ html.locked { overscroll-behavior: none; }
   box-shadow: 0 1px 4px rgba(16, 32, 52, 0.14);
   flex: 0 0 auto;
 }
-.fav-toggle.active { color: var(--gold); }
+.fav-toggle.active { color: var(--accent); border-color: var(--accent); }
 
 /* ------------------------------------------------- Область нажатия
    Пальцу нужно около 44×44, но сами значки должны остаться прежнего размера:
