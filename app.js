@@ -1549,9 +1549,27 @@ function renderTasks() {
   const wrap = document.getElementById("task-row");
   // «Подбор:» перед метками — без подписи их принимали за разделы каталога,
   // а не за подбор по задаче (с v115).
-  wrap.innerHTML = `<span class="task-lead" aria-hidden="true">Подбор:</span>` + TASKS.map(
-    (t) => `<button class="task-chip ${t.key === activeTask ? "active" : ""}" data-task="${t.key}"><svg class="task-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${t.ico}</svg><span>${esc(t.label)}</span></button>`
-  ).join("");
+  // Сколько товаров покажет метка здесь: на главной — из всего каталога, в
+  // разделе — из раздела, в «Избранном» — из отложенного, и с учётом
+  // набранного запроса. Метка с нулём приглушена (не спрятана — ряд не
+  // прыгает): раньше «Бассейн» в 13 разделах из 14 вёл в «ничего не найдено»
+  // (решение владельца 14.10.2026, вариант 1, с v116).
+  let base = products.filter((p) =>
+    activeCategory === "Все" ? true : activeCategory === "__fav__" ? isFavorite(p.id) : p.category === activeCategory
+  );
+  const q = document.getElementById("search").value.trim();
+  const tokens = tokenize(q);
+  if (tokens.length) {
+    const found = searchList(base, tokens, translitVariants(q));
+    base = base.filter((p) => found.has(p.id));
+  }
+  wrap.innerHTML = `<span class="task-lead" aria-hidden="true">Подбор:</span>` + TASKS.map((t) => {
+    const n = base.filter((p) => matchesTask(p, t.key)).length;
+    const on = t.key === activeTask;
+    const cls = ["task-chip", on ? "active" : "", !n && !on ? "task-zero" : ""].filter(Boolean).join(" ");
+    const label = `${t.label}, ${n} ${plural(n, ["товар", "товара", "товаров"])}`;
+    return `<button class="${cls}" data-task="${t.key}" aria-label="${esc(label)}"><svg class="task-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${t.ico}</svg><span>${esc(t.label)}</span><span class="task-n" aria-hidden="true">${n}</span></button>`;
+  }).join("");
   wrap.querySelectorAll(".task-chip").forEach((btn) => {
     btn.addEventListener("click", () => {
       activeTask = activeTask === btn.dataset.task ? null : btn.dataset.task;

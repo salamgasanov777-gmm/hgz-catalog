@@ -539,6 +539,10 @@ button.doc-card:active { scale: 0.98; }
 .task-chip { display: inline-flex; align-items: center; gap: 6px; }
 .task-ico { width: 16px; height: 16px; flex: 0 0 16px; color: var(--accent); }
 .task-chip.active .task-ico { color: inherit; }
+/* Число товаров на метке и приглушённая метка с нулём (с v116). */
+.task-n { margin-left: -1px; font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.task-chip.active .task-n { color: inherit; opacity: 0.85; }
+.task-chip.task-zero { opacity: 0.45; }
 .task-chip.active {
   background: var(--accent);
   border-color: var(--accent);
