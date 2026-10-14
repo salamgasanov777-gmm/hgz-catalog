@@ -665,7 +665,10 @@ function checkRecipient() {
   const rule = (src.match(/manager && !manager\.own/g) || []).length;
   if (rule !== 1) fail("app.js", "правило «кому писать» записано не в одном месте", `найдено ${rule} — используйте recipientPhone()`);
   const uses = (src.match(/recipientPhone\(\)/g) || []).length;
-  if (uses < 5) fail("app.js", "recipientPhone() используется не всеми кнопками", `вызовов ${uses - 1}, ждали 4 (товар, «Узнать цену» ×2, заявка, подпись заявки)`);
+  if (uses < 5) fail("app.js", "recipientPhone() используется не всеми кнопками", `вызовов ${uses - 1}, ждали 4 («Узнать цену» ×2, заявка, подпись заявки)`);
+  // «Отправить в WhatsApp» (поделиться товаром) — без адресата: клиент выбирает
+  // чат сам (решение владельца 14.10.2026, с v115).
+  if (!src.includes("shareBtn.href = `https://wa.me/?text=")) fail("app.js", "«Отправить в WhatsApp» должна быть без адресата", "ждали shareBtn.href = `https://wa.me/?text=…`");
   let api;
   try {
     const code = [

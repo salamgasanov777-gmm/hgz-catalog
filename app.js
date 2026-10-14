@@ -2589,17 +2589,18 @@ function renderSheet(p, backTo = null) {
     })
   );
 
-  // Клиенту, пришедшему по QR-коду менеджера, кнопка пишет сразу этому
-  // менеджеру. У самого менеджера (own) она остаётся обычной: он рассылает
-  // товары клиентам и выбирает чат сам.
-  const shareTo = recipientPhone();
+  // «Отправить в WhatsApp» — поделиться товаром: всегда без адресата, клиент
+  // сам выбирает чат (знакомому, прорабу, менеджеру). Раньше у клиента с
+  // менеджером из QR обе кнопки писали менеджеру, и переслать товар было
+  // нельзя (решение владельца 14.10.2026, вариант Б, с v115).
   const shareBtn = document.getElementById("sheet-share");
-  shareBtn.href = `https://wa.me/${shareTo}?text=${encodeURIComponent(shareText(p))}`;
-  document.getElementById("sheet-share-label").textContent = shareTo ? "Отправить менеджеру в WhatsApp" : "Отправить в WhatsApp";
-  // «Узнать цену и наличие» — тому же адресату: менеджеру из QR, а без него
-  // клиент сам выбирает чат (решение владельца 02.10.2026). Текст собирается
-  // в момент нажатия, чтобы в него попал свежий расчёт из калькулятора.
-  document.getElementById("sheet-ask").href = `https://wa.me/${shareTo}?text=${encodeURIComponent(askText(p))}`;
+  shareBtn.href = `https://wa.me/?text=${encodeURIComponent(shareText(p))}`;
+  document.getElementById("sheet-share-label").textContent = "Отправить в WhatsApp";
+  // «Узнать цену и наличие» — менеджеру из QR, а без него клиент сам выбирает
+  // чат (решение владельца 02.10.2026). Текст собирается в момент нажатия,
+  // чтобы в него попал свежий расчёт из калькулятора.
+  const askTo = recipientPhone();
+  document.getElementById("sheet-ask").href = `https://wa.me/${askTo}?text=${encodeURIComponent(askText(p))}`;
 
   // Сертификат: в карточке лежит только ключ («cert»), сам файл и срок его
   // действия — в реестре content.json → certificates. Один сертификат
