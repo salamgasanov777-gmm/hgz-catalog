@@ -100,6 +100,18 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Выделение текста — только там, где его есть смысл копировать (с v117,
+   решение владельца 14.10.2026, вариант А). Долгое нажатие на кнопку,
+   плитку или шапку на iPhone заливало синим пол-экрана, как будто каталог
+   сломался. Копировать можно: характеристики и инструкцию в окне товара,
+   адреса и телефоны на страницах «Где купить» / «О заводе» / «Связаться»,
+   любые поля ввода. */
+body { -webkit-user-select: none; user-select: none; }
+input, textarea, select,
+#sheet-name, #sheet-gost, #sheet-badges, #sheet-body, #page-body { -webkit-user-select: text; user-select: text; }
+#sheet-body button, #sheet-body summary, #page-body button, #page-body a { -webkit-user-select: none; user-select: none; }
+/* Долгое нажатие на фото не открывает системное меню «Сохранить / Поделиться». */
+img { -webkit-touch-callout: none; -webkit-user-drag: none; }
 
 html, body {
   margin: 0;
