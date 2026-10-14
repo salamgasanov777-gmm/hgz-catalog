@@ -2823,7 +2823,9 @@ function packOptions(p) {
   const parts = rest.split(/\s*\/\s*/);
   const measure = (s) => (s.match(/^[\d,]+\s*([^\d\s]+)$/) || [])[1];
   const several = parts.length > 1 && parts.every((x) => measure(x) && measure(x) === measure(parts[0]));
-  return { forms: noun ? PACK_NOUNS[noun] : ["уп.", "уп.", "уп."], options: several ? parts : [rest] };
+  // Тары в данных нет («10 кг», «6 кг / 12 кг») — «шт.», а не «уп.»: какая
+  // тара, знает только завод, выдумывать её нельзя (с v115).
+  return { forms: noun ? PACK_NOUNS[noun] : ["шт.", "шт.", "шт."], options: several ? parts : [rest] };
 }
 
 function orderEntry(p) {
@@ -2834,7 +2836,7 @@ function orderEntry(p) {
   return { qty, opt, calc: Boolean(e.calc) };
 }
 
-// «14 мешков по 30 кг», «6 листов 12,5 мм», «2 уп. по 6 кг».
+// «14 мешков по 30 кг», «6 листов 12,5 мм», «2 шт. по 6 кг».
 function orderLine(p) {
   const { forms, options } = packOptions(p);
   const { qty, opt } = orderEntry(p);
@@ -3402,7 +3404,9 @@ function wireCalc(calc, p) {
     if (calc.type === "liquid") {
       const bigUnit = calc.packUnit === "г" ? "кг" : "л";
       const containers = packsFor(total);
-      result.innerHTML = `Нужно: <b>${formatNum(total / 1000)} ${bigUnit}</b> (~${containers} уп. по ${formatNum(calc.pack / 1000)} ${bigUnit})`;
+      // Тара — из данных товара («канистра»), без неё — «шт.» (с v115; было «уп.»).
+      const tare = plural(containers, packOptions(p).forms);
+      result.innerHTML = `Нужно: <b>${formatNum(total / 1000)} ${bigUnit}</b> (~${containers} ${tare} по ${formatNum(calc.pack / 1000)} ${bigUnit})`;
       rememberCalc(p, containers, calc.pack / 1000);
     } else {
       const bags = packsFor(total);
