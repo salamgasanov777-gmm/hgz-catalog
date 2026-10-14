@@ -807,7 +807,7 @@ const PAGES = [
         return `<p class="page-empty">Контакты появятся здесь.</p>`;
       }
       if (!manager) {
-        return html + `<p class="page-empty">Если вы откроете каталог по QR-коду менеджера, здесь появится его имя и телефон.</p>`;
+        return html + `<p class="page-empty">Открыли каталог по QR-коду своего менеджера? Его имя и телефон появятся здесь.</p>`;
       }
       return html;
     },
@@ -4348,7 +4348,10 @@ function renderQrManager() {
     ? `<p class="qr-manager-line">В коде ваш контакт: <b>${esc(managerName())}</b>, ${esc(phonePretty(manager.phone))}</p>${
         qrNameTrimmed ? `<p class="mgr-note">Имя в коде укорочено — целиком оно не помещается.</p>` : ""
       }<div class="mgr-actions"><button type="button" data-mgr="edit">Изменить</button><button type="button" data-mgr="clear" class="ghost">Убрать</button></div>`
-    : `<p class="qr-manager-line">Вы менеджер завода? Впишите свой контакт — и тот, кто отсканирует этот код, увидит, к кому обращаться, а его заявки на товар придут вам в WhatsApp.</p><div class="mgr-actions"><button type="button" data-mgr="edit">Указать свой контакт</button></div>`;
+    : // Клиенту блок для менеджеров не нужен — раньше он видел целый абзац
+      // «Вы менеджер завода? Впишите…». Теперь это тихая строка, раскрывается
+      // по нажатию (с v115).
+      `<details class="qr-mgr-more"><summary>Я менеджер завода</summary><p class="qr-manager-line">Впишите свой контакт — и тот, кто отсканирует этот код, увидит, к кому обращаться, а его заявки на товар придут вам в WhatsApp.</p><div class="mgr-actions"><button type="button" data-mgr="edit">Указать свой контакт</button></div></details>`;
   wireManagerButtons(box);
 }
 

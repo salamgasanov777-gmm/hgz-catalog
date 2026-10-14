@@ -337,6 +337,9 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
 }
 .qr-manager-line { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
 .qr-manager-line b { color: var(--ink); }
+/* «Я менеджер завода» — тихая строка для менеджеров, клиент её не читает (с v115). */
+.qr-mgr-more summary { cursor: pointer; padding: 6px 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+.qr-mgr-more[open] summary { margin-bottom: 8px; color: var(--ink); }
 .mgr-input { margin-bottom: 8px; }
 .mgr-note { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
 .mgr-error { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: var(--danger); }
