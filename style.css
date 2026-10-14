@@ -954,6 +954,11 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
   color: var(--muted);
 }
 .group-head:first-child { margin-top: 0; }
+/* Заголовок раздела нажимается, а высота строки — около 16 px: попасть
+   пальцем трудно. Невидимая зона нажатия до ~40 px, вниз — чуть-чуть, чтобы
+   не перекрывать закладку на карточке под заголовком (с v115). */
+.group-head { position: relative; }
+.group-head::after { content: ""; position: absolute; inset: -14px 0 -6px; }
 .group-head .group-count {
   font-weight: 600;
   letter-spacing: 0;
