@@ -1674,7 +1674,7 @@ function spellVariants(token) {
   return out;
 }
 
-const FIELD_WEIGHT = { name: 100, gost: 45, summary: 50, unit: 40, area: 35, usage: 30, section: 14, table: 12 };
+const FIELD_WEIGHT = { name: 100, gost: 45, summary: 50, unit: 40, cat: 40, area: 35, usage: 30, section: 14, table: 12 };
 // Слово, найденное только в инструкции или в таблице характеристик, товар в
 // выдачу не пускает. Иначе «грунт» находит все 49 товаров: грунтовать
 // основание велено в инструкции у каждого. Такое совпадение по-прежнему
@@ -1686,9 +1686,9 @@ const FIELD_WEIGHT = { name: 100, gost: 45, summary: 50, unit: 40, area: 35, usa
 // не берём: он пересказывает полкаталога («плита», «штукатурка» находили бы
 // клеи и грунты). Остальные разделы («Подготовка основания», «Порядок работы»,
 // хранение) по-прежнему считаются фоном.
-const STRONG_FIELDS = ["name", "gost", "summary", "unit", "area", "usage"];
+const STRONG_FIELDS = ["name", "gost", "summary", "unit", "cat", "area", "usage"];
 const NUMBER_FIELDS = ["name", "gost", "unit"];
-const FIELD_LABEL = { gost: "ГОСТ", summary: "описание", unit: "фасовка", area: "область применения", usage: "применение", section: "инструкция", table: "характеристики" };
+const FIELD_LABEL = { gost: "ГОСТ", summary: "описание", unit: "фасовка", cat: "раздел", area: "область применения", usage: "применение", section: "инструкция", table: "характеристики" };
 const USAGE_TITLES = ["область применения"];
 
 // Латинские буквы, неотличимые от русских на вид. В названиях они намешаны:
@@ -1705,7 +1705,12 @@ function normalizeText(text) {
 }
 
 function tokenize(text) {
-  return normalizeText(text).split(/[^a-zа-я0-9]+/).filter((w) => w.length > 1);
+  // Дробное число — одно слово («9,5», «12,5»), а не «9» и «5». Число из одной
+  // цифры тоже слово: раньше «9,5» и «5 л» давали пустой запрос и показывали
+  // весь каталог (с v115). Буквы по одной по-прежнему не считаем.
+  return (normalizeText(text).match(/\d+(?:[.,]\d+)?|[a-zа-я0-9]+/g) || [])
+    .map((w) => w.replace(".", ","))
+    .filter((w) => w.length > 1 || /^\d/.test(w));
 }
 
 // ------------------------------------------------- Латинская раскладка
@@ -1812,7 +1817,10 @@ function searchIndex(p) {
     name: field(p.name),
     gost: field(p.gost),
     summary: field(p.summary),
-    unit: field(p.unit + " " + p.category),
+    unit: field(p.unit),
+    // Раздел — отдельно от фасовки: «клеи» совпадает с разделом «Клеи», и
+    // подпись «найдено в: фасовка» сбивала с толку (с v115).
+    cat: field(p.category),
     area: field(areaRows.join(" ")),
     usage: field((p.sections || []).filter((x) => USAGE_TITLES.includes(normalizeText(x.title))).map((x) => x.text).join(" ")),
     section: field((p.sections || []).map((x) => x.title + " " + x.text).join(" ")),
@@ -1923,7 +1931,9 @@ function searchMatch(p, queryTokens, latinVariants) {
       if (numeric && !NUMBER_FIELDS.includes(field)) continue;
       const weight = FIELD_WEIGHT[field];
       // Слово целиком весит больше начала слова, начало — больше общего корня.
-      const quality = Math.max(...variants.map((v) => fieldQuality(index[field], v)));
+      let quality = Math.max(...variants.map((v) => fieldQuality(index[field], v)));
+      // Число — только целиком: «5» не находит «50 шт», «30» — «300».
+      if (numeric && quality < 3) quality = 0;
       const points = quality === 3 ? weight * 1.4 : quality === 2 ? weight * 1.2 : quality === 1 ? weight : 0;
       if (points > best) {
         best = points;
