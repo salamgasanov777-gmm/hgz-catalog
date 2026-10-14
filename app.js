@@ -2752,7 +2752,7 @@ document.getElementById("cert-close").addEventListener("click", dismissOverlay);
 // Цен в каталоге нет (решение по ним не принято), поэтому вопрос задаётся
 // человеку, а не подставляется число.
 function askText(p) {
-  const lines = ["Здравствуйте! Подскажите цену и наличие:", p.name];
+  const lines = ["Здравствуйте! Пишу из каталога Хабезского гипсового завода. Подскажите цену и наличие:", p.name];
   if (p.unit) lines.push(`Фасовка: ${p.unit}`);
   const res = document.getElementById("calc-result");
   if (res && /^Нужно:/.test(res.textContent)) {
@@ -2979,7 +2979,7 @@ function addFavoritesToCart() {
 }
 
 function orderText() {
-  const lines = ["Заявка из каталога ХГЗ:"];
+  const lines = ["Заявка из каталога Хабезского гипсового завода:"];
   // Только названия и количество, без ссылок: по ссылке WhatsApp рисует
   // большую карточку сайта с картинкой, а в заявке она лишняя (владелец,
   // проверка на телефоне 05.10.2026).
