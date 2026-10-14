@@ -594,6 +594,12 @@ button.doc-card:active { scale: 0.98; }
    «мешок 25 кг» были разной ширины, и кнопки − N + «прыгали» от строки к
    строке (с v115). Длинная фасовка переносится внутри колонки. */
 .order-pack, .order-pack-one { flex: 0 0 104px; width: 104px; box-sizing: border-box; }
+/* «Отправить» прилипает к низу окна: в длинной заявке её не надо искать (с v115). */
+.order-sheet .order-send { position: sticky; bottom: 8px; z-index: 2; box-shadow: 0 0 0 8px var(--card); }
+/* Вопрос после отправки: очистить заявку или оставить (с v115). */
+.order-after { margin: 12px 0 4px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md); }
+.order-after[hidden] { display: none; }
+.order-after p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.4; color: var(--ink); }
 .order-pack-one { line-height: 1.25; overflow-wrap: anywhere; }
 .order-qty { display: flex; align-items: center; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
 .order-qty button {

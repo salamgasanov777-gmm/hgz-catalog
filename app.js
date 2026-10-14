@@ -3010,7 +3010,13 @@ function renderOrderRow(p) {
     `<input class="order-num" type="text" inputmode="numeric" autocomplete="off" value="${e.qty}" aria-label="Количество">` +
     `<button type="button" class="order-plus" aria-label="Больше">+</button></div>` +
     `<span class="order-word">${plural(e.qty, forms)}</span></div>` +
-    (e.calc ? `<p class="order-hint">Количество — по расчёту в каталоге</p>` : "") +
+    (e.calc
+      ? `<p class="order-hint">Количество — по расчёту в каталоге</p>`
+      : // Количество никто не задавал — «1» стоит по умолчанию, а в заявку
+        // уходило как настоящее число (с v115). Подсказка уходит при правке.
+        !order[p.id]
+        ? `<p class="order-hint">Количество не указано — сейчас 1</p>`
+        : "") +
     `</div>`
   );
 }
@@ -3022,6 +3028,7 @@ function openOrder(opener) {
   const sheet = document.getElementById("order-sheet");
   sheet.classList.toggle("is-empty", !items.length);
   document.getElementById("order-list").innerHTML = items.length ? items.map(renderOrderRow).join("") : ORDER_EMPTY;
+  document.getElementById("order-after").hidden = true;
   document.getElementById("order-send-label").textContent =
     recipientPhone() ? "Отправить заявку менеджеру" : "Отправить заявку в WhatsApp";
   document.getElementById("order-copy-label").textContent = "Скопировать текст";
@@ -3112,6 +3119,32 @@ document.getElementById("order-sheet").addEventListener("focusout", updateOrderL
 orderList.addEventListener("click", updateOrderLink);
 // Запасной путь: на самом нажатии — самый свежий текст.
 orderSend.addEventListener("click", updateOrderLink);
+
+// После «Отправить» заявка оставалась как была, и следующую клиент собирал
+// поверх старой. Теперь, вернувшись из WhatsApp, он видит вопрос: очистить
+// или оставить. Сам каталог ничего не удаляет (с v115).
+const orderAfter = document.getElementById("order-after");
+orderSend.addEventListener("click", () => {
+  setTimeout(() => {
+    orderAfter.hidden = false;
+  }, 800);
+});
+document.getElementById("order-keep").addEventListener("click", () => {
+  orderAfter.hidden = true;
+});
+document.getElementById("order-clear").addEventListener("click", () => {
+  for (const id of cart) delete order[id];
+  cart.clear();
+  saveCart();
+  saveOrder();
+  document.getElementById("order-object").value = "";
+  document.getElementById("order-when").value = "";
+  orderAfter.hidden = true;
+  document.getElementById("order-sheet").classList.add("is-empty");
+  orderList.innerHTML = ORDER_EMPTY;
+  updateCartNav();
+  render();
+});
 
 // Запасной путь, если WhatsApp нет: текст в буфер — дальше в Telegram или SMS.
 document.getElementById("order-copy").addEventListener("click", async () => {
