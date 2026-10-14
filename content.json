@@ -86,16 +86,6 @@
   ],
   "videos": [
     {
-      "title": "Добыча, производство, контроль качества",
-      "file": "video/o-zavode.mp4",
-      "poster": "video/o-zavode.jpg"
-    },
-    {
-      "title": "Продукция Хабезского завода",
-      "file": "video/produkciya.mp4",
-      "poster": "video/produkciya.jpg"
-    },
-    {
       "title": "Фильм о заводе (2 минуты)",
       "file": "video/presentation.mp4",
       "poster": "video/presentation.jpg"
