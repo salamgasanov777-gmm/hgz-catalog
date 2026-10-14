@@ -1547,7 +1547,9 @@ document.getElementById("fav-nav-btn").addEventListener("click", () => {
 
 function renderTasks() {
   const wrap = document.getElementById("task-row");
-  wrap.innerHTML = TASKS.map(
+  // «Подбор:» перед метками — без подписи их принимали за разделы каталога,
+  // а не за подбор по задаче (с v115).
+  wrap.innerHTML = `<span class="task-lead" aria-hidden="true">Подбор:</span>` + TASKS.map(
     (t) => `<button class="task-chip ${t.key === activeTask ? "active" : ""}" data-task="${t.key}"><svg class="task-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${t.ico}</svg><span>${esc(t.label)}</span></button>`
   ).join("");
   wrap.querySelectorAll(".task-chip").forEach((btn) => {

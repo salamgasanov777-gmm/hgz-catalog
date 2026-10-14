@@ -517,6 +517,8 @@ button.doc-card:active { scale: 0.98; }
   scrollbar-width: none;
 }
 .task-row::-webkit-scrollbar { display: none; }
+/* «Подбор:» в начале ряда меток (с v115) — тихая подпись, не кнопка. */
+.task-lead { flex: 0 0 auto; align-self: center; font-size: 12.5px; font-weight: 700; color: var(--muted); }
 
 .task-chip {
   flex: 0 0 auto;
