@@ -590,6 +590,11 @@ button.doc-card:active { scale: 0.98; }
   color: var(--ink);
 }
 .order-pack-one { font-size: 13.5px; color: var(--muted); }
+/* Фасовка — колонка одной ширины у всех строк: раньше список «30 кг» и текст
+   «мешок 25 кг» были разной ширины, и кнопки − N + «прыгали» от строки к
+   строке (с v115). Длинная фасовка переносится внутри колонки. */
+.order-pack, .order-pack-one { flex: 0 0 104px; width: 104px; box-sizing: border-box; }
+.order-pack-one { line-height: 1.25; overflow-wrap: anywhere; }
 .order-qty { display: flex; align-items: center; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
 .order-qty button {
   width: 44px;
