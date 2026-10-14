@@ -757,7 +757,11 @@ function managerCardHtml() {
     `<p class="line">${esc(MANAGER_ROLE)}</p>` +
     `<p class="line">${esc(phonePretty(manager.phone))}</p>` +
     `<div class="store-actions"><a href="tel:+${esc(manager.phone)}">Позвонить</a>` +
-    `<a href="${wa}" target="_blank" rel="noopener">WhatsApp</a></div></div>`;
+    `<a href="${wa}" target="_blank" rel="noopener">WhatsApp</a></div></div>` +
+    // Контакт из чужой ссылки клиент раньше убрать не мог — только очистив
+    // данные браузера, а все заявки так и уходили этому номеру (перепроверка
+    // 14.10.2026, с v114). Свой контакт менеджер убирает в окне QR.
+    (manager.own ? "" : `<div class="mgr-actions mgr-forget"><button type="button" class="ghost" data-forget-manager>Это не мой менеджер — убрать</button></div>`);
 }
 
 function factoryContactHtml(c) {
@@ -806,6 +810,19 @@ const PAGES = [
         return html + `<p class="page-empty">Если вы откроете каталог по QR-коду менеджера, здесь появится его имя и телефон.</p>`;
       }
       return html;
+    },
+    after: () => {
+      const btn = document.querySelector("#page-body [data-forget-manager]");
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        if (!confirm("Убрать этого менеджера? Заявки и вопросы о цене больше не будут уходить ему — WhatsApp спросит, кому отправить.")) return;
+        saveManager(null);
+        const page = PAGES.find((x) => x.key === "contact");
+        document.getElementById("page-body").innerHTML = page.render(content);
+        // Кнопка исчезла вместе с карточкой — фокус ставим на окно, а не в пустоту.
+        document.getElementById("page-sheet").focus();
+        render();
+      });
     },
   },
   {
@@ -1616,6 +1633,11 @@ const SEARCH_SYNONYMS = {
   гкл: ["гипсокартонный"],
   гклв: ["гипсокартонный"],
   пгп: ["пазогребневая"],
+  // «клеи» и «клей» по началу слова не сходятся (короткое слово, разное
+  // окончание): «клеи» находил только раздел «Клеи», без МЕЛИССЫ и ТЕПЛОКОМА.
+  клеи: ["клей"],
+  клея: ["клей"],
+  клею: ["клей"],
 };
 
 // Слова, за которыми стоит чип «Подбор по задаче» (TASKS). Запрос «ванная»
@@ -1665,6 +1687,7 @@ const FIELD_WEIGHT = { name: 100, gost: 45, summary: 50, unit: 40, area: 35, usa
 // клеи и грунты). Остальные разделы («Подготовка основания», «Порядок работы»,
 // хранение) по-прежнему считаются фоном.
 const STRONG_FIELDS = ["name", "gost", "summary", "unit", "area", "usage"];
+const NUMBER_FIELDS = ["name", "gost", "unit"];
 const FIELD_LABEL = { gost: "ГОСТ", summary: "описание", unit: "фасовка", area: "область применения", usage: "применение", section: "инструкция", table: "характеристики" };
 const USAGE_TITLES = ["область применения"];
 
@@ -1776,9 +1799,12 @@ function searchIndex(p) {
   if (p._index) return p._index;
   const areaTable = (p.tables || []).find((t) => t.title === "Область применения");
   const areaRows = (areaTable?.rows || []).filter(([, value]) => value === "ДА").map(([label]) => label);
+  // Строки со значением «НЕТ» в поиск не берём, как и в «Области применения»:
+  // у плиточных клеев есть строка «Плиты ГВЛ, ГКЛ — НЕТ», и по запросу «клей
+  // для плитки на гкл» все семь клеев шли первыми — ответ наоборот (с v114).
   const otherTables = (p.tables || [])
     .filter((t) => t.title !== "Область применения")
-    .flatMap((t) => t.rows.map((r) => r[0] + " " + r[1]));
+    .flatMap((t) => t.rows.filter(([, value]) => String(value).trim().toUpperCase() !== "НЕТ").map((r) => r[0] + " " + r[1]));
 
   const field = (text) => ({ words: tokenize(text), text: normalizeText(text) });
 
@@ -1888,8 +1914,13 @@ function searchMatch(p, queryTokens, latinVariants) {
       bestField = "area";
     }
     const usageOk = usageIsSpecific(variants);
+    // Число («30», «9,5») ищем только там, где пишут вес, размер и номер:
+    // название, ГОСТ, фасовка. Иначе «30 кг» находил 39 товаров из 54 —
+    // «30» цеплялось за «+30 °C» в инструкциях и таблицах (с v114).
+    const numeric = /^\d+([.,]\d+)?$/.test(token);
     for (const field of Object.keys(FIELD_WEIGHT)) {
       if (field === "usage" && !usageOk) continue;
+      if (numeric && !NUMBER_FIELDS.includes(field)) continue;
       const weight = FIELD_WEIGHT[field];
       // Слово целиком весит больше начала слова, начало — больше общего корня.
       const quality = Math.max(...variants.map((v) => fieldQuality(index[field], v)));
@@ -3385,6 +3416,14 @@ function closeSheet() {
 }
 
 document.getElementById("search").addEventListener("input", render);
+// «Найти» на клавиатуре телефона (Enter) убирает клавиатуру: результаты уже
+// на экране, а раньше она так и закрывала их до касания мимо поля (с v114).
+document.getElementById("search").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    e.target.blur();
+  }
+});
 document.getElementById("backdrop").addEventListener("click", dismissOverlay);
 document.getElementById("sheet-close").addEventListener("click", dismissOverlay);
 
@@ -4276,7 +4315,16 @@ function offerManager(m) {
   pendingManager = m;
   const who = m.name ? `${m.name}, ${phonePretty(m.phone)}` : phonePretty(m.phone);
   const first = !manager;
-  document.getElementById("manager-bar-text").textContent = first ? `Записать менеджера: ${who}?` : `Сменить менеджера на ${who}?`;
+  // Последствия — прямо в вопросе: ссылку с подписью «Менеджер завода» может
+  // собрать кто угодно, а после «Записать» заявки с адресом объекта уходят
+  // на этот номер (перепроверка 14.10.2026, с v114).
+  // Имя пришло из ссылки — только textContent, никакого innerHTML.
+  const text = document.getElementById("manager-bar-text");
+  text.textContent = first ? `Записать менеджера: ${who}?` : `Сменить менеджера на ${who}?`;
+  const warn = document.createElement("small");
+  warn.className = "manager-bar-warn";
+  warn.textContent = "Заявки и вопросы о цене будут уходить на этот номер в WhatsApp. Записывайте, только если QR вам показал сотрудник завода.";
+  text.appendChild(warn);
   document.getElementById("manager-bar-open").textContent = first ? "Записать" : "Сменить";
   bar.classList.add("open");
 }
