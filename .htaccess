@@ -1,0 +1,5 @@
+# Настройки сервера для Beget (habez-catalog.ru). На GitHub Pages файл не действует.
+# Сжатие данных: без него products.json уходит на телефон 362 КБ вместо ~43 КБ.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE application/json application/manifest+json text/plain image/svg+xml
+</IfModule>
