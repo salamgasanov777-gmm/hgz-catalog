@@ -396,7 +396,10 @@ function checkCertificates() {
     }
     const end = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 23, 59, 59);
     const days = Math.floor((end - today) / 86400000);
-    if (days < 0) fail(where, "сертификат просрочен", `срок истёк ${cert.until} — замените файл и дату`);
+    // Просроченный — громкое предупреждение, а не запрет: каталог сам прячет
+    // такой сертификат (certExpired в app.js), а запрет блокировал бы любую
+    // выкладку, даже срочный откат, пока не придёт новый от завода (с v115).
+    if (days < 0) warn(where, "СЕРТИФИКАТ ПРОСРОЧЕН — в каталоге скрыт, замените файл и дату", `срок истёк ${cert.until}`);
     else if (days < 90) warn(where, "сертификат скоро истекает", `осталось ${days} дн., до ${cert.until}`);
   }
 
@@ -696,6 +699,54 @@ function checkRecipient() {
   if (errors.length === before) console.log("  кому писать: правило в одном месте, 3 случая и ссылка разработчика — в порядке");
 }
 
+// ------------------------------------------------- 7. Ключи и лишние файлы
+// Репозиторий публичный: всё, что уйдёт в main, видит любой. Письма завода
+// приходят .docx, таблицы — .xlsx, и такой файл легко случайно положить в
+// папку каталога. Проверяем то, что git отправит (без файлов из .gitignore),
+// и ищем в тексте узнаваемые ключи (с v115).
+function checkSecrets() {
+  let files;
+  try {
+    files = git("ls-files", "--cached", "--others", "--exclude-standard").split("\n").filter(Boolean);
+  } catch {
+    warn("git", "не удалось получить список файлов", "проверка ключей и лишних файлов пропущена");
+    return;
+  }
+  const BAD_EXT = /\.(docx?|xlsx?|xlsm|csv|odt|ods|rtf|eml|msg|sqlite3?|db|sql|env|pem|key|p12|pfx|zip|rar|7z|heic)$/i;
+  const bad = files.filter((f) => BAD_EXT.test(f));
+  for (const f of bad) {
+    fail(f, "файл не для публичного сайта", "письма, таблицы, базы и ключи сюда не кладут — уберите из папки app или впишите в .gitignore");
+  }
+  // Шаблоны собраны из частей, чтобы этот файл не находил сам себя.
+  const PATTERNS = [
+    [new RegExp("sk-(?:ant-|or-)?[A-Za-z0-9_-]{20,}"), "ключ нейросети (sk-…)"],
+    [new RegExp("gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}"), "токен GitHub"],
+    [new RegExp("AKIA[0-9A-Z]{16}"), "ключ AWS"],
+    [new RegExp("-----BEGIN [A-Z ]*" + "PRIVATE KEY-----"), "закрытый ключ"],
+    [new RegExp("eyJ[A-Za-z0-9_-]{10,}\\.eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}"), "токен JWT (так выглядят ключи Supabase)"],
+    [new RegExp("\\b" + "service" + "_role\\b"), "ключ Supabase с полными правами"],
+    [new RegExp("xox[baprs]-[A-Za-z0-9-]{10,}"), "токен Slack"],
+    [new RegExp("\\b\\d{9,10}:AA[A-Za-z0-9_-]{30,}\\b"), "токен Telegram-бота"],
+  ];
+  const TEXT = /\.(js|mjs|json|html|css|md|txt|webmanifest|xml|svg)$/i;
+  let found = 0;
+  for (const f of files.filter((x) => TEXT.test(x))) {
+    let text;
+    try {
+      text = read(f);
+    } catch {
+      continue;
+    }
+    for (const [re, what] of PATTERNS) {
+      if (re.test(text)) {
+        found++;
+        fail(f, `похоже на секрет: ${what}`, "уберите из файла — репозиторий публичный, ключ надо считать утёкшим и заменить");
+      }
+    }
+  }
+  console.log(`  ключи и лишние файлы: проверено ${files.length} файлов${bad.length || found ? `, найдено: ${bad.length + found}` : ", чисто"}`);
+}
+
 // ------------------------------------------------- Запуск
 console.log("Проверка версий");
 checkAgainstPublished(checkVersions());
@@ -711,6 +762,8 @@ checkSearch();
 console.log("\nПроверка калькулятора и заявки");
 checkCalc();
 checkRecipient();
+console.log("\nПроверка на ключи и лишние файлы");
+checkSecrets();
 
 if (warnings.length) {
   console.log(`\nПредупреждения (${warnings.length}) — публиковать можно, но посмотрите:`);

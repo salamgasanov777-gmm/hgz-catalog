@@ -8,3 +8,15 @@
 *.bak
 *.zip
 node_modules/
+# Письма и таблицы завода, базы, фото с iPhone — в публичный репозиторий не кладём
+# (с v115; check.mjs тоже их ищет и останавливает выкладку).
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.xlsm
+*.csv
+*.eml
+*.heic
+*.sqlite
+*.db
