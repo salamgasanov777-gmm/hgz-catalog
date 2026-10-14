@@ -1946,6 +1946,43 @@ function searchMatch(p, queryTokens, latinVariants) {
   return { score, hint: hintField ? FIELD_LABEL[hintField] : null };
 }
 
+// Несколько названий в одном запросе: «старт синдика», «мелисса теплоком».
+// Обычный поиск требует, чтобы все слова нашлись в одном товаре, и такие
+// запросы давали пусто. Если каждое слово — название не больше чем трёх
+// товаров и эти товары разные, показываем их все (с v115). «Профиль 60»,
+// «победа 80» и «клей плиточный гкл» сюда не попадают: там слова либо
+// называют один и тот же товар, либо слишком общие.
+const NAME_PICK_MAX = 3;
+function namePicks(queryTokens, latinVariants) {
+  const words = queryTokens.filter((t) => t.length > 3 || /^\d/.test(t));
+  if (words.length < 2) return null;
+  const sets = words.map((t) => {
+    const variants = [t, ...((latinVariants && latinVariants.get(t)) || [])];
+    return new Set(products.filter((p) => variants.some((v) => fieldQuality(searchIndex(p).name, v) >= 2)).map((p) => p.id));
+  });
+  if (sets.some((s) => s.size === 0 || s.size > NAME_PICK_MAX)) return null;
+  for (let i = 0; i < sets.length; i++) {
+    for (let j = i + 1; j < sets.length; j++) {
+      if ([...sets[i]].some((id) => sets[j].has(id))) return null;
+    }
+  }
+  // Порядок — как слова в запросе: «старт синдика» — сначала Старты.
+  const picks = new Map();
+  sets.forEach((s, k) => s.forEach((id) => picks.set(id, { score: FIELD_WEIGHT.name * (sets.length - k), hint: null })));
+  return picks;
+}
+
+// Поиск по списку товаров: найденные — с оценкой и подсказкой «найдено в».
+function searchList(list, queryTokens, latinVariants) {
+  const picks = namePicks(queryTokens, latinVariants);
+  const out = new Map();
+  for (const p of list) {
+    const found = picks ? picks.get(p.id) : searchMatch(p, queryTokens, latinVariants);
+    if (found) out.set(p.id, found);
+  }
+  return out;
+}
+
 function render() {
   updateFavNav();
   updateCartNav();
@@ -1965,14 +2002,12 @@ function render() {
     const matchesCat =
       activeCategory === "Все" ? true : activeCategory === "__fav__" ? isFavorite(p.id) : p.category === activeCategory;
     const matchesTaskFilter = !activeTask || matchesTask(p, activeTask);
-    if (!matchesCat || !matchesTaskFilter || noWords) return false;
-    if (!queryTokens.length) return true;
-
-    const found = searchMatch(p, queryTokens, latinVariants);
-    if (!found) return false;
-    hints.set(p.id, found);
-    return true;
+    return matchesCat && matchesTaskFilter && !noWords;
   });
+  if (queryTokens.length) {
+    searchList(filtered, queryTokens, latinVariants).forEach((found, id) => hints.set(id, found));
+    filtered = filtered.filter((p) => hints.has(p.id));
+  }
 
   // При поиске порядок — по совпадению, иначе заводской порядок каталога.
   if (queryTokens.length) {
@@ -2028,7 +2063,7 @@ function render() {
     // магазине решит, что плиточного клея у завода нет, хотя открыты шпаклёвки.
     const elsewhere =
       queryTokens.length && activeCategory !== "Все"
-        ? products.filter((p) => (!activeTask || matchesTask(p, activeTask)) && searchMatch(p, queryTokens, latinVariants)).length
+        ? searchList(products.filter((p) => !activeTask || matchesTask(p, activeTask)), queryTokens, latinVariants).size
         : 0;
     const where = activeCategory === "__fav__" ? "в избранном" : `в разделе «${esc(activeCategory)}»`;
     if (elsewhere) {

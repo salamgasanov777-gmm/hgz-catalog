@@ -429,7 +429,7 @@ function loadSearchEngine(products) {
   if ([a, b, c, d].some((x) => x < 0)) throw new Error("не найдены метки блока поиска в app.js (TASKS / «Поиск» / render)");
   const code =
     "let products = [];\n" + src.slice(a, b) + "\n" + src.slice(c, d) + "\n" +
-    "globalThis.__api = { searchMatch, tokenize, translitVariants, matchesTask, setProducts: (p) => { products = p; } };";
+    "globalThis.__api = { searchList, tokenize, translitVariants, matchesTask, setProducts: (p) => { products = p; } };";
   const ctx = {};
   ctx.globalThis = ctx;
   vm.createContext(ctx);
@@ -440,8 +440,10 @@ function loadSearchEngine(products) {
     const tokens = api.tokenize(q);
     const lat = api.translitVariants(q);
     if (!tokens.length) return [];
+    // Тот же путь, что в render(): searchList (с v115 — и несколько названий в одном запросе).
+    const found = api.searchList(products, tokens, lat);
     return products
-      .map((p, i) => ({ p, i, m: api.searchMatch(p, tokens, lat) }))
+      .map((p, i) => ({ p, i, m: found.get(p.id) }))
       .filter((x) => x.m)
       .sort((x, y) => y.m.score - x.m.score || x.i - y.i)
       .map((x) => x.p);
