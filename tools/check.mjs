@@ -730,6 +730,8 @@ function checkSecrets() {
     [new RegExp("\\b" + "service" + "_role\\b"), "ключ Supabase с полными правами"],
     [new RegExp("xox[baprs]-[A-Za-z0-9-]{10,}"), "токен Slack"],
     [new RegExp("\\b\\d{9,10}:AA[A-Za-z0-9_-]{30,}\\b"), "токен Telegram-бота"],
+    [new RegExp("AI" + "za[0-9A-Za-z_-]{35}"), "ключ Google (карты, таблицы)"],
+    [new RegExp("(?:sk|rk)_" + "live_[0-9A-Za-z]{20,}"), "ключ платёжной системы Stripe"],
   ];
   const TEXT = /\.(js|mjs|json|html|css|md|txt|webmanifest|xml|svg)$/i;
   let found = 0;
@@ -747,7 +749,116 @@ function checkSecrets() {
       }
     }
   }
-  console.log(`  ключи и лишние файлы: проверено ${files.length} файлов${bad.length || found ? `, найдено: ${bad.length + found}` : ", чисто"}`);
+
+  // Новые коммиты, которые уходят на сайт: публичной становится и история.
+  // Ключ, добавленный в одном коммите и удалённый в следующем, в текущих
+  // файлах уже не виден, но уйдёт вместе с историей (с v115).
+  let commits = 0;
+  try {
+    const range = "origin/main..HEAD";
+    commits = git("rev-list", "--count", range).trim() | 0;
+    if (commits) {
+      for (const f of git("log", "--name-only", "--format=", range).split("\n").filter(Boolean)) {
+        if (BAD_EXT.test(f)) {
+          found++;
+          fail(`история: ${f}`, "лишний файл в одном из новых коммитов", "даже если его уже удалили, он уйдёт в публичную историю — уберите коммит до выкладки");
+        }
+      }
+      const added = git("log", "-p", "--format=", range)
+        .split("\n")
+        .filter((l) => l.startsWith("+") && !l.startsWith("+++"))
+        .join("\n");
+      for (const [re, what] of PATTERNS) {
+        if (re.test(added)) {
+          found++;
+          fail("история новых коммитов", `похоже на секрет: ${what}`, "ключ был в одном из коммитов, которые уходят на сайт — даже удалённый, он останется в публичной истории");
+        }
+      }
+    }
+  } catch {
+    // origin/main неизвестен (нет связи с GitHub) — проверяем только файлы.
+  }
+
+  // Фото с координатами: снимок с телефона хранит место съёмки (например,
+  // дом). Ищем в картинках блок GPS внутри EXIF (с v115).
+  let gps = 0;
+  for (const f of files.filter((x) => /\.(jpe?g|webp|png)$/i.test(x))) {
+    let buf;
+    try {
+      buf = fs.readFileSync(path.join(ROOT, f));
+    } catch {
+      continue;
+    }
+    if (imageHasGps(buf)) {
+      gps++;
+      fail(f, "в фото есть координаты места съёмки", "уберите метаданные: magick файл -strip файл (и поднимите PHOTOS в sw.js)");
+    }
+  }
+
+  const total = bad.length + found + gps;
+  console.log(
+    `  ключи и лишние файлы: проверено ${files.length} файлов` +
+      (commits ? `, новых коммитов ${commits}` : "") +
+      (total ? `, найдено: ${total}` : ", чисто")
+  );
+}
+
+// Есть ли в картинке EXIF с блоком GPS (тег 0x8825). JPEG — сегмент APP1
+// «Exif\0\0», WebP — блок «EXIF», PNG — блок «eXIf». Внутри — структура TIFF.
+function imageHasGps(buf) {
+  const tiffHasGps = (t) => {
+    if (t + 8 > buf.length) return false;
+    const le = buf.toString("latin1", t, t + 2) === "II";
+    if (!le && buf.toString("latin1", t, t + 2) !== "MM") return false;
+    const u16 = (o) => (le ? buf.readUInt16LE(o) : buf.readUInt16BE(o));
+    const u32 = (o) => (le ? buf.readUInt32LE(o) : buf.readUInt32BE(o));
+    const ifd = t + u32(t + 4);
+    if (ifd + 2 > buf.length) return false;
+    const n = u16(ifd);
+    for (let i = 0; i < n; i++) {
+      const e = ifd + 2 + i * 12;
+      if (e + 12 > buf.length) return false;
+      if (u16(e) === 0x8825) {
+        const g = t + u32(e + 8);
+        return g + 2 <= buf.length && u16(g) > 0;
+      }
+    }
+    return false;
+  };
+  const head = buf.toString("latin1", 0, 12);
+  if (buf[0] === 0xff && buf[1] === 0xd8) {
+    let o = 2;
+    while (o + 4 < buf.length && buf[o] === 0xff) {
+      const marker = buf[o + 1];
+      const len = buf.readUInt16BE(o + 2);
+      if (marker === 0xe1 && buf.toString("latin1", o + 4, o + 10) === "Exif\0\0") return tiffHasGps(o + 10);
+      if (marker === 0xda) break;
+      o += 2 + len;
+    }
+    return false;
+  }
+  if (head.startsWith("RIFF") && head.slice(8, 12) === "WEBP") {
+    let o = 12;
+    while (o + 8 <= buf.length) {
+      const id = buf.toString("latin1", o, o + 4);
+      const size = buf.readUInt32LE(o + 4);
+      if (id === "EXIF") {
+        const d = o + 8;
+        return tiffHasGps(buf.toString("latin1", d, d + 6) === "Exif\0\0" ? d + 6 : d);
+      }
+      o += 8 + size + (size % 2);
+    }
+    return false;
+  }
+  if (buf.toString("latin1", 1, 4) === "PNG") {
+    let o = 8;
+    while (o + 8 <= buf.length) {
+      const size = buf.readUInt32BE(o);
+      if (buf.toString("latin1", o + 4, o + 8) === "eXIf") return tiffHasGps(o + 8);
+      o += 12 + size;
+    }
+  }
+  return false;
 }
 
 // ------------------------------------------------- Запуск
