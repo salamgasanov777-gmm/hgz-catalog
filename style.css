@@ -309,7 +309,8 @@ svg.more-ico { width: 20px; height: 20px; flex-basis: 20px; margin: 0 1px; }
   display: none;
 }
 
-.page-sheet h2 { margin: 0 0 14px; font-size: 20px; }
+/* .sheet.X — иначе общее .sheet h2 ниже в файле перебивало размер и отступ (с v115). */
+.sheet.page-sheet h2 { margin: 0 0 14px; font-size: 20px; }
 .page-lead { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: var(--ink); }
 .page-sub { margin: 0 0 4px; font-size: 14px; color: var(--muted); line-height: 1.45; }
 .page-link { display: inline-block; text-decoration: none; margin: 6px 0 16px; font-size: 14px; color: var(--accent); font-weight: 600; }
@@ -563,7 +564,7 @@ button.doc-card:active { scale: 0.98; }
 /* Окно заявки: строка на товар — название, фасовка, количество кнопками.
    Поля ввода 16 px: меньший шрифт iPhone увеличивает при наборе. */
 .order-sheet { max-height: 92vh; }
-.order-sheet h2 { margin: 0 0 6px; font-size: 19px; }
+.sheet.order-sheet h2 { margin: 0 0 6px; font-size: 19px; }
 .order-lead { margin: 0 0 6px; font-size: 13.5px; line-height: 1.4; color: var(--muted); }
 .order-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
 .order-name { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 14.5px; font-weight: 700; color: var(--ink); }
@@ -643,7 +644,7 @@ button.doc-card:active { scale: 0.98; }
 .ask-btn.order-send { margin-top: 18px; }
 .order-copy { cursor: pointer; font-family: inherit; text-align: left; }
 .order-note { margin: 10px 2px 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
-.compare-sheet h2 { margin: 0 0 14px; font-size: 19px; }
+.sheet.compare-sheet h2 { margin: 0 0 14px; font-size: 19px; }
 
 .compare-table-wrap {
   overflow-x: auto;
