@@ -488,7 +488,7 @@ button.doc-card:active { scale: 0.98; }
 .video-item.local video {
   display: block;
   width: 100%;
-  max-height: 62vh;
+  max-height: 62vh; max-height: 62dvh;
   background: #000; /* поля у ролика — чёрные в обеих темах, как в любом плеере */
 }
 
@@ -558,12 +558,12 @@ button.doc-card:active { scale: 0.98; }
 #order-btn { background: var(--gold); color: var(--on-gold); }
 
 .compare-sheet {
-  max-height: 88vh;
+  max-height: 88vh; max-height: 88dvh;
 }
 
 /* Окно заявки: строка на товар — название, фасовка, количество кнопками.
    Поля ввода 16 px: меньший шрифт iPhone увеличивает при наборе. */
-.order-sheet { max-height: 92vh; }
+.order-sheet { max-height: 92vh; max-height: 92dvh; }
 .sheet.order-sheet h2 { margin: 0 0 6px; font-size: 19px; }
 .order-lead { margin: 0 0 6px; font-size: 13.5px; line-height: 1.4; color: var(--muted); }
 .order-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -1017,7 +1017,7 @@ html.touch-nav .brand-home:focus-visible { outline: none; }
      с весом, а не как переключение картинки. */
   transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
   z-index: 21;
-  max-height: 80vh;
+  max-height: 80vh; max-height: 80dvh;
   overflow-y: auto;
   /* Докрутили окно до края — дальше жест не уходит на страницу под ним. */
   overscroll-behavior: contain;
@@ -1504,12 +1504,12 @@ html.locked, html.locked body { overflow: hidden; }
 /* Окно сертификата открывается поверх карточки товара: слой выше, чем у
    обычных окон (21), иначе карточка, стоящая в разметке позже, закрыла бы его. */
 #cert-backdrop { z-index: 22; }
-.cert-sheet { max-height: 92vh; z-index: 23; }
+.cert-sheet { max-height: 92vh; max-height: 92dvh; z-index: 23; }
 .cert-sheet h2 { margin: 0 0 4px; font-size: 20px; }
 .cert-sheet .cert-note { margin: 0 0 12px; }
 .cert-send { margin: 0 0 12px; cursor: pointer; font-family: inherit; text-align: left; }
 .cert-view {
-  max-height: calc(92vh - 120px);
+  max-height: calc(92vh - 120px); max-height: calc(92dvh - 120px);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
@@ -1522,7 +1522,7 @@ html.locked, html.locked body { overflow: hidden; }
 .cert-view img {
   display: block;
   width: auto; max-width: 100%;
-  height: auto; max-height: calc(92vh - 124px);
+  height: auto; max-height: calc(92vh - 124px); max-height: calc(92dvh - 124px);
   margin: 0 auto;
   cursor: zoom-in;
 }
@@ -1992,7 +1992,7 @@ html.locked, html.locked body { overflow: hidden; }
     width: min(620px, calc(100% - 48px));
     border-radius: var(--r-xl);
     bottom: 24px;
-    max-height: min(84vh, 860px);
+    max-height: min(84vh, 860px); max-height: min(84dvh, 860px);
   }
   .sheet.open { transform: translate(-50%, var(--drag, 0px)); }
 
@@ -2051,7 +2051,7 @@ body {
    картинка сертификата должна помещаться в него, иначе появлялась вторая
    полоса прокрутки. */
 @media (min-width: 700px) {
-  .cert-sheet { max-height: min(88vh, 900px); }
-  .cert-view { max-height: calc(min(88vh, 900px) - 120px); }
-  .cert-view img { max-height: calc(min(88vh, 900px) - 124px); }
+  .cert-sheet { max-height: min(88vh, 900px); max-height: min(88dvh, 900px); }
+  .cert-view { max-height: calc(min(88vh, 900px) - 120px); max-height: calc(min(88dvh, 900px) - 120px); }
+  .cert-view img { max-height: calc(min(88vh, 900px) - 124px); max-height: calc(min(88dvh, 900px) - 124px); }
 }
