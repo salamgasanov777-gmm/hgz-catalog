@@ -1096,7 +1096,7 @@ function unlockScroll() {
 // не добирается программа чтения с экрана. Закрытые окна помечены всегда —
 // иначе в них остаются кнопки, доступные с клавиатуры, хотя окна не видно.
 const DIALOG_IDS = ["sheet", "compare-sheet", "order-sheet", "qr-sheet", "ios-sheet", "page-sheet", "cert-sheet"];
-const PAGE_REGIONS = [".topbar", "#home-intro", "#home-rail", "#section-bar", "#compare-btn", "#order-btn", "#grid", "#site-foot", "#update-bar", "#manager-bar", "#install-bar"];
+const PAGE_REGIONS = [".topbar", "#home-intro", "#home-rail", "#section-bar", "#compare-btn", "#order-btn", "#grid", "#site-foot", "#update-bar", "#move-bar", "#manager-bar", "#install-bar"];
 
 function setInert(el, on) {
   if (!el) return;
@@ -3994,6 +3994,10 @@ function catalogUrl() {
   return APP_URL;
 }
 
+// Старая копия на github.io (с v119): вместо «Установить» — полоса «Каталог
+// переехал», чтобы со старого адреса больше не ставили значки.
+const OLD_HOST = /\.github\.io$/.test(location.hostname);
+
 document.getElementById("qr-btn").addEventListener("click", openQr);
 
 // ------------------------------------------------- Меню «⋯» в шапке
@@ -4009,14 +4013,15 @@ function moreMenuOpen() {
 }
 
 function openMoreMenu() {
-  // Ссылка строится при каждом открытии: у менеджера в ней его контакт (та же,
-  // что в QR-коде), и клиент, открыв её, получит предложение записать менеджера.
-  const text = `Каталог продукции Хабезского гипсового завода: ${qrLink()}`;
-  document.getElementById("share-catalog").href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  // «Поделиться каталогом» — только чистый адрес: WhatsApp сам покажет
+  // картинку, название и домен (решение владельца 15.10.2026, v119). Контакт
+  // менеджера в ссылку больше не кладём — его имя по-русски превращалось в
+  // простыню «%D0%9C…». Привязку клиента к менеджеру делает только QR-код.
+  document.getElementById("share-catalog").href = `https://wa.me/?text=${encodeURIComponent(APP_URL)}`;
   // «Установить на телефон» — пока каталог не установлен и браузер умеет
   // установку (Chrome сообщил о готовности или это iPhone с инструкцией).
   // Раньше крестик на полосе установки прятал её навсегда, вернуть было нечем.
-  document.getElementById("install-menu").hidden = isStandalone() || !(installPrompt || isIOS());
+  document.getElementById("install-menu").hidden = OLD_HOST || isStandalone() || !(installPrompt || isIOS());
   moreMenu.hidden = false;
   moreScrim.hidden = false;
   moreBtn.setAttribute("aria-expanded", "true");
@@ -4177,7 +4182,7 @@ function showInstallBar() {
   try {
     hidden = Boolean(localStorage.getItem("hgz-install-hidden"));
   } catch {}
-  if (isStandalone() || hidden) return;
+  if (isStandalone() || hidden || OLD_HOST) return;
   document.getElementById("install-bar").classList.add("open");
 }
 
@@ -4407,16 +4412,58 @@ function wireManagerButtons(box) {
   });
 }
 
-// Полоса о менеджере из ссылки: клиент отсканировал код и решает, записать
-// ли этот контакт. Сама не уходит — без нажатия ничего не записывается, а
-// крестик значит «не записывать» (или «оставить прежнего»).
+// Менеджер из QR (решение владельца 15.10.2026, v119):
+// - у клиента менеджера ещё нет — записываем сразу, без вопроса, и коротко
+//   сообщаем «Ваш менеджер: …» с кнопкой «Не мой» (отсканировал случайно);
+// - менеджер уже есть, а QR другого — только с вопросом «Сменить?»: молча
+//   переписать сложившуюся связь клиента с менеджером нельзя;
+// - свой контакт (own) ссылкой не меняется (это решает readManagerFromUrl).
+// Кому уходит заявка, клиент всё равно видит: WhatsApp открывает чат с номером.
 let pendingManager = null;
+let managerJustSaved = false;
+let managerBarTimer = 0;
+
+function managerWho(m) {
+  return m.name ? `${m.name}, ${phonePretty(m.phone)}` : phonePretty(m.phone);
+}
+
+function takeManagerFromQr(m) {
+  if (manager) {
+    offerManager(m);
+    return;
+  }
+  saveManager(m);
+  const bar = document.getElementById("manager-bar");
+  if (!bar) return;
+  managerJustSaved = true;
+  pendingManager = null;
+  // Имя пришло из ссылки — только textContent, никакого innerHTML.
+  const text = document.getElementById("manager-bar-text");
+  text.textContent = `Ваш менеджер: ${managerWho(m)}`;
+  const note = document.createElement("small");
+  note.className = "manager-bar-warn";
+  note.textContent = "Заявки и вопросы о цене уйдут ему в WhatsApp.";
+  text.appendChild(note);
+  document.getElementById("manager-bar-open").textContent = "Не мой";
+  bar.classList.add("open");
+  managerBarTimer = setTimeout(() => {
+    if (managerJustSaved) closeManagerBar();
+  }, 10000);
+}
+
+function closeManagerBar() {
+  clearTimeout(managerBarTimer);
+  managerJustSaved = false;
+  pendingManager = null;
+  document.getElementById("manager-bar").classList.remove("open");
+}
 
 function offerManager(m) {
   const bar = document.getElementById("manager-bar");
   if (!bar) return;
+  managerJustSaved = false;
   pendingManager = m;
-  const who = m.name ? `${m.name}, ${phonePretty(m.phone)}` : phonePretty(m.phone);
+  const who = managerWho(m);
   const first = !manager;
   // Последствия — прямо в вопросе: ссылку с подписью «Менеджер завода» может
   // собрать кто угодно, а после «Записать» заявки с адресом объекта уходят
@@ -4433,17 +4480,19 @@ function offerManager(m) {
 }
 
 document.getElementById("manager-bar-open").addEventListener("click", () => {
-  document.getElementById("manager-bar").classList.remove("open");
-  if (pendingManager) {
-    saveManager(pendingManager);
-    pendingManager = null;
+  // «Не мой» после записи из QR — забываем только что записанного.
+  if (managerJustSaved) {
+    closeManagerBar();
+    saveManager(null);
+    render();
+    return;
   }
+  const m = pendingManager;
+  closeManagerBar();
+  if (m) saveManager(m);
   openPage("contact");
 });
-document.getElementById("manager-bar-hide").addEventListener("click", () => {
-  pendingManager = null;
-  document.getElementById("manager-bar").classList.remove("open");
-});
+document.getElementById("manager-bar-hide").addEventListener("click", closeManagerBar);
 
 // Закрытые окна помечаем сразу: до первого открытия в них тоже нельзя
 // попадать с клавиатуры.
@@ -4451,6 +4500,42 @@ syncInert();
 
 loadManager();
 const managerFromUrl = readManagerFromUrl();
-if (managerFromUrl) offerManager(managerFromUrl);
+if (managerFromUrl) takeManagerFromQr(managerFromUrl);
+
+// ------------------------------------------------- Переезд с github.io (v119)
+// Старая копия каталога на github.io (и значки, поставленные с неё) зовёт на
+// habez-catalog.ru; на новом адресе полосы нет. Записанного менеджера отдаём
+// в ссылке: на новом адресе менеджера ещё нет, и он запишется так же, как
+// из QR (takeManagerFromQr) — со строкой «Ваш менеджер: … · Не мой».
+// Избранное и заявка не переезжают: браузер хранит их отдельно для адреса.
+// Крестик прячет полосу до следующего запуска.
+function moveLink() {
+  if (!manager || manager.own || !manager.phone) return APP_URL;
+  const name = manager.name ? `&n=${encodeURIComponent(manager.name)}` : "";
+  return `${APP_URL}?m=${encodeURIComponent(manager.phone)}${name}`;
+}
+
+function showMoveBar() {
+  if (!OLD_HOST) return;
+  try {
+    if (sessionStorage.getItem("hgz-move-hidden")) return;
+  } catch {}
+  document.getElementById("move-note").textContent = isStandalone()
+    ? "Откройте новый адрес, установите каталог оттуда, а этот значок удалите."
+    : "Откройте новый адрес и пользуйтесь им — этот скоро отключим.";
+  document.getElementById("move-open").href = moveLink();
+  document.getElementById("move-bar").classList.add("open");
+}
+
+function hideMoveBar() {
+  try {
+    sessionStorage.setItem("hgz-move-hidden", "1");
+  } catch {}
+  document.getElementById("move-bar").classList.remove("open");
+}
+
+document.getElementById("move-open").addEventListener("click", hideMoveBar);
+document.getElementById("move-hide").addEventListener("click", hideMoveBar);
+showMoveBar();
 
 load();

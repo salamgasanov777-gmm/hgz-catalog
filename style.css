@@ -1324,8 +1324,14 @@ html.locked, html.locked body { overflow: hidden; }
    Правило обязано идти после .install-bar и .update-bar — вес селекторов
    одинаковый, и побеждает тот, что ниже в файле. */
 .manager-bar { z-index: 17; }
-/* Последствия «Записать» — мелкой строкой под вопросом (с v114). */
-.manager-bar-warn { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; line-height: 1.35; opacity: .85; }
+/* «Каталог переехал» (с v119, только на github.io) — над полосой обновления
+   (тот же вес, но стоит ниже в разметке), под полосой менеджера. */
+.move-bar { z-index: 16; }
+.move-bar a.install-yes { text-decoration: none; }
+/* Последствия «Записать» — мелкой строкой под вопросом (с v114); так же
+   пояснение в полосе «Каталог переехал». */
+.manager-bar-warn,
+.move-note { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; line-height: 1.35; opacity: .85; }
 /* «Это не мой менеджер — убрать» под карточкой менеджера (с v114). */
 .mgr-forget { margin: -4px 0 14px; }
 
