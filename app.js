@@ -2719,7 +2719,7 @@ function prepareCertFile(cert) {
 
 document.getElementById("cert-send").addEventListener("click", () => {
   if (!certFileFor) return;
-  const url = new URL(certFileFor, location.href).href;
+  const url = new URL(certFileFor, catalogUrl()).href;
   const title = certShareTitle || (currentProduct ? `Сертификат соответствия — ${currentProduct.name}` : "Сертификат соответствия");
   if (certFile) {
     navigator.share({ files: [certFile], title }).catch(() => {});
@@ -3983,18 +3983,15 @@ function closeCompare() {
   document.getElementById("compare-backdrop").classList.remove("open");
   document.getElementById("compare-sheet").classList.remove("open");
 }
-// Запасной адрес на случай, когда каталог открыт локально при разработке:
-// код должен вести на живой сайт, а не на localhost.
-const APP_URL = "https://salamgasanov777-gmm.github.io/hgz-catalog/";
+// Адрес каталога для QR-кода, «Поделиться» и ссылок на товар и сертификат.
+// С v118 (15.10.2026) — всегда собственный домен, откуда бы каталог ни был
+// открыт: копия на github.io (и установленные с неё значки) раздаёт уже новый
+// адрес, так клиенты сами переходят на habez-catalog.ru. Локальная разработка
+// тоже получает живой адрес, а не localhost.
+const APP_URL = "https://habez-catalog.ru/";
 
-// На живом сайте адрес берётся из строки браузера, а не из константы: после
-// переезда на собственный домен QR-код начнёт вести на него сам, без правок
-// в коде. Локальная разработка (file://, localhost) отсекается по протоколу
-// и имени хоста и получает APP_URL.
 function catalogUrl() {
-  const local = location.protocol !== "https:" || /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
-  if (local) return APP_URL;
-  return location.origin + location.pathname.replace(/index\.html$/, "");
+  return APP_URL;
 }
 
 document.getElementById("qr-btn").addEventListener("click", openQr);
