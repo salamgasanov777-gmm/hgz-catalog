@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://habez-catalog.ru/">
+<title>Каталог переехал — habez-catalog.ru</title>
+<script>
+// Старый адрес каталога ХГЗ (github.io) с 22.10.2026 только перекидывает на
+// habez-catalog.ru. Ссылку менеджера (?m=&n=) и товар (#p=) несём с собой; если
+// менеджер был записан на старом адресе — передаём его ссылкой, как делал v119
+// (браузер хранит запись отдельно для каждого адреса).
+(function () {
+  var to = "https://habez-catalog.ru/";
+  var q = location.search;
+  if (!/[?&]m=/.test(q)) {
+    try {
+      var m = JSON.parse(localStorage.getItem("hgz-manager") || "null");
+      var phone = m && !m.own ? String(m.phone || "").replace(/\D/g, "") : "";
+      if (/^\d{10,15}$/.test(phone)) {
+        q = "?m=" + phone + (m.name ? "&n=" + encodeURIComponent(String(m.name).slice(0, 60)) : "");
+      }
+    } catch (e) {}
+  }
+  location.replace(to + q + location.hash);
+})();
+</script>
+<style>body{font:17px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:40px 20px;text-align:center;color:#1d1d1f;background:#fff}a{color:#356497}</style>
+</head>
+<body>
+<p>Каталог Хабезского гипсового завода переехал.</p>
+<p><a href="https://habez-catalog.ru/">Открыть habez-catalog.ru</a></p>
+</body>
+</html>
